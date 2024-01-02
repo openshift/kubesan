@@ -1,0 +1,272 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: clustered-csi.gitlab.io
+spec:
+  attachRequired: false  # skip Controller{Publish,Unpublish}Volume()
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: clustered-csi
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-controller-plugin
+  namespace: clustered-csi
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: clustered-csi-controller-plugin
+rules:
+  # clustered-csi-plugin
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, list, watch, patch, update]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, create, delete]
+  - apiGroups: [snapshot.storage.k8s.io]
+    resources: [volumesnapshots]
+    verbs: [get, list, patch]
+  # csi-provisioner
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, list, watch, update]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [list, watch, create, update, patch]
+  - apiGroups: [snapshot.storage.k8s.io]
+    resources: [volumesnapshots]
+    verbs: [get, list]
+  - apiGroups: [snapshot.storage.k8s.io]
+    resources: [volumesnapshotcontents]
+    verbs: [get, list]
+  - apiGroups: [storage.k8s.io]
+    resources: [csinodes]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list, watch]
+
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: clustered-csi.csi-controller-plugin
+subjects:
+  - kind: ServiceAccount
+    name: csi-controller-plugin
+    namespace: clustered-csi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clustered-csi-controller-plugin
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csi-controller-plugin
+  namespace: clustered-csi
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: &labels
+      clustered-csi.gitlab.io/component: csi-controller-plugin
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      serviceAccountName: csi-controller-plugin
+      containers:
+        - name: clustered-csi-plugin
+          image: &image quay.io/clustered-csi/clustered-csi:0.0.0
+          args:
+            - csi-controller-plugin
+            - *image
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /run/csi
+            - name: dev
+              mountPath: /dev
+            - name: etc-lvm
+              mountPath: /etc/lvm
+            - name: lvm-socket
+              mountPath: /run/lvm/lvmlockd.socket
+            - name: lvm-pidfile
+              mountPath: /run/lvmlockd.pid
+          securityContext:
+            privileged: true
+        - name: csi-provisioner
+          image: registry.k8s.io/sig-storage/csi-provisioner:v3.5.0
+          args:
+            - --extra-create-metadata  # to get PVC/PV info in CreateVolume()
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /run/csi
+      volumes:
+        - name: socket-dir
+          emptyDir:
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: etc-lvm
+          hostPath:
+            path: /etc/lvm
+            type: Directory
+        - name: lvm-socket
+          hostPath:
+            path: /run/lvm/lvmlockd.socket
+            type: Socket
+        # prevent LVM commands from failing due to thinking that lvmlockd isn't
+        # running
+        - name: lvm-pidfile
+          hostPath:
+            path: /run/lvmlockd.pid
+            type: File
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-node-plugin
+  namespace: clustered-csi
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: clustered-csi-node-plugin
+rules:
+  # clustered-csi-plugin
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, list, update]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, create, delete]
+
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: clustered-csi.csi-node-plugin
+subjects:
+  - kind: ServiceAccount
+    name: csi-node-plugin
+    namespace: clustered-csi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: clustered-csi-node-plugin
+
+---
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: csi-node-plugin
+  namespace: clustered-csi
+spec:
+  selector:
+    matchLabels: &labels
+      clustered-csi.gitlab.io/component: csi-node-plugin
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      serviceAccountName: csi-node-plugin
+      containers:
+        - name: clustered-csi-plugin
+          image: &image quay.io/clustered-csi/clustered-csi:0.0.0
+          args:
+            - csi-node-plugin
+            - $(NODE_NAME)
+            - *image
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+            - name: socket-dir
+              mountPath: /run/csi
+            - name: dev
+              mountPath: /dev
+            - name: etc-lvm
+              mountPath: /etc/lvm
+            - name: lvm-socket
+              mountPath: /run/lvm/lvmlockd.socket
+            - name: lvm-pidfile
+              mountPath: /run/lvmlockd.pid
+          securityContext:
+            privileged: true
+        - name: node-driver-registrar
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.8.0
+          args:
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/clustered-csi/socket
+          volumeMounts:
+            - name: registration-dir
+              mountPath: /registration
+            - name: socket-dir
+              mountPath: /run/csi
+      volumes:
+        # where kubelet wants volumes to be staged/published
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        # where node-driver-registrar registers the plugin with kubelet
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+        # where the socket for kubelet <-> plugin communication is created
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/clustered-csi
+            type: DirectoryOrCreate
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: etc-lvm
+          hostPath:
+            path: /etc/lvm
+            type: Directory
+        - name: lvm-socket
+          hostPath:
+            path: /run/lvm/lvmlockd.socket
+            type: Socket
+        # prevent LVM commands from failing due to thinking that lvmlockd isn't
+        # running
+        - name: lvm-pidfile
+          hostPath:
+            path: /run/lvmlockd.pid
+            type: File

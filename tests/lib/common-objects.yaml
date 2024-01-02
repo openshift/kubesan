@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# The objects defined in this file are created prior to running each test.
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: storage-class
+provisioner: clustered-csi.gitlab.io
+parameters:
+  lvmVolumeGroupName: clustered-csi-vg

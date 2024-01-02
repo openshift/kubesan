@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+
+FROM quay.io/fedora/fedora:39
+
+RUN dnf install -y lvm2-lockd sanlock strace nbd && dnf clean all
+
+ENTRYPOINT []
