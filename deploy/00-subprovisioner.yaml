@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: subprovisioner.gitlab.io
+spec:
+  attachRequired: false  # skip Controller{Publish,Unpublish}Volume()
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: subprovisioner

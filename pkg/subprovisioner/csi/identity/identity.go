@@ -6,7 +6,7 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/config"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 

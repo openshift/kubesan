@@ -7,7 +7,7 @@ LUN in a SAN).
 ## Installation
 
 ```console
-$ kubectl create -f deployment.yaml
+$ kubectl create -f deploy/
 ```
 
 ## Setting up a shared block device

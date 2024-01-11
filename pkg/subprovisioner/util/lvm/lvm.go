@@ -8,8 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/config"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/volume"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -68,20 +67,4 @@ func StartVgLockspace(ctx context.Context, lvmPvPath string) error {
 	}
 
 	return nil
-}
-
-func GetLvPath(ctx context.Context, info *volume.Info) (string, error) {
-	output, err := Command(
-		ctx,
-		"lvs",
-		"--devices", info.LvmPvPath,
-		"--options", "lv_path",
-		"--noheadings",
-		info.LvmThinLvRef(),
-	)
-	if err != nil {
-		return "", status.Errorf(codes.Internal, "failed to get path to LVM LV: %s: %s", err, output)
-	}
-
-	return strings.TrimSpace(output), nil
 }

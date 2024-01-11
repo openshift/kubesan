@@ -14,13 +14,12 @@ spec:
     metadata:
       labels: *labels
     spec:
-      serviceAccountName: nbd-server
       nodeName: {{.NodeName}}
       containers:
         - name: nbd-server
           image: {{.Image}}
           command:
-            - ./nbd-server.sh
+            - ./nbd/server.sh
             - {{.DevicePathOnHost}}
           volumeMounts:
             - name: dev

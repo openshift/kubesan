@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-node-plugin
+  namespace: subprovisioner
+
+---
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: csi-node-plugin
+  namespace: subprovisioner
+spec:
+  selector:
+    matchLabels: &labels
+      subprovisioner.gitlab.io/component: csi-node-plugin
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      serviceAccountName: csi-node-plugin
+      containers:
+        - name: csi-plugin
+          image: &image quay.io/subprovisioner/subprovisioner:0.0.0
+          command:
+            - ./subprovisioner
+            - csi-node-plugin
+          env:
+            - name: SUBPROVISIONER_IMAGE
+              value: *image
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+            - name: socket-dir
+              mountPath: /run/csi
+            - name: dev
+              mountPath: /dev
+            - name: run-lvm
+              mountPath: /run/lvm
+            - name: run-subprovisioner-nbd
+              mountPath: /run/subprovisioner/nbd
+          securityContext:
+            privileged: true
+        - name: node-driver-registrar
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.8.0
+          args:
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/subprovisioner/socket
+          volumeMounts:
+            - name: registration-dir
+              mountPath: /registration
+            - name: socket-dir
+              mountPath: /run/csi
+      volumes:
+        # where kubelet wants volumes to be staged/published
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        # where node-driver-registrar registers the plugin with kubelet
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+        # where the socket for kubelet <-> plugin communication is created
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/subprovisioner
+            type: DirectoryOrCreate
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: run-lvm
+          hostPath:
+            path: /run/subprovisioner/lvm
+            type: DirectoryOrCreate
+        - name: run-subprovisioner-nbd
+          hostPath:
+            path: /run/subprovisioner/nbd
+            type: DirectoryOrCreate

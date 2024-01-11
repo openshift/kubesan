@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{.Name}}
+  namespace: subprovisioner
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      nodeName: {{.NodeName}}
+      hostNetwork: {{.HostNetwork}}
+      containers:
+        - name: job
+          image: {{.Image}}
+          command: {{.CommandJson}}
+          volumeMounts:
+            - name: dev
+              mountPath: /dev
+            - name: run-lvm
+              mountPath: /run/lvm
+            - name: run-subprovisioner-nbd
+              mountPath: /run/subprovisioner/nbd
+          securityContext:
+            privileged: true
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: run-lvm
+          hostPath:
+            path: /run/subprovisioner/lvm
+            type: DirectoryOrCreate
+        - name: run-subprovisioner-nbd
+          hostPath:
+            path: /run/subprovisioner/nbd
+            type: DirectoryOrCreate

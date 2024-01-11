@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package util
+package fs
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 
 // Like os.Symlink, but replaces newname if it is a file, an empty directory, or a symlink (Kubernetes places an empty
 // directory at the path where block volumes should be staged/published).
-func Symlink(oldname, newname string) error {
+func Symlink(oldname string, newname string) error {
 	err := os.Remove(newname)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err

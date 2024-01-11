@@ -6,20 +6,23 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/k8s"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/util"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/fs"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/volumemanager"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type NodeServer struct {
 	csi.UnimplementedNodeServer
-	Clientset *k8s.Clientset
-	NodeName  string
-	Image     string
+	Clientset     *k8s.Clientset
+	VolumeManager *volumemanager.VolumeManager
 }
 
 func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	resp := &csi.NodeGetInfoResponse{
-		NodeId: s.NodeName,
+		NodeId: config.LocalNodeName,
 	}
 	return resp, nil
 }
@@ -47,12 +50,68 @@ func (s *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 	return resp, nil
 }
 
+func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	// TODO: Validate request.
+	// TODO: Must enforce access modes ourselves; check the CSI spec.
+
+	// validate request
+
+	if req.VolumeCapability.GetBlock() == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "expected a block volume")
+	}
+
+	volume, err := volumemanager.VolumeFromString(req.VolumeId)
+	if err != nil {
+		return nil, err
+	}
+
+	// attach volume to current node
+
+	_, path, err := s.VolumeManager.AttachVolume(ctx, volume, &config.LocalNodeName, "staged")
+	if err != nil {
+		return nil, err
+	}
+
+	// create symlink to device for NodePublishVolume()
+
+	err = fs.Symlink(path, req.StagingTargetPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// success
+
+	resp := &csi.NodeStageVolumeResponse{}
+	return resp, nil
+}
+
+func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	// validate request
+
+	volume, err := volumemanager.VolumeFromString(req.VolumeId)
+	if err != nil {
+		return nil, err
+	}
+
+	// detach volume from current node
+
+	err = s.VolumeManager.DetachVolume(ctx, volume, config.LocalNodeName, "staged")
+	if err != nil {
+		return nil, err
+	}
+
+	// success
+
+	resp := &csi.NodeUnstageVolumeResponse{}
+	return resp, nil
+}
+
 func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// TODO: Validate request.
 
-	// create symlink to LVM thin LV where Kubernetes expects it to be
+	// create symlink to device for Kubernetes
 
-	err := util.Symlink(req.StagingTargetPath, req.TargetPath)
+	err := fs.Symlink(req.StagingTargetPath, req.TargetPath)
 	if err != nil {
 		return nil, err
 	}

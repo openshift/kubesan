@@ -10,16 +10,17 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/k8s"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/controller"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/identity"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/node"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/volumemanager"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
-func RunControllerPlugin(csiSocketPath string, image string) error {
+func RunControllerPlugin(csiSocketPath string) error {
 	clientset, listener, server, err := setup(csiSocketPath)
 	if err != nil {
 		return err
@@ -29,15 +30,15 @@ func RunControllerPlugin(csiSocketPath string, image string) error {
 
 	csi.RegisterIdentityServer(server, &identity.IdentityServer{})
 	csi.RegisterControllerServer(server, &controller.ControllerServer{
-		Clientset: clientset,
-		Image:     image,
+		Clientset:     clientset,
+		VolumeManager: volumemanager.New(clientset),
 	})
 	return server.Serve(listener)
 
 	// TODO: Handle SIGTERM gracefully.
 }
 
-func RunNodePlugin(csiSocketPath string, nodeName string, image string) error {
+func RunNodePlugin(csiSocketPath string) error {
 	clientset, listener, server, err := setup(csiSocketPath)
 	if err != nil {
 		return err
@@ -47,9 +48,8 @@ func RunNodePlugin(csiSocketPath string, nodeName string, image string) error {
 
 	csi.RegisterIdentityServer(server, &identity.IdentityServer{})
 	csi.RegisterNodeServer(server, &node.NodeServer{
-		Clientset: clientset,
-		NodeName:  nodeName,
-		Image:     image,
+		Clientset:     clientset,
+		VolumeManager: volumemanager.New(clientset),
 	})
 	return server.Serve(listener)
 

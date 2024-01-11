@@ -430,6 +430,7 @@ __run() {
             sudo modprobe nbd nbds_max=16  # for Subprovisioner to use as well
             __run_in_test_container --net host -- \
                 nbd-client ${NODE_IPS[0]} /dev/nbd0
+            sudo ln -s /dev/nbd0 /dev/subprovisioner-backing-volume
             "
     done
 
@@ -438,8 +439,12 @@ __run() {
         set -o errexit -o pipefail -o nounset +o xtrace
 
         __log_cyan "Installing Subprovisioner..."
-        sed -E 's|quay.io/subprovisioner/([a-z-]+):[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
-            "${repo_root}/deployment.yaml" | kubectl create -f -
+        for file in "${repo_root}/deploy/"*; do
+            sed \
+                -E 's|quay.io/subprovisioner/([a-z-]+):[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
+                "$file" \
+                | kubectl create -f -
+        done
 
         __log_cyan "Creating common objects..."
         kubectl patch sc standard \
@@ -463,7 +468,7 @@ __run() {
         if ! (( sandbox )); then
             __log_cyan "Uninstalling Subprovisioner..."
             kubectl delete --ignore-not-found --timeout=60s \
-                -f "${repo_root}/deployment.yaml" \
+                -f "${repo_root}/deploy/" \
                 || exit_code="$?"
 
             if (( exit_code != 0 )); then

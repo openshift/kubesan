@@ -24,8 +24,8 @@ WORKDIR /subprovisioner
 RUN touch /run/lvmlockd.pid
 
 COPY lvm/lvm.conf /etc/lvm/
-COPY lvm/*.sh ./
-COPY nbd/*.sh ./
+COPY lvm/*.sh ./lvm/
+COPY nbd/*.sh ./nbd/
 
 COPY --from=builder /subprovisioner/bin/subprovisioner ./
 

@@ -10,4 +10,4 @@ metadata:
     storageclass.kubernetes.io/is-default-class: "true"
 provisioner: subprovisioner.gitlab.io
 parameters:
-  backingDevicePath: /dev/nbd0
+  backingDevicePath: /dev/subprovisioner-backing-volume
