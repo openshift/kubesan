@@ -12,9 +12,11 @@ COPY pkg/ pkg/
 
 RUN go build -o bin/subprovisioner ./cmd/subprovisioner
 
-FROM quay.io/centos/centos:stream9
+# CentOS Stream 9 doesn't provide package nbd
+# FROM quay.io/centos/centos:stream9
+FROM quay.io/fedora/fedora:39
 
-RUN dnf install -qy lvm2-lockd sanlock && dnf clean all
+RUN dnf install -qy lvm2-lockd nbd sanlock && dnf clean all
 
 WORKDIR /subprovisioner
 
@@ -22,8 +24,9 @@ WORKDIR /subprovisioner
 RUN touch /run/lvmlockd.pid
 
 COPY lvm/lvm.conf /etc/lvm/
-COPY lvm/*.sh /subprovisioner
+COPY lvm/*.sh ./
+COPY nbd/*.sh ./
 
-COPY --from=builder /subprovisioner/bin/subprovisioner /subprovisioner/
+COPY --from=builder /subprovisioner/bin/subprovisioner ./
 
 ENTRYPOINT []

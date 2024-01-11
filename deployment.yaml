@@ -153,8 +153,11 @@ metadata:
 rules:
   # subprovisioner-csi-plugin
   - apiGroups: [""]
-    resources: [persistentvolumeclaims]
+    resources: [persistentvolumes, persistentvolumeclaims, services]
     verbs: [get, list, update]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [create, delete, get]
   - apiGroups: [apps]
     resources: [replicasets]
     verbs: [get, list, create, delete]
@@ -312,3 +315,11 @@ spec:
             type: DirectoryOrCreate
         - name: run-sanlock
           emptyDir:
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nbd-server
+  namespace: subprovisioner

@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/util"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/k8s"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/controller"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/identity"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/node"
@@ -56,7 +56,7 @@ func RunNodePlugin(csiSocketPath string, nodeName string, image string) error {
 	// TODO: Handle SIGTERM gracefully.
 }
 
-func setup(csiSocketPath string) (*util.Clientset, net.Listener, *grpc.Server, error) {
+func setup(csiSocketPath string) (*k8s.Clientset, net.Listener, *grpc.Server, error) {
 	// set up Kubernetes API connection
 
 	config, err := rest.InClusterConfig()
@@ -69,7 +69,7 @@ func setup(csiSocketPath string) (*util.Clientset, net.Listener, *grpc.Server, e
 		return nil, nil, nil, err
 	}
 
-	clientset := &util.Clientset{
+	clientset := &k8s.Clientset{
 		Clientset: kubernetesClientset,
 	}
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/config"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/volume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -54,8 +55,8 @@ func IdempotentLvRemove(ctx context.Context, arg ...string) (string, error) {
 	return output, nil
 }
 
-func StartVgLockspace(ctx context.Context, backingDevicePath string) error {
-	args := []string{"--devices", backingDevicePath, "--lock-start", config.VgName}
+func StartVgLockspace(ctx context.Context, lvmPvPath string) error {
+	args := []string{"--devices", lvmPvPath, "--lock-start", config.LvmVgName}
 
 	_, err := Command(ctx, "vgchange", args...)
 	if err != nil {
@@ -67,4 +68,20 @@ func StartVgLockspace(ctx context.Context, backingDevicePath string) error {
 	}
 
 	return nil
+}
+
+func GetLvPath(ctx context.Context, info *volume.Info) (string, error) {
+	output, err := Command(
+		ctx,
+		"lvs",
+		"--devices", info.LvmPvPath,
+		"--options", "lv_path",
+		"--noheadings",
+		info.LvmThinLvRef(),
+	)
+	if err != nil {
+		return "", status.Errorf(codes.Internal, "failed to get path to LVM LV: %s: %s", err, output)
+	}
+
+	return strings.TrimSpace(output), nil
 }

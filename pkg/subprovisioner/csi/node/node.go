@@ -4,19 +4,15 @@ package node
 
 import (
 	"context"
-	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/lvm"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/k8s"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/util"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/volume"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type NodeServer struct {
 	csi.UnimplementedNodeServer
-	Clientset *util.Clientset
+	Clientset *k8s.Clientset
 	NodeName  string
 	Image     string
 }
@@ -51,82 +47,10 @@ func (s *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 	return resp, nil
 }
 
-func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	// TODO: Validate request.
-	// TODO: Must enforce access modes ourselves; check the CSI spec.
-
-	// validate request
-
-	if req.VolumeCapability.GetBlock() == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "expected a block volume")
-	}
-
-	info := volume.InfoFromString(req.VolumeId)
-
-	// ensure the volume group's lockspace is started
-
-	err := lvm.StartVgLockspace(ctx, info.BackingDevicePath)
-	if err != nil {
-		return nil, err
-	}
-
-	// activate thin pool and thin volume
-
-	output, err := lvm.Command(ctx, "lvchange", "--devices", info.BackingDevicePath, "--activate", "ey", info.ThinPoolLvRef())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to activate thin pool: %s: %s", err, output)
-	}
-
-	output, err = lvm.Command(ctx, "lvchange", "--devices", info.BackingDevicePath, "--activate", "ey", info.ThinLvRef())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to activate thin volume: %s: %s", err, output)
-	}
-
-	// create symlink to thin volume where Kubernetes expects it
-
-	output, err = lvm.Command(ctx, "lvs", "--devices", info.BackingDevicePath, "--options", "lv_path", "--noheadings", info.ThinLvRef())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get path to thin volume: %s: %s", err, output)
-	}
-
-	lv_path := strings.TrimSpace(output)
-
-	err = util.Symlink(lv_path, req.StagingTargetPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// success
-
-	resp := &csi.NodeStageVolumeResponse{}
-	return resp, nil
-}
-
-func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	// deactivate thin volume and thin pool
-
-	info := volume.InfoFromString(req.VolumeId)
-
-	output, err := lvm.Command(ctx, "lvchange", "--devices", info.BackingDevicePath, "--activate", "n", info.ThinLvRef())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to deactivate thin volume: %s: %s", err, output)
-	}
-
-	output, err = lvm.Command(ctx, "lvchange", "--devices", info.BackingDevicePath, "--activate", "n", info.ThinPoolLvRef())
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to deactivate thin pool: %s: %s", err, output)
-	}
-
-	// success
-
-	resp := &csi.NodeUnstageVolumeResponse{}
-	return resp, nil
-}
-
 func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// TODO: Validate request.
 
-	// create symlink to thin volume where Kubernetes expects it
+	// create symlink to LVM thin LV where Kubernetes expects it to be
 
 	err := util.Symlink(req.StagingTargetPath, req.TargetPath)
 	if err != nil {

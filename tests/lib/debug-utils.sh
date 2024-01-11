@@ -130,3 +130,10 @@ __ssh_into_node() {
     fi
 }
 export -f __ssh_into_node
+
+retry() {
+    # shellcheck disable=SC2154
+    touch "${subprovisioner_retry_path}"
+    exit 0
+}
+export -f retry

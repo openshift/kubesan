@@ -11,34 +11,41 @@ import (
 )
 
 type Info struct {
-	BackingDevicePath string
-	PvcUid            types.UID
+	// Path to the LVM PV corresponding to the shared backing device.
+	LvmPvPath string
+
+	// Name of the Kubernetes PersistentVolume for the volume.
+	PvName string
+
+	// UID of the Kubernetes PersistentVolumeClaim for the volume.
+	PvcUid types.UID
 }
 
 func InfoFromString(s string) *Info {
-	split := strings.SplitN(s, ":", 2)
+	split := strings.SplitN(s, ":", 3)
 	return &Info{
-		BackingDevicePath: split[1],
-		PvcUid:            types.UID(split[0]),
+		LvmPvPath: split[2],
+		PvName:    split[0],
+		PvcUid:    types.UID(split[1]),
 	}
 }
 
 func (info *Info) ToString() string {
-	return fmt.Sprintf("%s:%s", info.PvcUid, info.BackingDevicePath)
+	return fmt.Sprintf("%s:%s:%s", info.PvName, info.PvcUid, info.LvmPvPath)
 }
 
-func (info *Info) ThinLvName() string {
+func (info *Info) LvmThinLvName() string {
 	return fmt.Sprintf("%s-thin", info.PvcUid)
 }
 
-func (info *Info) ThinPoolLvName() string {
+func (info *Info) LvmThinPoolLvName() string {
 	return fmt.Sprintf("%s-thin-pool", info.PvcUid)
 }
 
-func (info *Info) ThinLvRef() string {
-	return fmt.Sprintf("%s/%s", config.VgName, info.ThinLvName())
+func (info *Info) LvmThinLvRef() string {
+	return fmt.Sprintf("%s/%s", config.LvmVgName, info.LvmThinLvName())
 }
 
-func (info *Info) ThinPoolLvRef() string {
-	return fmt.Sprintf("%s/%s", config.VgName, info.ThinPoolLvName())
+func (info *Info) LvmThinPoolLvRef() string {
+	return fmt.Sprintf("%s/%s", config.LvmVgName, info.LvmThinPoolLvName())
 }

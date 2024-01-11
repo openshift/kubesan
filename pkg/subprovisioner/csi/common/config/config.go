@@ -5,5 +5,10 @@ package config
 const (
 	Domain  = "subprovisioner.gitlab.io"
 	Version = "0.0.0"
-	VgName  = "subprovisioner"
+
+	LvmVgName = "subprovisioner"
+
+	Namespace               = "subprovisioner"
+	PvPrimaryAnnotation     = Domain + "/primary"
+	PvSecondariesAnnotation = Domain + "/secondaries"
 )

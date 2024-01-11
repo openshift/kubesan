@@ -9,19 +9,19 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/config"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/k8s"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/lvm"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/util"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/volume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/storage/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
 
 type ControllerServer struct {
 	csi.UnimplementedControllerServer
-	Clientset *util.Clientset
+	Clientset *k8s.Clientset
 	Image     string
 }
 
@@ -61,18 +61,6 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if cap.GetBlock() == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "only block volumes are supported")
 		}
-
-		switch cap.AccessMode.Mode {
-		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
-			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
-			csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER,
-			csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER:
-		default:
-			return nil, status.Errorf(
-				codes.InvalidArgument,
-				"only access modes ReadWriteOnce and ReadWriteOncePod are supported",
-			)
-		}
 	}
 
 	capacity, _, _, err := validateCapacity(req.CapacityRange)
@@ -88,6 +76,10 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return value, nil
 	}
 
+	pvName, err := getParameter("csi.storage.k8s.io/pv/name")
+	if err != nil {
+		return nil, err
+	}
 	pvcName, err := getParameter("csi.storage.k8s.io/pvc/name")
 	if err != nil {
 		return nil, err
@@ -109,59 +101,66 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	info := volume.Info{
-		BackingDevicePath: backingDevicePath,
-		PvcUid:            pvc.UID,
+		LvmPvPath: backingDevicePath,
+		PvName:    pvName,
+		PvcUid:    pvc.UID,
 	}
 
 	// ensure the volume group has been created
 
-	err = s.ensureVgIsCreated(ctx, *pvc.Spec.StorageClassName, backingDevicePath)
+	err = s.ensureVgIsCreated(ctx, *pvc.Spec.StorageClassName, info.LvmPvPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// ensure the volume group's lockspace is started
 
-	err = lvm.StartVgLockspace(ctx, backingDevicePath)
+	err = lvm.StartVgLockspace(ctx, info.LvmPvPath)
 	if err != nil {
 		return nil, err
 	}
 
-	// create thin pool and thin volume
+	// create LVM thin pool LV and LVM thin LV
 
 	size := fmt.Sprintf("%db", capacity)
 
 	output, err := lvm.IdempotentLvCreate(
 		ctx,
-		"--devices", backingDevicePath,
+		"--devices", info.LvmPvPath,
 		"--activate", "n",
 		"--type", "thin-pool",
-		"--name", info.ThinPoolLvName(),
+		"--name", info.LvmThinPoolLvName(),
 		"--size", size,
-		config.VgName,
+		config.LvmVgName,
 	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create thin pool: %s: %s", err, output)
+		return nil, status.Errorf(codes.Internal, "failed to create LVM thin pool LV: %s: %s", err, output)
 	}
 
 	output, err = lvm.IdempotentLvCreate(
 		ctx,
-		"--devices", backingDevicePath,
+		"--devices", info.LvmPvPath,
 		"--type", "thin",
-		"--name", info.ThinLvName(),
-		"--thinpool", info.ThinPoolLvName(),
+		"--name", info.LvmThinLvName(),
+		"--thinpool", info.LvmThinPoolLvName(),
 		"--virtualsize", size,
-		config.VgName,
+		config.LvmVgName,
 	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create thin volume: %s: %s", err, output)
+		return nil, status.Errorf(codes.Internal, "failed to create LVM thin LV: %s: %s", err, output)
 	}
 
-	// deactivate thin volume (`--activate n` has no effect on `lvcreate --type thin`)
+	// deactivate LVM thin LV (`--activate n` has no effect on `lvcreate --type thin`)
 
-	output, err = lvm.Command(ctx, "lvchange", "--devices", backingDevicePath, "--activate", "n", info.ThinLvRef())
+	output, err = lvm.Command(
+		ctx,
+		"lvchange",
+		"--devices", info.LvmPvPath,
+		"--activate", "n",
+		info.LvmThinLvRef(),
+	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to deactivate thin volume: %s: %s", err, output)
+		return nil, status.Errorf(codes.Internal, "failed to deactivate LVM thin LV: %s: %s", err, output)
 	}
 
 	// success
@@ -188,21 +187,21 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	// ensure the volume group's lockspace is started
 
-	err := lvm.StartVgLockspace(ctx, info.BackingDevicePath)
+	err := lvm.StartVgLockspace(ctx, info.LvmPvPath)
 	if err != nil {
 		return nil, err
 	}
 
-	// remove thin volume and thin pool
+	// remove LVM thin LV and LVM thin pool LV
 
-	output, err := lvm.IdempotentLvRemove(ctx, "--devices", info.BackingDevicePath, info.ThinLvRef())
+	output, err := lvm.IdempotentLvRemove(ctx, "--devices", info.LvmPvPath, info.LvmThinLvRef())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to remove thin volume: %s: %s", err, output)
+		return nil, status.Errorf(codes.Internal, "failed to remove LVM thin LV: %s: %s", err, output)
 	}
 
-	output, err = lvm.IdempotentLvRemove(ctx, "--devices", info.BackingDevicePath, info.ThinPoolLvRef())
+	output, err = lvm.IdempotentLvRemove(ctx, "--devices", info.LvmPvPath, info.LvmThinPoolLvRef())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to remove thin pool: %s: %s", err, output)
+		return nil, status.Errorf(codes.Internal, "failed to remove LVM thin pool LV: %s: %s", err, output)
 	}
 
 	// success
@@ -220,7 +219,7 @@ func (s *ControllerServer) ensureVgIsCreated(ctx context.Context, storageClassNa
 
 	// check VG state
 
-	var sc *v1.StorageClass
+	var sc *storagev1.StorageClass
 	var shouldCreateVg bool
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -259,7 +258,7 @@ func (s *ControllerServer) ensureVgIsCreated(ctx context.Context, storageClassNa
 	// create VG or wait until it is created
 
 	if shouldCreateVg {
-		_, err = lvm.Command(ctx, "vgcreate", "--lock-type", "sanlock", config.VgName, pvPath)
+		_, err = lvm.Command(ctx, "vgcreate", "--lock-type", "sanlock", config.LvmVgName, pvPath)
 
 		if err == nil {
 			sc.Annotations[stateAnnotation] = "created"
@@ -268,6 +267,7 @@ func (s *ControllerServer) ensureVgIsCreated(ctx context.Context, storageClassNa
 		}
 
 		// don't use ctx so that we don't fail to update the annotation after successfully creating the VG
+		// TODO: This fails if the SC was modified meanwhile, fix this.
 		_, err = storageClasses.Update(context.Background(), sc, metav1.UpdateOptions{})
 		return err
 	} else {

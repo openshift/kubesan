@@ -15,7 +15,11 @@ $ kubectl create -f deployment.yaml
 Ensure that the shared, backing block device is available on all nodes in the
 cluster at the same path.
 
-Then simply create a `StorageClass` that uses the Subprovisioner CSI plugin and
+Also ensure that the NBD kernel client is loaded on all nodes. Generally you
+should enable as many NBD devices on each node as the maximum number of
+Subprovisioner volumes you may need to have mounted on a single node at once.
+
+Then create a `StorageClass` that uses the Subprovisioner CSI plugin and
 specifies the path to the backing device:
 
 ```yaml
@@ -28,7 +32,7 @@ parameters:
   backingDevicePath: /dev/my-san-lun
 ```
 
-And then you can use that `StorageClass` as normal:
+And finally you can use that `StorageClass` as normal:
 
 ```yaml
 apiVersion: v1
@@ -45,13 +49,13 @@ spec:
     - ReadWriteOnce
 ```
 
-You can have several Subprovisioner `StorageClass`es on the same cluster that are
-backed by different shared block devices.
+You can have several Subprovisioner `StorageClass`es on the same cluster that
+are backed by different shared block devices.
 
 ## Development
 
 To test, run `tests/run.sh all`. You may need to add yourself to the `libvirt`
-group for it to work without asking for your password repeatedly.
+group for it to work without prompting you for your password repeatedly.
 
 ## License
 

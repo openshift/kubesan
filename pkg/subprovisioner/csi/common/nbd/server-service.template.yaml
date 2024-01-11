@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: &name {{.Name}}
+  namespace: subprovisioner
+spec:
+  clusterIP: None
+  selector:
+    subprovisioner.gitlab.io/name: *name
+  ports:
+    - port: 10809

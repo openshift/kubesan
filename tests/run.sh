@@ -146,16 +146,22 @@ __shell() {
     __log "$1" '  $ __sanlock <node_name>|<node_index> describe|exec|logs [<args...>]'
     __log "$1" '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
 
+    if [[ "$2" != true ]]; then
+        __log "$1" 'To retry the current test:'
+        __log "$1" '  $ retry'
+    fi
+
     (
         export subprovisioner_tests_run_sh_path="$0"
-        # shellcheck disable=SC2016
-        "$BASH" --init-file <( echo '
-            . "$HOME/.bashrc"
+        export subprovisioner_retry_path="${temp_dir}/retry"
+        # shellcheck disable=SC2016,SC2028
+        "$BASH" --init-file <( echo "
+            . \"\$HOME/.bashrc\"
             PROMPT_COMMAND=(
-                "echo -n \"(\$subprovisioner_tests_run_sh_path) \""
-                "${PROMPT_COMMAND[@]}"
+                \"echo -en '\\033[1m(\$subprovisioner_tests_run_sh_path)\\033[0m '\"
+                \"\${PROMPT_COMMAND[@]}\"
                 )
-            ' )
+            " )
     ) || true
 }
 
@@ -164,7 +170,7 @@ __failure() {
     __log_red "$@"
 
     if (( pause_on_failure )); then
-        __shell 31
+        __shell 31 false
     fi
 }
 
@@ -173,7 +179,7 @@ __canceled() {
     __log_yellow "$@"
 
     if (( pause_on_failure )); then
-        __shell 33
+        __shell 33 false
     fi
 }
 
@@ -189,11 +195,15 @@ done
 
 # build images
 
-__log_cyan "Building Subprovisioner image (localhost/subprovisioner/subprovisioner:test)..."
-podman image build -t localhost/subprovisioner/subprovisioner:test "${repo_root}"
+__build_images() {
+    __log_cyan "Building Subprovisioner image (localhost/subprovisioner/subprovisioner:test)..."
+    podman image build -t localhost/subprovisioner/subprovisioner:test "${repo_root}"
 
-__log_cyan "Building test image (localhost/subprovisioner/test:test)..."
-podman image build -t localhost/subprovisioner/test:test "${script_dir}/lib/test-image"
+    __log_cyan "Building test image (localhost/subprovisioner/test:test)..."
+    podman image build -t localhost/subprovisioner/test:test "${script_dir}/lib/test-image"
+}
+
+__build_images
 
 # create temporary directory
 
@@ -202,7 +212,6 @@ trap 'rm -fr "${temp_dir}"' EXIT
 
 # run tests
 
-test_i=0
 num_succeeded=0
 num_failed=0
 
@@ -292,6 +301,12 @@ __next_cluster() {
 export current_cluster
 
 __run() {
+
+    if [[ -e "${temp_dir}/retry" ]]; then
+        rm -f "${temp_dir}/retry"
+        __build_images
+    fi
+
     trap 'rm -fr "${temp_dir}"' EXIT
 
     if ! __minikube_cluster_exists "${cluster_base_name}-a" &&
@@ -384,7 +399,7 @@ __run() {
 
     for node in "${NODES[@]}"; do
         __minikube_ssh "${node}" "
-            sudo modprobe nbd nbds_max=1
+            sudo modprobe nbd nbds_max=16  # for Subprovisioner to use as well
             __run_in_test_container --net host -- \
                 nbd-client ${NODE_IPS[0]} /dev/nbd0
             "
@@ -404,7 +419,7 @@ __run() {
         kubectl create -f "${script_dir}/lib/common-objects.yaml"
 
         if (( sandbox )); then
-            __shell 32
+            __shell 32 true
         else
             set -o xtrace
             cd "$( dirname "${test_resolved}" )"
@@ -451,20 +466,27 @@ __run() {
 if (( sandbox )); then
     __big_log 33 'Starting sandbox cluster...'
     __run
+    while [[ -e "${temp_dir}/retry" ]]; do
+        __run
+    done
 else
-    for test in "${tests[@]}"; do
+    for (( test_i = 0; test_i < ${#tests[@]}; ++test_i )); do
 
         unset KUBECONFIG
 
+        test="${tests[test_i]}"
         test_name="$( realpath --relative-to=. "${test}" )"
         test_resolved="$( realpath -e "${test}" )"
 
         __big_log 33 'Running test %s (%d of %d)...' \
-            "${test_name}" "$(( ++test_i ))" "${#tests[@]}"
+            "${test_name}" "$(( test_i+1 ))" "${#tests[@]}"
 
         __run
 
-        if (( canceled )); then
+        if [[ -e "${temp_dir}/retry" ]]; then
+            canceled=0
+            : $(( --test_i ))
+        elif (( canceled )); then
             break
         elif (( exit_code == 0 )); then
             : $(( num_succeeded++ ))
