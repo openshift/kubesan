@@ -42,11 +42,16 @@ if (( "${#tests[@]}" == 0 )); then
     >&2 echo -n "\
 Usage: $0 [<options...>] <tests...>
        $0 [<options...>] all
+       $0 [<options...>] sandbox
 
 Run each given test against a temporary minikube cluster.
 
 If invoked with a single \`all\` argument, all .sh files under t/ are run as
 tests.
+
+If invoked with a single \`sandbox\` argument, no tests are actually run but a
+cluster is set up and an interactive shell is launched so you can play around
+with it.
 
 This actually maintains two minikube clusters, using one to run the current test
 while preparing the other in the background, so that the next test has a cluster
@@ -62,19 +67,25 @@ Options:
     exit 2
 fi
 
-if (( "${#tests[@]}" == 1 )) && [[ "${tests[0]}" = all ]]; then
-    tests=()
-    for f in "${script_dir}"/t/*.sh; do
-        tests+=( "$f" )
+if (( "${#tests[@]}" == 1 )) && [[ "${tests[0]}" = sandbox ]]; then
+    sandbox=1
+else
+    sandbox=0
+
+    if (( "${#tests[@]}" == 1 )) && [[ "${tests[0]}" = all ]]; then
+        tests=()
+        for f in "${script_dir}"/t/*.sh; do
+            tests+=( "$f" )
+        done
+    fi
+
+    for test in "${tests[@]}"; do
+        if [[ ! -e "${test}" ]]; then
+            >&2 echo "Test file does not exist: ${test}"
+            exit 1
+        fi
     done
 fi
-
-for test in "${tests[@]}"; do
-    if [[ ! -e "${test}" ]]; then
-        >&2 echo "Test file does not exist: ${test}"
-        exit 1
-    fi
-done
 
 # private definitions
 
@@ -123,6 +134,17 @@ __debug_shell() {
     __log_red '  $ __controller_plugin describe|exec|logs [<args...>]'
     __log_red '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
     __log_red '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
+    ( cd "${temp_dir}" && "${BASH}" ) || true
+}
+
+__sandbox_shell() {
+    # shellcheck disable=SC2016
+    __log 32 'Starting interactive shell.'
+    __log 32 'Inspect the cluster with:'
+    __log 32 '  $ kubectl [...]'
+    __log 32 '  $ __controller_plugin describe|exec|logs [<args...>]'
+    __log 32 '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
+    __log 32 '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
     ( cd "${temp_dir}" && "${BASH}" ) || true
 }
 
@@ -238,16 +260,7 @@ __next_cluster() {
 
 export current_cluster
 
-for test in "${tests[@]}"; do
-
-    unset KUBECONFIG
-
-    test_name="$( realpath --relative-to=. "${test}" )"
-    test_resolved="$( realpath -e "${test}" )"
-
-    __big_log 33 'Running test %s (%d of %d)...' \
-        "${test_name}" "$(( ++test_i ))" "${#tests[@]}"
-
+__run() {
     __log_cyan "Starting NBD server to serve as a shared block device..."
 
     rm -f "${temp_dir}/backing.raw"
@@ -397,23 +410,29 @@ for test in "${tests[@]}"; do
             __log_cyan "Creating common objects..."
             kubectl create -f "${script_dir}/lib/common-objects.yaml"
 
-            set -o xtrace
-            cd "$( dirname "${test_resolved}" )"
-            # shellcheck disable=SC1090
-            source "${test_resolved}"
+            if (( sandbox )); then
+                __sandbox_shell
+            else
+                set -o xtrace
+                cd "$( dirname "${test_resolved}" )"
+                # shellcheck disable=SC1090
+                source "${test_resolved}"
+            fi
         )
         exit_code="$?"
         set -o errexit
 
         if (( exit_code == 0 )); then
 
-            __log_cyan "Uninstalling clustered-csi..."
-            kubectl delete --ignore-not-found --timeout=30s \
-                -f "${repo_root}/deployment.yaml" \
-                || exit_code="$?"
+            if ! (( sandbox )); then
+                __log_cyan "Uninstalling clustered-csi..."
+                kubectl delete --ignore-not-found --timeout=30s \
+                    -f "${repo_root}/deployment.yaml" \
+                    || exit_code="$?"
 
-            if (( exit_code != 0 )); then
-                __failure 'Failed to uninstall clustered-csi.'
+                if (( exit_code != 0 )); then
+                    __failure 'Failed to uninstall clustered-csi.'
+                fi
             fi
 
         else
@@ -433,34 +452,52 @@ for test in "${tests[@]}"; do
         rm -fr "${temp_dir}"
         wait
         }' EXIT
+}
 
-    if (( canceled )); then
-        break
-    elif (( exit_code == 0 )); then
-        : $(( num_succeeded++ ))
-    else
-        : $(( num_failed++ ))
-        if (( fail_fast )); then
+if (( sandbox )); then
+    __big_log 33 'Starting sandbox cluster...'
+    __run
+else
+    for test in "${tests[@]}"; do
+
+        unset KUBECONFIG
+
+        test_name="$( realpath --relative-to=. "${test}" )"
+        test_resolved="$( realpath -e "${test}" )"
+
+        __big_log 33 'Running test %s (%d of %d)...' \
+            "${test_name}" "$(( ++test_i ))" "${#tests[@]}"
+
+        __run
+
+        if (( canceled )); then
             break
+        elif (( exit_code == 0 )); then
+            : $(( num_succeeded++ ))
+        else
+            : $(( num_failed++ ))
+            if (( fail_fast )); then
+                break
+            fi
         fi
+
+    done
+
+    # print summary
+
+    num_canceled="$(( ${#tests[@]} - num_succeeded - num_failed ))"
+
+    if (( num_failed > 0 )); then
+        color=31
+    elif (( num_canceled > 0 )); then
+        color=33
+    else
+        color=32
     fi
 
-done
-
-# print summary
-
-num_canceled="$(( ${#tests[@]} - num_succeeded - num_failed ))"
-
-if (( num_failed > 0 )); then
-    color=31
-elif (( num_canceled > 0 )); then
-    color=33
-else
-    color=32
+    __big_log "${color}" '%d succeeded, %d failed, %d canceled' \
+        "${num_succeeded}" "${num_failed}" "${num_canceled}"
 fi
-
-__big_log "${color}" '%d succeeded, %d failed, %d canceled' \
-    "${num_succeeded}" "${num_failed}" "${num_canceled}"
 
 if (( "${creating_cluster_in_background:-0}" == 1 )) && kill -0 "$!" &>/dev/null; then
     __log_cyan "Waiting for minikube cluster '%s' creation to finish before terminating..." \
@@ -476,4 +513,4 @@ minikube stop \
     --keep-context-active \
     --schedule=30m
 
-(( num_succeeded == ${#tests[@]} ))
+(( sandbox || num_succeeded == ${#tests[@]} ))
