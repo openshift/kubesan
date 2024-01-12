@@ -61,8 +61,16 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Errorf(codes.InvalidArgument, "expected a block volume")
 	}
 
+	vg_name := strings.Split(req.VolumeId, "/")[0]
 	thin_pool_ref := fmt.Sprintf("%s-thin-pool", req.VolumeId)
 	thin_lv_ref := fmt.Sprintf("%s-thin", req.VolumeId)
+
+	// ensure the volume group's lockspace is started
+
+	err := lvm.StartVgLockspace(ctx, vg_name)
+	if err != nil {
+		return nil, err
+	}
 
 	// activate thin pool and thin volume
 

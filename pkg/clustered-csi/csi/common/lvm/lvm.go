@@ -8,6 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // This returns an error if ctx is canceled, but never attempts to kill the process before it terminates.
@@ -58,4 +61,17 @@ func IdempotentLvRemove(ctx context.Context, arg ...string) (string, error) {
 	}
 
 	return output, nil
+}
+
+func StartVgLockspace(ctx context.Context, vgName string) error {
+	_, err := Command(ctx, "vgchange", "--lock-start", vgName)
+	if err != nil {
+		// oftentimes trying again works (TODO: figure out why)
+		output, err := Command(ctx, "vgchange", "--lock-start", vgName)
+		if err != nil {
+			return status.Errorf(codes.Internal, "failed to start vg lockspace: %s: %s", err, output)
+		}
+	}
+
+	return nil
 }

@@ -5,6 +5,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/lvm"
@@ -105,6 +106,13 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	volumeId := fmt.Sprintf("%s/%s", lvmVolumeGroupName, pvc.UID)
 
+	// ensure the volume group's lockspace is started
+
+	err = lvm.StartVgLockspace(ctx, lvmVolumeGroupName)
+	if err != nil {
+		return nil, err
+	}
+
 	// create thin pool and thin volume
 
 	thin_pool_name := fmt.Sprintf("%s-thin-pool", pvc.UID)
@@ -164,10 +172,18 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Errorf(codes.InvalidArgument, "must specify volume id")
 	}
 
-	// remove thin volume and thin pool
-
+	vg_name := strings.Split(req.VolumeId, "/")[0]
 	thin_pool_ref := fmt.Sprintf("%s-thin-pool", req.VolumeId)
 	thin_lv_ref := fmt.Sprintf("%s-thin", req.VolumeId)
+
+	// ensure the volume group's lockspace is started
+
+	err := lvm.StartVgLockspace(ctx, vg_name)
+	if err != nil {
+		return nil, err
+	}
+
+	// remove thin volume and thin pool
 
 	output, err := lvm.IdempotentLvRemove(ctx, thin_lv_ref)
 	if err != nil {

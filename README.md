@@ -24,12 +24,6 @@ available on all nodes in the cluster, and back a shared volume group:
 $ vgcreate --shared my-san-vg /dev/my-san
 ```
 
-You must also start the volume group on all nodes in the cluster:
-
-```console
-$ vgchange --lock-start my-san-vg
-```
-
 Then create a `StorageClass` that uses the clustered-csi CSI plugin and
 references the LVM volume group:
 

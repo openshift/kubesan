@@ -381,17 +381,6 @@ __run() {
             __run_in_test_container vgcreate --lock-type sanlock \
                 clustered-csi-vg /dev/nbd0
             "
-
-        __log_cyan "Starting LVM volume group on all nodes..."
-
-        for node in "${NODES[@]}"; do
-            __minikube_ssh "${node}" "
-                # for some reason, trying a second time seems to resolve failures
-                __run_in_test_container vgchange --lock-start clustered-csi-vg || {
-                    __run_in_test_container vgchange --lock-start clustered-csi-vg
-                }
-                "
-        done
     )
     exit_code="$?"
     set -o errexit
