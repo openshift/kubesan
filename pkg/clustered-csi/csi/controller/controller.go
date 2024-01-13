@@ -115,15 +115,15 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// create thin pool and thin volume
 
-	thin_pool_name := fmt.Sprintf("%s-thin-pool", pvc.UID)
-	thin_lv_name := fmt.Sprintf("%s-thin", pvc.UID)
+	thinPoolLvName := fmt.Sprintf("%s-thin-pool", pvc.UID)
+	thinLvName := fmt.Sprintf("%s-thin", pvc.UID)
 	size := fmt.Sprintf("%db", capacity)
 
 	output, err := lvm.IdempotentLvCreate(
 		ctx,
 		"--activate", "n",
 		"--type", "thin-pool",
-		"--name", thin_pool_name,
+		"--name", thinPoolLvName,
 		"--size", size,
 		lvmVolumeGroupName,
 	)
@@ -134,8 +134,8 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	output, err = lvm.IdempotentLvCreate(
 		ctx,
 		"--type", "thin",
-		"--name", thin_lv_name,
-		"--thinpool", thin_pool_name,
+		"--name", thinLvName,
+		"--thinpool", thinPoolLvName,
 		"--virtualsize", size,
 		lvmVolumeGroupName,
 	)
@@ -145,9 +145,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// deactivate thin volume (`--activate n` has no effect on `lvcreate --type thin`)
 
-	thin_lv_ref := fmt.Sprintf("%s-thin", volumeId)
+	thinLvRef := fmt.Sprintf("%s-thin", volumeId)
 
-	output, err = lvm.Command(ctx, "lvchange", "--activate", "n", thin_lv_ref)
+	output, err = lvm.Command(ctx, "lvchange", "--activate", "n", thinLvRef)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to deactivate thin volume: %s: %s", err, output)
 	}
@@ -172,25 +172,25 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Errorf(codes.InvalidArgument, "must specify volume id")
 	}
 
-	vg_name := strings.Split(req.VolumeId, "/")[0]
-	thin_pool_ref := fmt.Sprintf("%s-thin-pool", req.VolumeId)
-	thin_lv_ref := fmt.Sprintf("%s-thin", req.VolumeId)
+	vgName := strings.Split(req.VolumeId, "/")[0]
+	thinPoolLvRef := fmt.Sprintf("%s-thin-pool", req.VolumeId)
+	thinLvRef := fmt.Sprintf("%s-thin", req.VolumeId)
 
 	// ensure the volume group's lockspace is started
 
-	err := lvm.StartVgLockspace(ctx, vg_name)
+	err := lvm.StartVgLockspace(ctx, vgName)
 	if err != nil {
 		return nil, err
 	}
 
 	// remove thin volume and thin pool
 
-	output, err := lvm.IdempotentLvRemove(ctx, thin_lv_ref)
+	output, err := lvm.IdempotentLvRemove(ctx, thinLvRef)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to remove thin volume: %s: %s", err, output)
 	}
 
-	output, err = lvm.IdempotentLvRemove(ctx, thin_pool_ref)
+	output, err = lvm.IdempotentLvRemove(ctx, thinPoolLvRef)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to remove thin pool: %s: %s", err, output)
 	}
