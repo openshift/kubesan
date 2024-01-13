@@ -6,11 +6,6 @@ LUN in a SAN).
 
 ## Installation
 
-Ensure that all nodes in the cluster are running [`lvmlockd`] and have a unique
-host ID set in [`/etc/lvm/lvmlocal.conf`] under `local/host_id`.
-
-Then install Subprovisioner:
-
 ```console
 $ kubectl create -f deployment.yaml
 ```
@@ -30,7 +25,7 @@ metadata:
   name: my-san
 provisioner: subprovisioner.gitlab.io
 parameters:
-  backingDevicePath: /dev/my-san
+  backingDevicePath: /dev/my-san-lun
 ```
 
 And then you can use that `StorageClass` as normal:

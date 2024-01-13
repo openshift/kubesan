@@ -29,7 +29,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: subprovisioner-controller-plugin
 rules:
-  # subprovisioner-plugin
+  # subprovisioner-csi-plugin
   - apiGroups: [""]
     resources: [persistentvolumeclaims]
     verbs: [get, list, watch, patch, update]
@@ -102,9 +102,10 @@ spec:
     spec:
       serviceAccountName: csi-controller-plugin
       containers:
-        - name: subprovisioner-plugin
+        - name: subprovisioner-csi-plugin
           image: &image quay.io/subprovisioner/subprovisioner:0.0.0
-          args:
+          command:
+            - ./subprovisioner
             - csi-controller-plugin
             - *image
           volumeMounts:
@@ -112,12 +113,8 @@ spec:
               mountPath: /run/csi
             - name: dev
               mountPath: /dev
-            - name: etc-lvm
-              mountPath: /etc/lvm
-            - name: lvm-socket
-              mountPath: /run/lvm/lvmlockd.socket
-            - name: lvm-pidfile
-              mountPath: /run/lvmlockd.pid
+            - name: run-lvm
+              mountPath: /run/lvm
           securityContext:
             privileged: true
         - name: csi-provisioner
@@ -134,20 +131,10 @@ spec:
           hostPath:
             path: /dev
             type: Directory
-        - name: etc-lvm
+        - name: run-lvm
           hostPath:
-            path: /etc/lvm
-            type: Directory
-        - name: lvm-socket
-          hostPath:
-            path: /run/lvm/lvmlockd.socket
-            type: Socket
-        # prevent LVM commands from failing due to thinking that lvmlockd isn't
-        # running
-        - name: lvm-pidfile
-          hostPath:
-            path: /run/lvmlockd.pid
-            type: File
+            path: /run/subprovisioner/lvm
+            type: DirectoryOrCreate
 
 ---
 
@@ -164,7 +151,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: subprovisioner-node-plugin
 rules:
-  # subprovisioner-plugin
+  # subprovisioner-csi-plugin
   - apiGroups: [""]
     resources: [persistentvolumeclaims]
     verbs: [get, list, update]
@@ -204,9 +191,10 @@ spec:
     spec:
       serviceAccountName: csi-node-plugin
       containers:
-        - name: subprovisioner-plugin
+        - name: subprovisioner-csi-plugin
           image: &image quay.io/subprovisioner/subprovisioner:0.0.0
-          args:
+          command:
+            - ./subprovisioner
             - csi-node-plugin
             - $(NODE_NAME)
             - *image
@@ -222,12 +210,8 @@ spec:
               mountPath: /run/csi
             - name: dev
               mountPath: /dev
-            - name: etc-lvm
-              mountPath: /etc/lvm
-            - name: lvm-socket
-              mountPath: /run/lvm/lvmlockd.socket
-            - name: lvm-pidfile
-              mountPath: /run/lvmlockd.pid
+            - name: run-lvm
+              mountPath: /run/lvm
           securityContext:
             privileged: true
         - name: node-driver-registrar
@@ -259,17 +243,72 @@ spec:
           hostPath:
             path: /dev
             type: Directory
-        - name: etc-lvm
+        - name: run-lvm
           hostPath:
-            path: /etc/lvm
+            path: /run/subprovisioner/lvm
+            type: DirectoryOrCreate
+
+---
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lvmlockd
+  namespace: subprovisioner
+spec:
+  selector:
+    matchLabels: &labels
+      subprovisioner.gitlab.io/component: lvmlockd
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      shareProcessNamespace: true
+      containers:
+        - name: lvmlockd
+          image: quay.io/subprovisioner/subprovisioner:0.0.0
+          command:
+            - ./lvmlockd.sh
+            - $(HOST_IP)
+          env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          volumeMounts:
+            - name: dev
+              mountPath: /dev
+            - name: run-lvm
+              mountPath: /run/lvm
+            - name: run-sanlock
+              mountPath: /run/sanlock
+          securityContext:
+            privileged: true
+        - name: sanlock
+          image: quay.io/subprovisioner/subprovisioner:0.0.0
+          command:
+            - ./sanlock.sh
+            - $(NODE_NAME)
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: dev
+              mountPath: /dev
+            - name: run-sanlock
+              mountPath: /run/sanlock
+          securityContext:
+            privileged: true
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
             type: Directory
-        - name: lvm-socket
+        - name: run-lvm
           hostPath:
-            path: /run/lvm/lvmlockd.socket
-            type: Socket
-        # prevent LVM commands from failing due to thinking that lvmlockd isn't
-        # running
-        - name: lvm-pidfile
-          hostPath:
-            path: /run/lvmlockd.pid
-            type: File
+            path: /run/subprovisioner/lvm
+            type: DirectoryOrCreate
+        - name: run-sanlock
+          emptyDir:

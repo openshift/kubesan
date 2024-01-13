@@ -14,10 +14,16 @@ RUN go build -o bin/subprovisioner ./cmd/subprovisioner
 
 FROM quay.io/centos/centos:stream9
 
-RUN dnf install -y lvm2 && dnf clean all
+RUN dnf install -qy lvm2-lockd sanlock && dnf clean all
 
 WORKDIR /subprovisioner
 
-COPY --from=builder /subprovisioner/bin/subprovisioner /usr/local/bin/
+# prevent LVM commands from failing due to thinking that lvmlockd isn't running
+RUN touch /run/lvmlockd.pid
 
-ENTRYPOINT [ "subprovisioner" ]
+COPY lvm/lvm.conf /etc/lvm/
+COPY lvm/*.sh /subprovisioner
+
+COPY --from=builder /subprovisioner/bin/subprovisioner /subprovisioner/
+
+ENTRYPOINT []

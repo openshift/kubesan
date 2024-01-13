@@ -3,6 +3,11 @@
 
 set -o errexit -o pipefail -o nounset
 
+if [[ -n "${subprovisioner_tests_run_sh_path:-}" ]]; then
+    >&2 echo "You're already running $0"
+    exit 1
+fi
+
 start_time="$( date +%s.%N )"
 script_dir="$( realpath -e "$0" | xargs dirname )"
 repo_root="$( realpath -e "${script_dir}/.." )"
@@ -116,6 +121,11 @@ __log_red() {
     __log 31 "$@"
 }
 
+# Usage: __log_green <format> <args...>
+__log_green() {
+    __log 32 "$@"
+}
+
 # Usage: __log_yellow <format> <args...>
 __log_yellow() {
     __log 33 "$@"
@@ -126,26 +136,27 @@ __log_cyan() {
     __log 36 "$@"
 }
 
-__debug_shell() {
-    # shellcheck disable=SC2016
-    __log_red 'Starting interactive shell for debugging.'
-    __log_red 'Inspect the cluster with:'
-    __log_red '  $ kubectl [...]'
-    __log_red '  $ __controller_plugin describe|exec|logs [<args...>]'
-    __log_red '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
-    __log_red '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
-    ( cd "${temp_dir}" && "${BASH}" ) || true
-}
+__shell() {
+    __log "$1" 'Starting interactive shell.'
+    __log "$1" 'Inspect the cluster with:'
+    __log "$1" '  $ kubectl [...]'
+    __log "$1" '  $ __controller_plugin describe|exec|logs [<args...>]'
+    __log "$1" '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
+    __log "$1" '  $ __lvmlockd <node_name>|<node_index> describe|exec|logs [<args...>]'
+    __log "$1" '  $ __sanlock <node_name>|<node_index> describe|exec|logs [<args...>]'
+    __log "$1" '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
 
-__sandbox_shell() {
-    # shellcheck disable=SC2016
-    __log 32 'Starting interactive shell.'
-    __log 32 'Inspect the cluster with:'
-    __log 32 '  $ kubectl [...]'
-    __log 32 '  $ __controller_plugin describe|exec|logs [<args...>]'
-    __log 32 '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
-    __log 32 '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
-    ( cd "${temp_dir}" && "${BASH}" ) || true
+    (
+        export subprovisioner_tests_run_sh_path="$0"
+        # shellcheck disable=SC2016
+        "$BASH" --init-file <( echo '
+            . "$HOME/.bashrc"
+            PROMPT_COMMAND=(
+                "echo -n \"(\$subprovisioner_tests_run_sh_path) \""
+                "${PROMPT_COMMAND[@]}"
+                )
+            ' )
+    ) || true
 }
 
 # Usage: __failure <format> <args...>
@@ -153,7 +164,16 @@ __failure() {
     __log_red "$@"
 
     if (( pause_on_failure )); then
-        __debug_shell
+        __shell 31
+    fi
+}
+
+# Usage: __canceled <format> <args...>
+__canceled() {
+    __log_yellow "$@"
+
+    if (( pause_on_failure )); then
+        __shell 33
     fi
 }
 
@@ -267,6 +287,7 @@ __run() {
     truncate -s 1G "${temp_dir}/backing.raw"
 
     nbd-server \
+        --config-file /dev/null \
         --pid-file "${temp_dir}/nbd-server.pid" \
         10809 \
         "${temp_dir}/backing.raw"
@@ -343,87 +364,63 @@ __run() {
             "${node}:/home/docker/.bashrc"
     done
 
+    __log_cyan "Attaching shared block device to all minikube nodes..."
+
+    for node in "${NODES[@]}"; do
+        __minikube_ssh "${node}" "
+            sudo modprobe nbd nbds_max=1
+            __run_in_test_container --net host -- \
+                nbd-client host.minikube.internal /dev/nbd0
+            "
+    done
+
     set +o errexit
     (
         set -o errexit -o pipefail -o nounset +o xtrace
 
-        __log_cyan "Attaching shared block device to all minikube nodes..."
+        __log_cyan "Installing Subprovisioner..."
+        sed -E 's|quay.io/subprovisioner/([a-z-]+):[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
+            "${repo_root}/deployment.yaml" | kubectl create -f -
 
-        for node in "${NODES[@]}"; do
-            __minikube_ssh "${node}" "
-                sudo modprobe nbd nbds_max=1
-                __run_in_test_container --net host -- \
-                    nbd-client host.minikube.internal /dev/nbd0
-                "
-        done
+        __log_cyan "Creating common objects..."
+        kubectl patch sc standard \
+            -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+        kubectl create -f "${script_dir}/lib/common-objects.yaml"
 
-        __log_cyan "Starting lvmlockd and sanlock daemons on all nodes..."
-
-        for i in "${!NODES[@]}"; do
-            __minikube_ssh "${NODES[i]}" "
-                sudo sed -i -E 's/#? ?use_lvmlockd = [01]/use_lvmlockd = 1/' /etc/lvm/lvm.conf
-                sudo sed -i -E 's/#? ?udev_sync = [01]/udev_sync = 0/' /etc/lvm/lvm.conf
-                sudo sed -i -E 's/#? ?udev_rules = [01]/udev_rules = 0/' /etc/lvm/lvm.conf
-                sudo mkdir -p /run/lvm
-                __run_in_test_container_async \
-                    --name lvmlockd -- \
-                    lvmlockd --daemon-debug --gl-type sanlock --host-id $((i+1))
-                __run_in_test_container_async \
-                    --name sanlock --pid container:lvmlockd -- \
-                    sanlock daemon -D -w 0 -U root -G root -e \$( hostname )
-                # TODO: Should we run wdmd too?
-                "
-        done
+        if (( sandbox )); then
+            __shell 32
+        else
+            set -o xtrace
+            cd "$( dirname "${test_resolved}" )"
+            # shellcheck disable=SC1090
+            source "${test_resolved}"
+        fi
     )
     exit_code="$?"
     set -o errexit
 
-    if (( exit_code != 0 )); then
-        __failure 'Failed to set up LVM volume group.'
-    else
-        set +o errexit
-        (
-            set -o errexit -o pipefail -o nounset +o xtrace
+    if (( exit_code == 0 )); then
 
-            __log_cyan "Installing Subprovisioner..."
-            sed -E 's|quay.io/subprovisioner/([a-z-]+):[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
-                "${repo_root}/deployment.yaml" | kubectl create -f -
+        if ! (( sandbox )); then
+            __log_cyan "Uninstalling Subprovisioner..."
+            kubectl delete --ignore-not-found --timeout=60s \
+                -f "${repo_root}/deployment.yaml" \
+                || exit_code="$?"
 
-            __log_cyan "Creating common objects..."
-            kubectl patch sc standard \
-                -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
-            kubectl create -f "${script_dir}/lib/common-objects.yaml"
-
-            if (( sandbox )); then
-                __sandbox_shell
-            else
-                set -o xtrace
-                cd "$( dirname "${test_resolved}" )"
-                # shellcheck disable=SC1090
-                source "${test_resolved}"
+            if (( exit_code != 0 )); then
+                __failure 'Failed to uninstall Subprovisioner.'
             fi
-        )
-        exit_code="$?"
-        set -o errexit
-
-        if (( exit_code == 0 )); then
-
-            if ! (( sandbox )); then
-                __log_cyan "Uninstalling Subprovisioner..."
-                kubectl delete --ignore-not-found --timeout=30s \
-                    -f "${repo_root}/deployment.yaml" \
-                    || exit_code="$?"
-
-                if (( exit_code != 0 )); then
-                    __failure 'Failed to uninstall Subprovisioner.'
-                fi
-            fi
-
-        else
-
-            __failure 'Test %s failed.' "${test_name}"
-
         fi
+
+    else
+
+        if (( canceled )); then
+            echo
+            __canceled 'Test %s was canceled.' "${test_name}"
+        else
+            __failure 'Test %s failed.' "${test_name}"
+        fi
+
     fi
 
     __log_cyan "Deleting minikube cluster '%s'..." "${current_cluster}"

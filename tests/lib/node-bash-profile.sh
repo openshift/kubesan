@@ -15,7 +15,6 @@ ____run_in_test_container_aux() {
         done
     done
 
-    # nbd-client needs '--net host' for netlink
     docker run \
         --privileged \
         -v /dev:/dev -v /etc:/etc -v /run:/run -v /var:/var \

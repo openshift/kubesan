@@ -30,14 +30,20 @@ __controller_plugin() {
         return 2
     fi
 
-    local __kubectl_cmd
+    local __kubectl_cmd __kubectl_args
     __kubectl_cmd=( "$1" )
+    __kubectl_args=( "${@:2}" )
 
     case "$1" in
     describe)
         __kubectl_cmd+=( pod )
         ;;
-    exec|logs)
+    exec)
+        if (( ${#__kubectl_args[@]} == 0 )); then
+            __kubectl_args=( -it -- bash )
+        fi
+        ;;
+    logs)
         ;;
     *)
         >&2 echo "Usage: __controller_plugin describe|exec|logs [<args...>]"
@@ -49,28 +55,34 @@ __controller_plugin() {
         --namespace subprovisioner \
         "${__kubectl_cmd[@]}" \
         "$( __get_pod_name csi-controller-plugin )" \
-        "${@:2}"
+        "${__kubectl_args[@]}"
 }
 export -f __controller_plugin
 
-# Usage: __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]
-__node_plugin() {
-    if (( $# < 2 )); then
-        >&2 echo "Usage: __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]"
+# Usage: __per_node_component <caller> <component> <node_name>|<node_index> describe|exec|logs [<args...>]
+__per_node_component() {
+    if (( $# < 4 )); then
+        >&2 echo "Usage: $1 <node_name>|<node_index> describe|exec|logs [<args...>]"
         return 2
     fi
 
-    local __kubectl_cmd
-    __kubectl_cmd=( "$2" )
+    local __kubectl_cmd __kubectl_args
+    __kubectl_cmd=( "$4" )
+    __kubectl_args=( "${@:5}" )
 
-    case "$2" in
+    case "$4" in
     describe)
         __kubectl_cmd+=( pod )
         ;;
-    exec|logs)
+    exec)
+        if (( ${#__kubectl_args[@]} == 0 )); then
+            __kubectl_args=( -it -- bash )
+        fi
+        ;;
+    logs)
         ;;
     *)
-        >&2 echo "Usage: __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]"
+        >&2 echo "Usage: $1 <node_name>|<node_index> describe|exec|logs [<args...>]"
         return 2
         ;;
     esac
@@ -78,10 +90,22 @@ __node_plugin() {
     kubectl \
         --namespace subprovisioner \
         "${__kubectl_cmd[@]}" \
-        "$( __get_pod_name csi-node-plugin "$1" )" \
-        "${@:3}"
+        "$( __get_pod_name "$2" "$3" )" \
+        "${__kubectl_args[@]}"
+}
+export -f __per_node_component
+
+# Usage: __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]
+__node_plugin() {
+    __per_node_component __node_plugin csi-node-plugin "$@"
 }
 export -f __node_plugin
+
+# Usage: __lvmlockd <node_name>|<node_index> describe|exec|logs [<args...>]
+__lvmlockd() {
+    __per_node_component __lvmlockd lvmlockd "$@"
+}
+export -f __lvmlockd
 
 # Usage: __ssh_into_node <node_name>|<node_index> [<command...>]
 __ssh_into_node() {
