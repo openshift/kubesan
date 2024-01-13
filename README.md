@@ -17,15 +17,11 @@ $ kubectl create -f deployment.yaml
 
 ## Setting up a shared block device
 
-The shared block device must be formatted as an [LVM] physical volume, be
-available on all nodes in the cluster, and back a shared volume group:
+Ensure that the shared, backing block device is available on all nodes in the
+cluster at the same path.
 
-```console
-$ vgcreate --shared my-san-vg /dev/my-san
-```
-
-Then create a `StorageClass` that uses the clustered-csi CSI plugin and
-references the LVM volume group:
+Then simply create a `StorageClass` that uses the clustered-csi CSI plugin and
+specifies the path to the backing device:
 
 ```yaml
 apiVersion: clustered-csi.gitlab.io/v1
@@ -34,7 +30,7 @@ metadata:
   name: my-san
 provisioner: clustered-csi.gitlab.io
 parameters:
-  lvmVolumeGroupName: my-san-vg
+  backingDevicePath: /dev/my-san
 ```
 
 And then you can use that `StorageClass` as normal:

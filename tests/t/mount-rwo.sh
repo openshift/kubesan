@@ -15,7 +15,6 @@ for i in "${!NODES[@]}"; do
         requests:
           storage: 64Mi
       volumeMode: Block
-      storageClassName: storage-class
 EOF
 done
 

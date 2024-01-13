@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -53,11 +54,13 @@ func IdempotentLvRemove(ctx context.Context, arg ...string) (string, error) {
 	return output, nil
 }
 
-func StartVgLockspace(ctx context.Context, vgName string) error {
-	_, err := Command(ctx, "vgchange", "--lock-start", vgName)
+func StartVgLockspace(ctx context.Context, backingDevicePath string) error {
+	args := []string{"--devices", backingDevicePath, "--lock-start", config.VgName}
+
+	_, err := Command(ctx, "vgchange", args...)
 	if err != nil {
 		// oftentimes trying again works (TODO: figure out why)
-		output, err := Command(ctx, "vgchange", "--lock-start", vgName)
+		output, err := Command(ctx, "vgchange", args...)
 		if err != nil {
 			return status.Errorf(codes.Internal, "failed to start vg lockspace: %s: %s", err, output)
 		}

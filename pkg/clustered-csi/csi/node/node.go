@@ -4,12 +4,12 @@ package node
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/lvm"
 	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/util"
+	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/volume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -61,32 +61,30 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Errorf(codes.InvalidArgument, "expected a block volume")
 	}
 
-	vgName := strings.Split(req.VolumeId, "/")[0]
-	thinPoolLvRef := fmt.Sprintf("%s-thin-pool", req.VolumeId)
-	thinLvRef := fmt.Sprintf("%s-thin", req.VolumeId)
+	info := volume.InfoFromString(req.VolumeId)
 
 	// ensure the volume group's lockspace is started
 
-	err := lvm.StartVgLockspace(ctx, vgName)
+	err := lvm.StartVgLockspace(ctx, info.BackingDevicePath)
 	if err != nil {
 		return nil, err
 	}
 
 	// activate thin pool and thin volume
 
-	output, err := lvm.Command(ctx, "lvchange", "--activate", "ey", thinPoolLvRef)
+	output, err := lvm.Command(ctx, "lvchange", "--devices", info.BackingDevicePath, "--activate", "ey", info.ThinPoolLvRef())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to activate thin pool: %s: %s", err, output)
 	}
 
-	output, err = lvm.Command(ctx, "lvchange", "--activate", "ey", thinLvRef)
+	output, err = lvm.Command(ctx, "lvchange", "--devices", info.BackingDevicePath, "--activate", "ey", info.ThinLvRef())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to activate thin volume: %s: %s", err, output)
 	}
 
 	// create symlink to thin volume where Kubernetes expects it
 
-	output, err = lvm.Command(ctx, "lvs", "--options", "lv_path", "--noheadings", thinLvRef)
+	output, err = lvm.Command(ctx, "lvs", "--devices", info.BackingDevicePath, "--options", "lv_path", "--noheadings", info.ThinLvRef())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get path to thin volume: %s: %s", err, output)
 	}
@@ -107,15 +105,14 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	// deactivate thin volume and thin pool
 
-	thinPoolLvRef := fmt.Sprintf("%s-thin-pool", req.VolumeId)
-	thinLvRef := fmt.Sprintf("%s-thin", req.VolumeId)
+	info := volume.InfoFromString(req.VolumeId)
 
-	output, err := lvm.Command(ctx, "lvchange", "--activate", "n", thinLvRef)
+	output, err := lvm.Command(ctx, "lvchange", "--devices", info.BackingDevicePath, "--activate", "n", info.ThinLvRef())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to deactivate thin volume: %s: %s", err, output)
 	}
 
-	output, err = lvm.Command(ctx, "lvchange", "--activate", "n", thinPoolLvRef)
+	output, err = lvm.Command(ctx, "lvchange", "--devices", info.BackingDevicePath, "--activate", "n", info.ThinPoolLvRef())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to deactivate thin pool: %s: %s", err, output)
 	}

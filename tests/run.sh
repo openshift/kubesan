@@ -374,13 +374,6 @@ __run() {
                 # TODO: Should we run wdmd too?
                 "
         done
-
-        __log_cyan "Creating LVM volume group..."
-
-        __minikube_ssh "${NODES[0]}" "
-            __run_in_test_container vgcreate --lock-type sanlock \
-                clustered-csi-vg /dev/nbd0
-            "
     )
     exit_code="$?"
     set -o errexit
@@ -397,6 +390,8 @@ __run() {
                 "${repo_root}/deployment.yaml" | kubectl create -f -
 
             __log_cyan "Creating common objects..."
+            kubectl patch sc standard \
+                -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
             kubectl create -f "${script_dir}/lib/common-objects.yaml"
 
             if (( sandbox )); then
