@@ -262,6 +262,17 @@ __create_minikube_cluster_async() {
     __start_minikube_cluster "$@" &>/dev/null &
 }
 
+__wait_until_background_cluster_is_ready() {
+    if (( "${creating_cluster_in_background:-0}" == 1 )) && kill -0 "$!" &>/dev/null; then
+        __log_cyan "Waiting for minikube cluster '%s' creation to finish before terminating..." \
+            "${background_cluster}"
+        wait || true
+        __log_cyan "Done."
+    else
+        wait || true
+    fi
+}
+
 cluster_base_name=$( printf 'subprovisioner-test-%dn' "${num_nodes}" )
 
 __next_cluster() {
@@ -281,22 +292,7 @@ __next_cluster() {
 export current_cluster
 
 __run() {
-    __log_cyan "Starting NBD server to serve as a shared block device..."
-
-    rm -f "${temp_dir}/backing.raw"
-    truncate -s 1G "${temp_dir}/backing.raw"
-
-    nbd-server \
-        --config-file /dev/null \
-        --pid-file "${temp_dir}/nbd-server.pid" \
-        10809 \
-        "${temp_dir}/backing.raw"
-    nbd_server_pid=$( cat "${temp_dir}/nbd-server.pid" )
-
-    trap '{
-        kill "${nbd_server_pid}" && tail --pid="${nbd_server_pid}" -f /dev/null
-        rm -fr "${temp_dir}"
-        }' EXIT
+    trap 'rm -fr "${temp_dir}"' EXIT
 
     if ! __minikube_cluster_exists "${cluster_base_name}-a" &&
         ! __minikube_cluster_exists "${cluster_base_name}-b"; then
@@ -338,9 +334,8 @@ __run() {
 
     trap '{
         __minikube delete
-        kill "${nbd_server_pid}" && tail --pid="${nbd_server_pid}" -f /dev/null
         rm -fr "${temp_dir}"
-        wait
+        __wait_until_background_cluster_is_ready
         }' EXIT
 
     kubectl config view > "${temp_dir}/kubeconfig"
@@ -364,13 +359,30 @@ __run() {
             "${node}:/home/docker/.bashrc"
     done
 
-    __log_cyan "Attaching shared block device to all minikube nodes..."
+    __log_cyan "Starting NBD server to serve as a shared block device..."
+
+    __minikube_ssh "${NODES[0]}" "
+        truncate -s 1G backing.raw
+        __run_in_test_container_async --net host -v ./backing.raw:/disk -- \
+            nbd-server --nodaemon --config-file /dev/null 10809 /disk
+        __run_in_test_container --net host -- bash -c '
+            for (( i = 0; i < 50; ++i )); do
+                if nc -z localhost 10809; then exit 0; fi
+                sleep 0.1
+            done
+            exit 1
+            '
+        "
+
+    nbd_server_ip=$( __minikube ip --node="${NODES[0]}" )
+
+    __log_cyan "Attaching shared block device to all cluster nodes..."
 
     for node in "${NODES[@]}"; do
         __minikube_ssh "${node}" "
             sudo modprobe nbd nbds_max=1
             __run_in_test_container --net host -- \
-                nbd-client host.minikube.internal /dev/nbd0
+                nbd-client ${nbd_server_ip} /dev/nbd0
             "
     done
 
@@ -426,12 +438,9 @@ __run() {
     __log_cyan "Deleting minikube cluster '%s'..." "${current_cluster}"
     __minikube delete
 
-    __log_cyan "Stopping NBD server..."
-    kill "${nbd_server_pid}" && tail --pid="${nbd_server_pid}" -f /dev/null
-
     trap '{
         rm -fr "${temp_dir}"
-        wait
+        __wait_until_background_cluster_is_ready
         }' EXIT
 }
 
@@ -480,14 +489,8 @@ else
         "${num_succeeded}" "${num_failed}" "${num_canceled}"
 fi
 
-if (( "${creating_cluster_in_background:-0}" == 1 )) && kill -0 "$!" &>/dev/null; then
-    __log_cyan "Waiting for minikube cluster '%s' creation to finish before terminating..." \
-        "${background_cluster}"
-    wait || true
-    __log_cyan "Done."
-else
-    wait || true
-fi
+trap 'rm -fr "${temp_dir}"' EXIT
+__wait_until_background_cluster_is_ready
 
 minikube stop \
     --profile="${background_cluster}" \

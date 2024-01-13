@@ -15,12 +15,8 @@ ____run_in_test_container_aux() {
         done
     done
 
-    docker run \
-        --privileged \
-        -v /dev:/dev -v /etc:/etc -v /run:/run -v /var:/var \
-        "${__opts[@]}" \
-        docker.io/localhost/subprovisioner/test:test \
-        "$@"
+    docker run --privileged -t -v /dev:/dev "${__opts[@]}" \
+        docker.io/localhost/subprovisioner/test:test "$@"
 }
 
 __run_in_test_container() {

@@ -51,7 +51,7 @@ backed by different shared block devices.
 ## Development
 
 To test, run `tests/run.sh all`. You may need to add yourself to the `libvirt`
-group and run `firewall-cmd --zone=libvirt --add-port=10809/tcp` for it to work.
+group for it to work without asking for your password repeatedly.
 
 ## License
 
