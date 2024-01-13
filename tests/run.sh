@@ -346,7 +346,13 @@ __run() {
     for (( i = 2; i <= num_nodes; ++i )); do
         NODES+=( "$( printf '%s-m%02d' "${current_cluster}" "$i" )" )
     done
+
     export NODE_INDICES=( "${!NODES[@]}" )
+
+    export NODE_IPS=()
+    for node in "${NODES[@]}"; do
+        NODE_IPS+=( "$( __minikube ip --node="${node}" )" )
+    done
 
     __log_cyan "Importing Subprovisioner images into minikube cluster '%s'..." "${current_cluster}"
     for image in subprovisioner test; do
@@ -374,15 +380,13 @@ __run() {
             '
         "
 
-    nbd_server_ip=$( __minikube ip --node="${NODES[0]}" )
-
     __log_cyan "Attaching shared block device to all cluster nodes..."
 
     for node in "${NODES[@]}"; do
         __minikube_ssh "${node}" "
             sudo modprobe nbd nbds_max=1
             __run_in_test_container --net host -- \
-                nbd-client ${nbd_server_ip} /dev/nbd0
+                nbd-client ${NODE_IPS[0]} /dev/nbd0
             "
     done
 
