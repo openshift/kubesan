@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/config"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

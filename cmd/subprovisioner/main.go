@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi"
 )
 
 func badUsage() {

@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/lvm"
-	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/util"
-	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/volume"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/lvm"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/util"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/volume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

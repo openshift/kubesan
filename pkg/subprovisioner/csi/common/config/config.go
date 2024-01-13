@@ -3,7 +3,7 @@
 package config
 
 const (
-	Domain  = "clustered-csi.gitlab.io"
+	Domain  = "subprovisioner.gitlab.io"
 	Version = "0.0.0"
 	VgName  = "subprovisioner"
 )

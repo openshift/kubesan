@@ -2,7 +2,7 @@
 
 FROM quay.io/projectquay/golang:1.20 AS builder
 
-WORKDIR /clustered-csi
+WORKDIR /subprovisioner
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -10,14 +10,14 @@ RUN go mod download
 COPY cmd/ cmd/
 COPY pkg/ pkg/
 
-RUN go build -o bin/clustered-csi ./cmd/clustered-csi
+RUN go build -o bin/subprovisioner ./cmd/subprovisioner
 
 FROM quay.io/centos/centos:stream9
 
 RUN dnf install -y lvm2 && dnf clean all
 
-WORKDIR /clustered-csi
+WORKDIR /subprovisioner
 
-COPY --from=builder /clustered-csi/bin/clustered-csi /usr/local/bin/
+COPY --from=builder /subprovisioner/bin/subprovisioner /usr/local/bin/
 
-ENTRYPOINT [ "clustered-csi" ]
+ENTRYPOINT [ "subprovisioner" ]

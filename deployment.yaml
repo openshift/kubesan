@@ -3,7 +3,7 @@
 apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
-  name: clustered-csi.gitlab.io
+  name: subprovisioner.gitlab.io
 spec:
   attachRequired: false  # skip Controller{Publish,Unpublish}Volume()
 
@@ -12,7 +12,7 @@ spec:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: clustered-csi
+  name: subprovisioner
 
 ---
 
@@ -20,16 +20,16 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: csi-controller-plugin
-  namespace: clustered-csi
+  namespace: subprovisioner
 
 ---
 
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: clustered-csi-controller-plugin
+  name: subprovisioner-controller-plugin
 rules:
-  # clustered-csi-plugin
+  # subprovisioner-plugin
   - apiGroups: [""]
     resources: [persistentvolumeclaims]
     verbs: [get, list, watch, patch, update]
@@ -73,15 +73,15 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: clustered-csi.csi-controller-plugin
+  name: subprovisioner.csi-controller-plugin
 subjects:
   - kind: ServiceAccount
     name: csi-controller-plugin
-    namespace: clustered-csi
+    namespace: subprovisioner
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: clustered-csi-controller-plugin
+  name: subprovisioner-controller-plugin
 
 ---
 
@@ -89,21 +89,21 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: csi-controller-plugin
-  namespace: clustered-csi
+  namespace: subprovisioner
 spec:
   strategy:
     type: Recreate
   selector:
     matchLabels: &labels
-      clustered-csi.gitlab.io/component: csi-controller-plugin
+      subprovisioner.gitlab.io/component: csi-controller-plugin
   template:
     metadata:
       labels: *labels
     spec:
       serviceAccountName: csi-controller-plugin
       containers:
-        - name: clustered-csi-plugin
-          image: &image quay.io/clustered-csi/clustered-csi:0.0.0
+        - name: subprovisioner-plugin
+          image: &image quay.io/subprovisioner/subprovisioner:0.0.0
           args:
             - csi-controller-plugin
             - *image
@@ -155,16 +155,16 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: csi-node-plugin
-  namespace: clustered-csi
+  namespace: subprovisioner
 
 ---
 
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: clustered-csi-node-plugin
+  name: subprovisioner-node-plugin
 rules:
-  # clustered-csi-plugin
+  # subprovisioner-plugin
   - apiGroups: [""]
     resources: [persistentvolumeclaims]
     verbs: [get, list, update]
@@ -177,15 +177,15 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: clustered-csi.csi-node-plugin
+  name: subprovisioner.csi-node-plugin
 subjects:
   - kind: ServiceAccount
     name: csi-node-plugin
-    namespace: clustered-csi
+    namespace: subprovisioner
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: clustered-csi-node-plugin
+  name: subprovisioner-node-plugin
 
 ---
 
@@ -193,19 +193,19 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: csi-node-plugin
-  namespace: clustered-csi
+  namespace: subprovisioner
 spec:
   selector:
     matchLabels: &labels
-      clustered-csi.gitlab.io/component: csi-node-plugin
+      subprovisioner.gitlab.io/component: csi-node-plugin
   template:
     metadata:
       labels: *labels
     spec:
       serviceAccountName: csi-node-plugin
       containers:
-        - name: clustered-csi-plugin
-          image: &image quay.io/clustered-csi/clustered-csi:0.0.0
+        - name: subprovisioner-plugin
+          image: &image quay.io/subprovisioner/subprovisioner:0.0.0
           args:
             - csi-node-plugin
             - $(NODE_NAME)
@@ -233,7 +233,7 @@ spec:
         - name: node-driver-registrar
           image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.8.0
           args:
-            - --kubelet-registration-path=/var/lib/kubelet/plugins/clustered-csi/socket
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/subprovisioner/socket
           volumeMounts:
             - name: registration-dir
               mountPath: /registration
@@ -253,7 +253,7 @@ spec:
         # where the socket for kubelet <-> plugin communication is created
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/clustered-csi
+            path: /var/lib/kubelet/plugins/subprovisioner
             type: DirectoryOrCreate
         - name: dev
           hostPath:

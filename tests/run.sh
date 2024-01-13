@@ -160,7 +160,7 @@ __failure() {
 # definitions shared with test scripts
 
 export REPO_ROOT=${repo_root}
-export TEST_IMAGE=docker.io/localhost/clustered-csi/test:test
+export TEST_IMAGE=docker.io/localhost/subprovisioner/test:test
 
 for f in debug-utils.sh test-utils.sh; do
     # shellcheck disable=SC1090
@@ -169,11 +169,11 @@ done
 
 # build images
 
-__log_cyan "Building clustered-csi image (localhost/clustered-csi/clustered-csi:test)..."
-podman image build -t localhost/clustered-csi/clustered-csi:test "${repo_root}"
+__log_cyan "Building Subprovisioner image (localhost/subprovisioner/subprovisioner:test)..."
+podman image build -t localhost/subprovisioner/subprovisioner:test "${repo_root}"
 
-__log_cyan "Building test image (localhost/clustered-csi/test:test)..."
-podman image build -t localhost/clustered-csi/test:test "${script_dir}/lib/test-image"
+__log_cyan "Building test image (localhost/subprovisioner/test:test)..."
+podman image build -t localhost/subprovisioner/test:test "${script_dir}/lib/test-image"
 
 # create temporary directory
 
@@ -242,14 +242,14 @@ __create_minikube_cluster_async() {
     __start_minikube_cluster "$@" &>/dev/null &
 }
 
-cluster_base_name=$( printf 'clustered-csi-test-%dn' "${num_nodes}" )
+cluster_base_name=$( printf 'subprovisioner-test-%dn' "${num_nodes}" )
 
 __next_cluster() {
     case "$1" in
-    clustered-csi-test-*n-a)
+    subprovisioner-test-*n-a)
         echo "${cluster_base_name}-b"
         ;;
-    clustered-csi-test-*n-b)
+    subprovisioner-test-*n-b)
         echo "${cluster_base_name}-a"
         ;;
     *)
@@ -332,9 +332,9 @@ __run() {
     done
     export NODE_INDICES=( "${!NODES[@]}" )
 
-    __log_cyan "Importing clustered-csi images into minikube cluster '%s'..." "${current_cluster}"
-    for image in clustered-csi test; do
-        podman save "clustered-csi/${image}:test" | __minikube image load -
+    __log_cyan "Importing Subprovisioner images into minikube cluster '%s'..." "${current_cluster}"
+    for image in subprovisioner test; do
+        podman save "subprovisioner/${image}:test" | __minikube image load -
     done
 
     for node in "${NODES[@]}"; do
@@ -385,8 +385,8 @@ __run() {
         (
             set -o errexit -o pipefail -o nounset +o xtrace
 
-            __log_cyan "Installing clustered-csi..."
-            sed -E 's|quay.io/clustered-csi/([a-z-]+):[0-9+\.]+|docker.io/localhost/clustered-csi/\1:test|g' \
+            __log_cyan "Installing Subprovisioner..."
+            sed -E 's|quay.io/subprovisioner/([a-z-]+):[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
                 "${repo_root}/deployment.yaml" | kubectl create -f -
 
             __log_cyan "Creating common objects..."
@@ -409,13 +409,13 @@ __run() {
         if (( exit_code == 0 )); then
 
             if ! (( sandbox )); then
-                __log_cyan "Uninstalling clustered-csi..."
+                __log_cyan "Uninstalling Subprovisioner..."
                 kubectl delete --ignore-not-found --timeout=30s \
                     -f "${repo_root}/deployment.yaml" \
                     || exit_code="$?"
 
                 if (( exit_code != 0 )); then
-                    __failure 'Failed to uninstall clustered-csi.'
+                    __failure 'Failed to uninstall Subprovisioner.'
                 fi
             fi
 

@@ -1,6 +1,6 @@
-# The clustered-csi CSI Plugin
+# The Subprovisioner CSI Plugin
 
-clustered-csi is a [CSI] plugin for [Kubernetes] that enables you to provision
+Subprovisioner is a [CSI] plugin for [Kubernetes] that enables you to provision
 `Block` volumes backed by a single, cluster-wide, shared block device (*e.g.*, a
 LUN in a SAN).
 
@@ -9,7 +9,7 @@ LUN in a SAN).
 Ensure that all nodes in the cluster are running [`lvmlockd`] and have a unique
 host ID set in [`/etc/lvm/lvmlocal.conf`] under `local/host_id`.
 
-Then install clustered-csi:
+Then install Subprovisioner:
 
 ```console
 $ kubectl create -f deployment.yaml
@@ -20,15 +20,15 @@ $ kubectl create -f deployment.yaml
 Ensure that the shared, backing block device is available on all nodes in the
 cluster at the same path.
 
-Then simply create a `StorageClass` that uses the clustered-csi CSI plugin and
+Then simply create a `StorageClass` that uses the Subprovisioner CSI plugin and
 specifies the path to the backing device:
 
 ```yaml
-apiVersion: clustered-csi.gitlab.io/v1
+apiVersion: subprovisioner.gitlab.io/v1
 kind: StorageClass
 metadata:
   name: my-san
-provisioner: clustered-csi.gitlab.io
+provisioner: subprovisioner.gitlab.io
 parameters:
   backingDevicePath: /dev/my-san
 ```
@@ -50,7 +50,7 @@ spec:
     - ReadWriteOnce
 ```
 
-You can have several clustered-csi `StorageClass`es on the same cluster that are
+You can have several Subprovisioner `StorageClass`es on the same cluster that are
 backed by different shared block devices.
 
 ## Development

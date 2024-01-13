@@ -1,4 +1,4 @@
-module gitlab.com/clustered-csi/clustered-csi
+module gitlab.com/subprovisioner/subprovisioner
 
 go 1.21
 
@@ -6,6 +6,7 @@ require (
 	github.com/container-storage-interface/spec v1.9.0
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.32.0
+	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
 )
@@ -39,7 +40,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.29.0 // indirect
 	k8s.io/klog/v2 v2.120.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20240105020646-a37d4de58910 // indirect
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e // indirect

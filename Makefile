@@ -2,7 +2,7 @@
 
 .PHONY: build
 build:
-	podman image build -t quay.io/clustered-csi/clustered-csi:0.0.0 .
+	podman image build -t quay.io/subprovisioner/subprovisioner:0.0.0 .
 
 .PHONY: fmt
 fmt:

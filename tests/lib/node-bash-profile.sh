@@ -20,7 +20,7 @@ ____run_in_test_container_aux() {
         --privileged \
         -v /dev:/dev -v /etc:/etc -v /run:/run -v /var:/var \
         "${__opts[@]}" \
-        docker.io/localhost/clustered-csi/test:test \
+        docker.io/localhost/subprovisioner/test:test \
         "$@"
 }
 

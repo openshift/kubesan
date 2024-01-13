@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/clustered-csi/clustered-csi/pkg/clustered-csi/csi/common/config"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/common/config"
 	"k8s.io/apimachinery/pkg/types"
 )
 

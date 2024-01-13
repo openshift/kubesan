@@ -16,8 +16,8 @@ export -f __get_node_name
 # Usage: __get_pod_name <component> [<node>]
 __get_pod_name() {
     kubectl get pod \
-        --namespace clustered-csi \
-        --selector "clustered-csi.gitlab.io/component==$1" \
+        --namespace subprovisioner \
+        --selector "subprovisioner.gitlab.io/component==$1" \
         ${2+"--field-selector=spec.nodeName==$( __get_node_name "$2" )"} \
         --output jsonpath="{.items[0].metadata.name}"
 }
@@ -46,7 +46,7 @@ __controller_plugin() {
     esac
 
     kubectl \
-        --namespace clustered-csi \
+        --namespace subprovisioner \
         "${__kubectl_cmd[@]}" \
         "$( __get_pod_name csi-controller-plugin )" \
         "${@:2}"
@@ -76,7 +76,7 @@ __node_plugin() {
     esac
 
     kubectl \
-        --namespace clustered-csi \
+        --namespace subprovisioner \
         "${__kubectl_cmd[@]}" \
         "$( __get_pod_name csi-node-plugin "$1" )" \
         "${@:3}"
