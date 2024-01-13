@@ -3,13 +3,15 @@
 package lvm
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-func Command(arg ...string) (string, error) {
+// This returns an error if ctx is canceled, but never attempts to kill the process before it terminates.
+func Command(ctx context.Context, arg ...string) (string, error) {
 	cmd := exec.Command("lvm", arg...)
 
 	cmd.Env = os.Environ()
@@ -26,6 +28,10 @@ func Command(arg ...string) (string, error) {
 		log.Printf("LVM command `lvm %s` failed with status %d:\n%s", strings.Join(arg, " "), e.ExitCode(), output)
 	default:
 		log.Printf("LVM command `lvm %s` failed to start", strings.Join(arg, " "))
+	}
+
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
 
 	return string(output), err

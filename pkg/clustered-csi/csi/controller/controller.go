@@ -112,6 +112,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	size := fmt.Sprintf("%db", capacity)
 
 	output, err := lvm.Command(
+		ctx,
 		"lvcreate",
 		"--activate", "n",
 		"--type", "thin-pool",
@@ -124,6 +125,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	output, err = lvm.Command(
+		ctx,
 		"lvcreate",
 		"--type", "thin",
 		"--name", thin_lv_name,
@@ -139,7 +141,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	thin_lv_ref := fmt.Sprintf("%s-thin", volumeId)
 
-	output, err = lvm.Command("lvchange", "--activate", "n", thin_lv_ref)
+	output, err = lvm.Command(ctx, "lvchange", "--activate", "n", thin_lv_ref)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to deactivate thin volume: %s: %s", err, output)
 	}
@@ -169,12 +171,12 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	thin_pool_ref := fmt.Sprintf("%s-thin-pool", req.VolumeId)
 	thin_lv_ref := fmt.Sprintf("%s-thin", req.VolumeId)
 
-	output, err := lvm.Command("lvremove", thin_lv_ref)
+	output, err := lvm.Command(ctx, "lvremove", thin_lv_ref)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to remove thin volume: %s: %s", err, output)
 	}
 
-	output, err = lvm.Command("lvremove", thin_pool_ref)
+	output, err = lvm.Command(ctx, "lvremove", thin_pool_ref)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to remove thin pool: %s: %s", err, output)
 	}

@@ -66,19 +66,19 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	// activate thin pool and thin volume
 
-	output, err := lvm.Command("lvchange", "--activate", "ey", thin_pool_ref)
+	output, err := lvm.Command(ctx, "lvchange", "--activate", "ey", thin_pool_ref)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to activate thin pool: %s: %s", err, output)
 	}
 
-	output, err = lvm.Command("lvchange", "--activate", "ey", thin_lv_ref)
+	output, err = lvm.Command(ctx, "lvchange", "--activate", "ey", thin_lv_ref)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to activate thin volume: %s: %s", err, output)
 	}
 
 	// create symlink to thin volume where Kubernetes expects it
 
-	output, err = lvm.Command("lvs", "--options", "lv_path", "--noheadings", thin_lv_ref)
+	output, err = lvm.Command(ctx, "lvs", "--options", "lv_path", "--noheadings", thin_lv_ref)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get path to thin volume: %s: %s", err, output)
 	}
@@ -102,12 +102,12 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	thin_pool_ref := fmt.Sprintf("%s-thin-pool", req.VolumeId)
 	thin_lv_ref := fmt.Sprintf("%s-thin", req.VolumeId)
 
-	output, err := lvm.Command("lvchange", "--activate", "n", thin_lv_ref)
+	output, err := lvm.Command(ctx, "lvchange", "--activate", "n", thin_lv_ref)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to deactivate thin volume: %s: %s", err, output)
 	}
 
-	output, err = lvm.Command("lvchange", "--activate", "n", thin_pool_ref)
+	output, err = lvm.Command(ctx, "lvchange", "--activate", "n", thin_pool_ref)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to deactivate thin pool: %s: %s", err, output)
 	}
