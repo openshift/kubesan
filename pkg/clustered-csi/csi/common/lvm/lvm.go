@@ -4,7 +4,6 @@ package lvm
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -24,15 +23,6 @@ func Command(ctx context.Context, command string, arg ...string) (string, error)
 	cmd.Stdin = nil
 
 	output, err := cmd.CombinedOutput()
-
-	switch e := err.(type) {
-	case nil:
-		log.Printf("LVM command `lvm %s` succeeded:\n%s", strings.Join(arg, " "), output)
-	case *exec.ExitError:
-		log.Printf("LVM command `lvm %s` failed with status %d:\n%s", strings.Join(arg, " "), e.ExitCode(), output)
-	default:
-		log.Printf("LVM command `lvm %s` failed to start", strings.Join(arg, " "))
-	}
 
 	if err := ctx.Err(); err != nil {
 		return "", err
