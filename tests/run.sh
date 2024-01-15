@@ -255,6 +255,9 @@ __restart_minikube_cluster() {
     minikube start \
         --profile="$1" \
         --driver=kvm2 \
+        --cpus=2 \
+        --memory=2g \
+        --disk-size=5g \
         --keep-context \
         "${@:2}"
 }
@@ -408,8 +411,8 @@ __run() {
     __log_cyan "Starting NBD server to serve as a shared block device..."
 
     __minikube_ssh "${NODES[0]}" "
-        truncate -s 1G backing.raw
-        __run_in_test_container_async --net host -v ./backing.raw:/disk -- \
+        sudo truncate -s 1G /mnt/vda1/backing.raw
+        __run_in_test_container_async --net host -v /mnt/vda1/backing.raw:/disk -- \
             nbd-server --nodaemon --config-file /dev/null 10809 /disk
         __run_in_test_container --net host -- bash -c '
             for (( i = 0; i < 50; ++i )); do
