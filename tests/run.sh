@@ -300,6 +300,8 @@ __next_cluster() {
 
 export current_cluster
 
+maintain_two_clusters=$(( num_nodes <= 2 ))
+
 __run() {
 
     if [[ -e "${temp_dir}/retry" ]]; then
@@ -309,42 +311,65 @@ __run() {
 
     trap 'rm -fr "${temp_dir}"' EXIT
 
-    if ! __minikube_cluster_exists "${cluster_base_name}-a" &&
-        ! __minikube_cluster_exists "${cluster_base_name}-b"; then
+    if (( maintain_two_clusters )); then
 
-        current_cluster="${cluster_base_name}-a"
-        background_cluster="$( __next_cluster "${current_cluster}" )"
+        if ! __minikube_cluster_exists "${cluster_base_name}-a" &&
+            ! __minikube_cluster_exists "${cluster_base_name}-b"; then
 
-        __create_minikube_cluster_async "${background_cluster}"
+            current_cluster="${cluster_base_name}-a"
 
-        __log_cyan "Creating and using minikube cluster '%s'..." "${current_cluster}"
-        __start_minikube_cluster "${current_cluster}"
+            background_cluster="$( __next_cluster "${current_cluster}" )"
+            __create_minikube_cluster_async "${background_cluster}"
+
+            __log_cyan "Creating and using minikube cluster '%s'..." "${current_cluster}"
+            __start_minikube_cluster "${current_cluster}"
+
+        else
+
+            if [[ -n "${current_cluster:-}" ]]; then
+                if kill -0 "$!" &>/dev/null; then
+                    __log_cyan "Waiting for minikube cluster '%s' to be ready..." "${background_cluster}"
+                fi
+                wait || true
+                current_cluster="${background_cluster}"
+            elif __minikube_cluster_exists "${cluster_base_name}-a"; then
+                current_cluster="${cluster_base_name}-a"
+            else
+                current_cluster="${cluster_base_name}-b"
+            fi
+
+            background_cluster="$( __next_cluster "${current_cluster}" )"
+
+            if ! __minikube_cluster_exists "${background_cluster}"; then
+                __create_minikube_cluster_async "${background_cluster}"
+            fi
+
+            __log_cyan "Using existing minikube cluster '%s'..." "${current_cluster}"
+            __minikube stop --keep-context-active --cancel-scheduled
+            if [[ "$( __minikube status --format='{{.Host}}' )" != Running ]]; then
+                __restart_minikube_cluster "${current_cluster}"
+            fi
+        fi
 
     else
 
-        if [[ -n "${current_cluster:-}" ]]; then
-            if kill -0 "$!" &>/dev/null; then
-                __log_cyan "Waiting for minikube cluster '%s' to be ready..." "${background_cluster}"
-            fi
-            wait || true
-            current_cluster="${background_cluster}"
-        elif __minikube_cluster_exists "${cluster_base_name}-a"; then
-            current_cluster="${cluster_base_name}-a"
+        current_cluster="${cluster_base_name}"
+
+        if ! __minikube_cluster_exists "${current_cluster}"; then
+
+
+            __log_cyan "Creating and using minikube cluster '%s'..." "${current_cluster}"
+            __start_minikube_cluster "${current_cluster}"
+
         else
-            current_cluster="${cluster_base_name}-b"
+
+            __log_cyan "Using existing minikube cluster '%s'..." "${current_cluster}"
+            __minikube stop --keep-context-active --cancel-scheduled
+            if [[ "$( __minikube status --format='{{.Host}}' )" != Running ]]; then
+                __restart_minikube_cluster "${current_cluster}"
+            fi
         fi
 
-        background_cluster="$( __next_cluster "${current_cluster}" )"
-
-        if ! __minikube_cluster_exists "${background_cluster}"; then
-            __create_minikube_cluster_async "${background_cluster}"
-        fi
-
-        __log_cyan "Using existing minikube cluster '%s'..." "${current_cluster}"
-        __minikube stop --keep-context-active --cancel-scheduled
-        if [[ "$( __minikube status --format='{{.Host}}' )" != Running ]]; then
-            __restart_minikube_cluster "${current_cluster}"
-        fi
     fi
 
     trap '{
@@ -518,9 +543,11 @@ fi
 trap 'rm -fr "${temp_dir}"' EXIT
 __wait_until_background_cluster_is_ready
 
-minikube stop \
-    --profile="${background_cluster}" \
-    --keep-context-active \
-    --schedule=30m
+if [[ -n "${background_cluster:-}" ]]; then
+    minikube stop \
+        --profile="${background_cluster}" \
+        --keep-context-active \
+        --schedule=30m
+fi
 
 (( sandbox || num_succeeded == ${#tests[@]} ))
