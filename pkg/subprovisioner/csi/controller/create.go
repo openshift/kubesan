@@ -4,8 +4,10 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/jobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/volumemanager"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,7 +19,12 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// validate request
 
-	if req.VolumeContentSource != nil {
+	switch {
+	case req.VolumeContentSource == nil:
+		// ok, no volume content source
+	case req.VolumeContentSource.GetVolume() != nil:
+		// ok, volume content source is another volume
+	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported volume content source")
 	}
 
@@ -75,6 +82,20 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
+	// populate LVM thin LV
+
+	if source := req.VolumeContentSource.GetVolume(); source != nil {
+		sourceVolume, err := volumemanager.VolumeFromString(source.VolumeId)
+		if err != nil {
+			return nil, err
+		}
+
+		err = s.cloneVolume(ctx, sourceVolume, volume)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// success
 
 	resp := &csi.CreateVolumeResponse{
@@ -111,4 +132,57 @@ func validateCapacity(capacityRange *csi.CapacityRange) (capacity int64, minCapa
 	}
 
 	return
+}
+
+func (s *ControllerServer) cloneVolume(ctx context.Context, sourceVol *volumemanager.Volume, targetVol *volumemanager.Volume) error {
+	// TODO: Ensure that target isn't smaller than source.
+
+	// attach both volumes (preferring a node where there already is a primary attachment for the source volume)
+
+	cookie := fmt.Sprintf("cloning-into-%s", targetVol.K8sPvcUid)
+
+	nodeName, sourcePathOnHost, err := s.VolumeManager.AttachVolume(ctx, sourceVol, nil, cookie)
+	if err != nil {
+		return err
+	}
+
+	_, targetPathOnHost, err := s.VolumeManager.AttachVolumeUnmanaged(ctx, targetVol, &nodeName)
+	if err != nil {
+		return err
+	}
+
+	// run clone job
+
+	job := &jobs.Job{
+		Name:     fmt.Sprintf("populate-volume-%s", targetVol.K8sPvcUid),
+		NodeName: nodeName,
+		Command: []string{
+			"dd",
+			fmt.Sprintf("if=%s", sourcePathOnHost),
+			fmt.Sprintf("of=%s", targetPathOnHost),
+			"bs=1M",
+			"conv=fsync,nocreat,sparse",
+		},
+	}
+
+	err = jobs.Run(ctx, s.Clientset, job)
+	if err != nil {
+		return err
+	}
+
+	// detach both volumes
+
+	err = s.VolumeManager.DetachVolumeUnmanaged(ctx, targetVol, nodeName)
+	if err != nil {
+		return err
+	}
+
+	err = s.VolumeManager.DetachVolume(ctx, sourceVol, nodeName, cookie)
+	if err != nil {
+		return err
+	}
+
+	// success
+
+	return nil
 }
