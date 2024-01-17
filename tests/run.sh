@@ -16,6 +16,7 @@ repo_root="$( realpath -e "${script_dir}/.." )"
 
 fail_fast=0
 num_nodes=2
+set_kubectl_context=0
 pause_on_failure=0
 pause_on_stage=0
 tests=()
@@ -28,6 +29,9 @@ while (( $# > 0 )); do
         --nodes)
             shift
             num_nodes=$1
+            ;;
+        --set-kubectl-context)
+            set_kubectl_context=1
             ;;
         --pause-on-failure)
             pause_on_failure=1
@@ -64,10 +68,11 @@ ready more quickly. One of the clusters is left running after this script exits,
 but will stop itself if this script isn't run again for 30 minutes.
 
 Options:
-   --fail-fast          Cancel remaining tests after a test fails.
-   --nodes <n>          Number of nodes in the cluster (default: 2).
-   --pause-on-failure   Launch an interactive shell after a test fails.
-   --pause-on-stage     Launch an interactive shell before each stage in a test.
+   --fail-fast             Cancel remaining tests after a test fails.
+   --nodes <n>             Number of nodes in the cluster (default: 2).
+   --set-kubectl-context   Update the current user's kubectl context to point at the cluster.
+   --pause-on-failure      Launch an interactive shell after a test fails.
+   --pause-on-stage        Launch an interactive shell before each stage in a test.
 "
     exit 2
 fi
@@ -381,6 +386,11 @@ __run() {
         __wait_until_background_cluster_is_ready
         }' EXIT
 
+    if (( set_kubectl_context )); then
+        unset KUBECONFIG
+        kubectl config use-context "${current_cluster}"
+    fi
+
     kubectl config view > "${temp_dir}/kubeconfig"
     export KUBECONFIG="${temp_dir}/kubeconfig"
     kubectl config use-context "${current_cluster}"
@@ -431,6 +441,7 @@ __run() {
             __run_in_test_container --net host -- \
                 nbd-client ${NODE_IPS[0]} /dev/nbd0
             sudo ln -s /dev/nbd0 /dev/subprovisioner-backing-volume
+            sudo ln -s /dev/nbd0 /dev/my-san-lun  # good for demos
             "
     done
 
@@ -504,8 +515,6 @@ if (( sandbox )); then
     done
 else
     for (( test_i = 0; test_i < ${#tests[@]}; ++test_i )); do
-
-        unset KUBECONFIG
 
         test="${tests[test_i]}"
         test_name="$( realpath --relative-to=. "${test}" )"
