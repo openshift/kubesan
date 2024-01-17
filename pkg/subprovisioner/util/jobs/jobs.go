@@ -7,6 +7,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"strconv"
 	"time"
@@ -104,7 +105,7 @@ func (job *Job) instantiateTemplate() (*batchv1.Job, error) {
 
 	object, _, err := scheme.Codecs.UniversalDeserializer().Decode(jobYaml.Bytes(), nil, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode YAML: %s:\n%s", err, jobYaml.String())
 	}
 
 	return object.(*batchv1.Job), nil

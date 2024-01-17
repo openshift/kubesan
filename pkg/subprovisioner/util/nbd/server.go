@@ -177,12 +177,16 @@ func instantiateTemplate(
 		"DevicePathOnHost": template.HTML(devicePathOnHost),
 	}
 
-	var serverYaml bytes.Buffer
-	err := yamlTemplate.Execute(&serverYaml, args)
+	var yaml bytes.Buffer
+	err := yamlTemplate.Execute(&yaml, args)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = scheme.Codecs.UniversalDeserializer().Decode(serverYaml.Bytes(), nil, object)
-	return err
+	_, _, err = scheme.Codecs.UniversalDeserializer().Decode(yaml.Bytes(), nil, object)
+	if err != nil {
+		return fmt.Errorf("failed to decode YAML: %s:\n%s", err, yaml.String())
+	}
+
+	return nil
 }
