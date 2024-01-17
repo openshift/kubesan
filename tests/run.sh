@@ -156,14 +156,28 @@ __shell() {
         __log "$1" '  $ retry'
     fi
 
+    IFS='/' read -r -a script_path <<< "$0"
+
+    if [[ "${script_path[0]}" == "" ]]; then
+        # absolute path
+        script_path=( "/${script_path[1]}" "${script_path[@]:2}" )
+    fi
+
+    if (( ${#script_path[@]} > 2 )); then
+        script_path=( ... "${script_path[@]: -2}" )
+    fi
+
+    subprovisioner_tests_run_sh_path=$( printf '/%s' "${script_path[@]}" )
+    subprovisioner_tests_run_sh_path=${subprovisioner_tests_run_sh_path:1}
+
     (
-        export subprovisioner_tests_run_sh_path="$0"
+        export subprovisioner_tests_run_sh_path
         export subprovisioner_retry_path="${temp_dir}/retry"
         # shellcheck disable=SC2016,SC2028
         "$BASH" --init-file <( echo "
             . \"\$HOME/.bashrc\"
             PROMPT_COMMAND=(
-                \"echo -en '\\033[1m(\$subprovisioner_tests_run_sh_path)\\033[0m '\"
+                \"echo -en '\\001\\033[1m\\002(\$subprovisioner_tests_run_sh_path)\\001\\033[0m\\002 '\"
                 \"\${PROMPT_COMMAND[@]}\"
                 )
             " )
