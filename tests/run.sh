@@ -16,10 +16,11 @@ repo_root="$( realpath -e "${script_dir}/.." )"
 
 fail_fast=0
 num_nodes=2
+repeat=1
 set_kubectl_context=0
 pause_on_failure=0
 pause_on_stage=0
-tests=()
+tests_arg=()
 
 while (( $# > 0 )); do
     case "$1" in
@@ -29,6 +30,10 @@ while (( $# > 0 )); do
         --nodes)
             shift
             num_nodes=$1
+            ;;
+        --repeat)
+            shift
+            repeat=$1
             ;;
         --set-kubectl-context)
             set_kubectl_context=1
@@ -41,13 +46,13 @@ while (( $# > 0 )); do
             pause_on_stage=1
             ;;
         *)
-            tests+=( "$1" )
+            tests_arg+=( "$1" )
             ;;
     esac
     shift
 done
 
-if (( "${#tests[@]}" == 0 )); then
+if (( "${#tests_arg[@]}" == 0 )); then
     >&2 echo -n "\
 Usage: $0 [<options...>] <tests...>
        $0 [<options...>] all
@@ -70,6 +75,7 @@ but will stop itself if this script isn't run again for 30 minutes.
 Options:
    --fail-fast             Cancel remaining tests after a test fails.
    --nodes <n>             Number of nodes in the cluster (default: 2).
+   --repeat <n>            Run each test n times (default: 1).
    --set-kubectl-context   Update the current user's kubectl context to point at the cluster.
    --pause-on-failure      Launch an interactive shell after a test fails.
    --pause-on-stage        Launch an interactive shell before each stage in a test.
@@ -77,25 +83,32 @@ Options:
     exit 2
 fi
 
-if (( "${#tests[@]}" == 1 )) && [[ "${tests[0]}" = sandbox ]]; then
+if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox ]]; then
     sandbox=1
 else
     sandbox=0
 
-    if (( "${#tests[@]}" == 1 )) && [[ "${tests[0]}" = all ]]; then
-        tests=()
+    if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = all ]]; then
+        tests_arg=()
         for f in "${script_dir}"/t/*.sh; do
-            tests+=( "$f" )
+            tests_arg+=( "$f" )
         done
     fi
 
-    for test in "${tests[@]}"; do
+    for test in "${tests_arg[@]}"; do
         if [[ ! -e "${test}" ]]; then
             >&2 echo "Test file does not exist: ${test}"
             exit 1
         fi
     done
 fi
+
+tests=()
+for test in "${tests_arg[@]}"; do
+    for (( i = 0; i < repeat; ++i )); do
+        tests+=( "$test" )
+    done
+done
 
 # private definitions
 
