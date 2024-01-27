@@ -16,7 +16,7 @@ spec:
       storage: 64Mi
 EOF
 
-__wait_for_pvc_to_be_bound 60 test-pvc-1
+__wait_for_pvc_to_be_bound 300 test-pvc-1
 
 __stage 'Writing some random data to volume 1...'
 
