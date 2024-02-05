@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
-__stage 'Provisioning volume...'
+__stage 'Provisioning volumes...'
+
+# Two distinct volumes, to ensure parallel cross-node NBD devices work
 
 kubectl create -f - <<EOF
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: test-pvc
+  name: test-pvc-1
 spec:
   accessModes:
     - ReadWriteMany
@@ -16,9 +18,24 @@ spec:
   volumeMode: Block
 EOF
 
-__wait_for_pvc_to_be_bound 60 test-pvc
+kubectl create -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-pvc-2
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 128Mi
+  volumeMode: Block
+EOF
 
-__stage 'Mounting volume read-write on all nodes...'
+__wait_for_pvc_to_be_bound 300 test-pvc-1
+__wait_for_pvc_to_be_bound 60 test-pvc-2
+
+__stage 'Mounting volumes read-write on all nodes...'
 
 for i in "${!NODES[@]}"; do
     kubectl create -f - <<EOF
@@ -37,15 +54,21 @@ for i in "${!NODES[@]}"; do
             - bash
             - -c
             - |
-              dd if=/dev/zero of=/var/pvc bs=1M count=64 oflag=direct &&
+              dd if=/dev/zero of=/var/pvc1 bs=1M count=64 oflag=direct &&
+              dd if=/dev/zero of=/var/pvc2 bs=1M count=128 oflag=direct &&
               sleep infinity
           volumeDevices:
-            - name: pvc
-              devicePath: /var/pvc
+            - name: pvc-1
+              devicePath: /var/pvc1
+            - name: pvc-2
+              devicePath: /var/pvc2
       volumes:
-        - name: pvc
+        - name: pvc-1
           persistentVolumeClaim:
-            claimName: test-pvc
+            claimName: test-pvc-1
+        - name: pvc-2
+          persistentVolumeClaim:
+            claimName: test-pvc-2
 EOF
 done
 
@@ -59,10 +82,11 @@ for i in "${!NODES[@]}"; do
     __pod_is_running "test-pod-$i"
 done
 
-__stage 'Unmounting volume from all nodes...'
+__stage 'Unmounting volumes from all nodes...'
 
 kubectl delete pod "${NODE_INDICES[@]/#/test-pod-}" --timeout=30s
 
-__stage 'Deleting volume...'
+__stage 'Deleting volumes...'
 
-kubectl delete pvc test-pvc --timeout=30s
+kubectl delete pvc test-pvc-1 --timeout=30s
+kubectl delete pvc test-pvc-2 --timeout=30s

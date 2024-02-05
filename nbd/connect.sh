@@ -6,8 +6,8 @@ set -ex
 device_symlink=$1
 server_host=$2
 
-nbd_device_path=/dev/nbd15  # TODO: actually find available device
-
+# This relies on nbd-client with netlink support to pick the next available
+# nbd block device, which it outputs in a line "Connected /dev/nbdX"
+details=$(nbd-client "$server_host" -persist)
+nbd_device_path=$(printf '%s\n' "$details" | sed -n 's/^Connected //p')
 ln -fs "$nbd_device_path" "$device_symlink"
-
-exec nbd-client "$server_host" "$nbd_device_path" -persist
