@@ -8,6 +8,6 @@ server_host=$2
 
 # This relies on nbd-client with netlink support to pick the next available
 # nbd block device, which it outputs in a line "Connected /dev/nbdX"
-details=$(nbd-client "$server_host" -persist)
+details=$(nbd-client "$server_host" --persist --connections 8)
 nbd_device_path=$(printf '%s\n' "$details" | sed -n 's/^Connected //p')
 ln -fs "$nbd_device_path" "$device_symlink"
