@@ -16,7 +16,7 @@ RUN go build -o bin/subprovisioner ./cmd/subprovisioner
 # FROM quay.io/centos/centos:stream9
 FROM quay.io/fedora/fedora:39
 
-RUN dnf install -qy lvm2-lockd nbd sanlock && dnf clean all
+RUN dnf install -qy lvm2-lockd nbd nbdkit-basic-plugins sanlock && dnf clean all
 
 WORKDIR /subprovisioner
 
