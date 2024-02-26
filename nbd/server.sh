@@ -3,12 +3,10 @@
 
 set -ex
 
-# TODO: Probably want to use nbdkit instead.
-
 device_to_export=$1
 
 while [[ ! -b "$device_to_export" ]]; do
     sleep 1
 done
 
-exec nbd-server 10809 "$device_to_export" --nodaemon
+exec nbdkit --foreground --port 10809 file "$device_to_export"
