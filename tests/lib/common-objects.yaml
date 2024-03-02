@@ -11,3 +11,14 @@ metadata:
 provisioner: subprovisioner.gitlab.io
 parameters:
   backingDevicePath: /dev/subprovisioner-backing-volume
+
+---
+
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: subprovisioner
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: subprovisioner.gitlab.io
+deletionPolicy: Delete
