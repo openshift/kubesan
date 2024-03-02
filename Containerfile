@@ -23,9 +23,8 @@ WORKDIR /subprovisioner
 # prevent LVM commands from failing due to thinking that lvmlockd isn't running
 RUN touch /run/lvmlockd.pid
 
-COPY lvm/lvm.conf /etc/lvm/
-COPY lvm/*.sh ./lvm/
-COPY nbd/*.sh ./nbd/
+COPY conf/lvm.conf /etc/lvm/
+COPY scripts/ scripts/
 
 COPY --from=builder /subprovisioner/bin/subprovisioner ./
 

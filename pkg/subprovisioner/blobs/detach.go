@@ -124,21 +124,17 @@ func (bm *BlobManager) detachDirect(ctx context.Context, blob *Blob, node string
 	// deactivate LVM thin and thin pool LVs
 
 	job := &jobs.Job{
-		Name:     fmt.Sprintf("deactivate-lv-%s", util.Hash(node, blob.lvmThinLvRef())),
+		Name:     fmt.Sprintf("deactivate-lv-%s", util.Hash(node, blob.lvmThinLvName())),
 		NodeName: node,
 		Command: []string{
-			"./lvm/deactivate.sh", blob.BackingDevicePath, blob.lvmThinLvRef(), blob.lvmThinPoolLvRef(),
+			"scripts/lvm.sh", "deactivate",
+			blob.BackingDevicePath, blob.lvmThinPoolLvName(), blob.lvmThinLvName(),
 		},
 	}
 
-	err = jobs.CreateAndRun(ctx, bm.clientset, job)
+	err = jobs.CreateAndRunAndDelete(ctx, bm.clientset, job)
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to deactivate LVM LVs: %s", err)
-	}
-
-	err = jobs.Delete(ctx, bm.clientset, job.Name)
-	if err != nil {
-		return err
 	}
 
 	// success

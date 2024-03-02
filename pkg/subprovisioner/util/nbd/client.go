@@ -30,22 +30,17 @@ func ConnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode str
 	job := &jobs.Job{
 		Name:        fmt.Sprintf("nbd-connect-%s", util.Hash(clientNode, serverId.hash())),
 		NodeName:    clientNode,
-		Command:     []string{"./nbd/client-connect.sh", deviceSymlinkPath, serverIp.String()},
+		Command:     []string{"scripts/nbd.sh", "client-connect", deviceSymlinkPath, serverIp.String()},
 		HostNetwork: true, // for netlink to work
 	}
 
-	err = jobs.CreateAndRun(ctx, clientset, job)
+	err = jobs.CreateAndRunAndDelete(ctx, clientset, job)
 	if err != nil {
 		return "", status.Errorf(
 			codes.Internal,
 			"failed to connect NBD client device to hostname '%s': %s",
 			serverId.Hostname(), err,
 		)
-	}
-
-	err = jobs.Delete(ctx, clientset, job.Name)
-	if err != nil {
-		return "", err
 	}
 
 	// success
@@ -59,18 +54,13 @@ func DisconnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode 
 	job := &jobs.Job{
 		Name:        fmt.Sprintf("nbd-disconnect-%s", util.Hash(clientNode, serverId.hash())),
 		NodeName:    clientNode,
-		Command:     []string{"./nbd/client-disconnect.sh", deviceSymlinkPath},
+		Command:     []string{"scripts/nbd.sh", "client-disconnect", deviceSymlinkPath},
 		HostNetwork: true, // for netlink to work
 	}
 
-	err := jobs.CreateAndRun(ctx, clientset, job)
+	err := jobs.CreateAndRunAndDelete(ctx, clientset, job)
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to disconnect NBD client device: %s", err)
-	}
-
-	err = jobs.Delete(ctx, clientset, job.Name)
-	if err != nil {
-		return err
 	}
 
 	return nil

@@ -19,7 +19,8 @@ spec:
         - name: nbd-server
           image: {{.Image}}
           command:
-            - ./nbd/server.sh
+            - scripts/nbd.sh
+            - server
             - {{.DevicePathOnHost}}
           volumeMounts:
             - name: dev

@@ -4,9 +4,11 @@ package blobs
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/lvm"
 	"google.golang.org/grpc/codes"
@@ -31,7 +33,7 @@ func (bm *BlobManager) GetBlobSize(ctx context.Context, blob *Blob) (int64, erro
 		"--units", "b",
 		"--nosuffix",
 		"--noheadings",
-		blob.lvmThinLvRef(),
+		fmt.Sprintf("%s/%s", config.LvmVgName, blob.lvmThinLvName()),
 	)
 	if err != nil {
 		return -1, status.Errorf(codes.Internal, "failed to get size of LVM LV: %s: %s", err, output)
@@ -57,7 +59,7 @@ func (bm *BlobManager) getBlobLvmThinLvPath(ctx context.Context, blob *Blob) (st
 		"--devices", blob.BackingDevicePath,
 		"--options", "lv_path",
 		"--noheadings",
-		blob.lvmThinLvRef(),
+		fmt.Sprintf("%s/%s", config.LvmVgName, blob.lvmThinLvName()),
 	)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "failed to get path to LVM LV: %s: %s", err, output)

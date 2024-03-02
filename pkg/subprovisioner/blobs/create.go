@@ -5,6 +5,7 @@ package blobs
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
@@ -31,54 +32,14 @@ func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStora
 		return err
 	}
 
-	// ensure LVM VG lockspace is started
+	// create LVM thin pool LV and thin LV
 
-	err = lvm.StartVgLockspace(ctx, blob.BackingDevicePath)
-	if err != nil {
-		return err
-	}
-
-	// create LVM thin pool LV
-
-	output, err := lvm.IdempotentLvCreate(
-		ctx,
-		"--devices", blob.BackingDevicePath,
-		"--activate", "n",
-		"--type", "thin-pool",
-		"--name", blob.lvmThinPoolLvName(),
-		"--size", fmt.Sprintf("%db", 2*size),
-		config.LvmVgName,
+	err = util.RunCommand(
+		"scripts/lvm.sh", "create",
+		blob.BackingDevicePath, blob.lvmThinPoolLvName(), blob.lvmThinLvName(), strconv.FormatInt(size, 10),
 	)
 	if err != nil {
-		return status.Errorf(codes.Internal, "failed to create LVM thin pool LV: %s: %s", err, output)
-	}
-
-	// create LVM thin LV
-
-	output, err = lvm.IdempotentLvCreate(
-		ctx,
-		"--devices", blob.BackingDevicePath,
-		"--type", "thin",
-		"--name", blob.lvmThinLvName(),
-		"--thinpool", blob.lvmThinPoolLvName(),
-		"--virtualsize", fmt.Sprintf("%db", size),
-		config.LvmVgName,
-	)
-	if err != nil {
-		return status.Errorf(codes.Internal, "failed to create LVM thin LV: %s: %s", err, output)
-	}
-
-	// deactivate LVM thin LV (`--activate n` has no effect on `lvcreate --type thin`)
-
-	output, err = lvm.Command(
-		ctx,
-		"lvchange",
-		"--devices", blob.BackingDevicePath,
-		"--activate", "n",
-		blob.lvmThinLvRef(),
-	)
-	if err != nil {
-		return status.Errorf(codes.Internal, "failed to deactivate LVM thin LV: %s: %s", err, output)
+		return status.Errorf(codes.Internal, "failed to create LVM thin pool LV and thin LV: %s", err)
 	}
 
 	// success
@@ -112,18 +73,15 @@ func (bm *BlobManager) CreateBlobCopy(ctx context.Context, blobName string, sour
 		Name:     fmt.Sprintf("create-lv-%s", util.Hash(nodeName, blob.Name)),
 		NodeName: nodeName,
 		Command: []string{
-			"./lvm/snapshot.sh", blob.BackingDevicePath, sourceBlob.lvmThinLvName(), blob.lvmThinLvName(),
+			"scripts/lvm.sh", "snapshot",
+			blob.BackingDevicePath, sourceBlob.lvmThinPoolLvName(), sourceBlob.lvmThinLvName(),
+			blob.lvmThinLvName(),
 		},
 	}
 
-	err = jobs.CreateAndRun(ctx, bm.clientset, job)
+	err = jobs.CreateAndRunAndDelete(ctx, bm.clientset, job)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to snapshot LVM LV: %s", err)
-	}
-
-	err = jobs.Delete(ctx, bm.clientset, job.Name)
-	if err != nil {
-		return nil, err
 	}
 
 	err = bm.DetachBlob(ctx, sourceBlob, nodeName, cookie)

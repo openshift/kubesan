@@ -18,7 +18,7 @@ spec:
         - name: lvmlockd
           image: quay.io/subprovisioner/subprovisioner:0.0.0
           command:
-            - ./lvm/lvmlockd.sh
+            - scripts/lvmlockd.sh
             - $(HOST_IP)
           env:
             - name: HOST_IP
@@ -37,7 +37,7 @@ spec:
         - name: sanlock
           image: quay.io/subprovisioner/subprovisioner:0.0.0
           command:
-            - ./lvm/sanlock.sh
+            - scripts/sanlock.sh
             - $(NODE_NAME)
           env:
             - name: NODE_NAME

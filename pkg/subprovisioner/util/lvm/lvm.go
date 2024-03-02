@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -23,48 +22,25 @@ func Command(ctx context.Context, command string, arg ...string) (string, error)
 
 	cmd.Stdin = nil
 
-	output, err := cmd.CombinedOutput()
+	stdout, err := cmd.Output()
+	if err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			return "", status.Errorf(
+				codes.Internal, "command \"lvm %s\" failed: %s: %s",
+				strings.Join(fullArgs, " "), err, exiterr.Stderr,
+			)
+		} else {
+			return "", status.Errorf(
+				codes.Internal, "command \"lvm %s\" failed: %s",
+				strings.Join(fullArgs, " "), err,
+			)
+		}
+
+	}
 
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
 
-	return string(output), err
-}
-
-// Ignores lvcreate errors due to the LV already existing.
-func IdempotentLvCreate(ctx context.Context, arg ...string) (string, error) {
-	output, err := Command(ctx, "lvcreate", arg...)
-
-	if err != nil && strings.Contains(strings.ToLower(output), "already exists in volume group") {
-		err = nil
-	}
-
-	return output, nil
-}
-
-// Ignores lvremove errors due to the LV not existing.
-func IdempotentLvRemove(ctx context.Context, arg ...string) (string, error) {
-	output, err := Command(ctx, "lvremove", arg...)
-
-	if err != nil && strings.Contains(strings.ToLower(output), "failed to find logical volume") {
-		err = nil
-	}
-
-	return output, nil
-}
-
-func StartVgLockspace(ctx context.Context, lvmPvPath string) error {
-	args := []string{"--devices", lvmPvPath, "--lock-start", config.LvmVgName}
-
-	_, err := Command(ctx, "vgchange", args...)
-	if err != nil {
-		// oftentimes trying again works (TODO: figure out why)
-		output, err := Command(ctx, "vgchange", args...)
-		if err != nil {
-			return status.Errorf(codes.Internal, "failed to start vg lockspace: %s: %s", err, output)
-		}
-	}
-
-	return nil
+	return string(stdout), err
 }

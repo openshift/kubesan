@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -52,14 +51,6 @@ func (b *Blob) lvmThinLvName() string {
 
 func (b *Blob) lvmThinPoolLvName() string {
 	return b.K8sPersistentVolumeName
-}
-
-func (b *Blob) lvmThinLvRef() string {
-	return fmt.Sprintf("%s/%s", config.LvmVgName, b.lvmThinLvName())
-}
-
-func (b *Blob) lvmThinPoolLvRef() string {
-	return fmt.Sprintf("%s/%s", config.LvmVgName, b.lvmThinPoolLvName())
 }
 
 func (bm *BlobManager) atomicUpdateK8sPvForBlob(

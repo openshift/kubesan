@@ -193,21 +193,17 @@ func (bm *BlobManager) attachDirect(ctx context.Context, blob *Blob, node string
 	// activate LVM thin pool and thin LVs
 
 	job := &jobs.Job{
-		Name:     fmt.Sprintf("activate-lv-%s", util.Hash(node, blob.lvmThinLvRef())),
+		Name:     fmt.Sprintf("activate-lv-%s", util.Hash(node, blob.lvmThinLvName())),
 		NodeName: node,
 		Command: []string{
-			"./lvm/activate.sh", blob.BackingDevicePath, blob.lvmThinPoolLvRef(), blob.lvmThinLvRef(),
+			"scripts/lvm.sh", "activate",
+			blob.BackingDevicePath, blob.lvmThinPoolLvName(), blob.lvmThinLvName(),
 		},
 	}
 
-	err := jobs.CreateAndRun(ctx, bm.clientset, job)
+	err := jobs.CreateAndRunAndDelete(ctx, bm.clientset, job)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "failed to activate LVM LVs: %s", err)
-	}
-
-	err = jobs.Delete(ctx, bm.clientset, job.Name)
-	if err != nil {
-		return "", err
 	}
 
 	// get path to LVM thin LV

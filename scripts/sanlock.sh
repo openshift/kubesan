@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 
-set -ex
+set -o errexit -o pipefail -o nounset -o xtrace
 
 # TODO: Must run wdmd as well.
 

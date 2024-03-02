@@ -9,12 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"os/exec"
 	"strconv"
 	"time"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	batchv1 "k8s.io/api/batch/v1"
@@ -31,6 +31,20 @@ type Job struct {
 	HostNetwork bool
 }
 
+func CreateAndRunAndDelete(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
+	err := CreateAndRun(ctx, clientset, job)
+	if err != nil {
+		return err
+	}
+
+	err = Delete(ctx, clientset, job.Name)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Idempotent, until you call Delete() on the job.
 func CreateAndRun(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
 	if job.NodeName == config.LocalNodeName && !job.HostNetwork {
@@ -41,12 +55,9 @@ func CreateAndRun(ctx context.Context, clientset *k8s.Clientset, job *Job) error
 }
 
 func runLocal(job *Job) error {
-	cmd := exec.Command(job.Command[0], job.Command[1:]...)
-	cmd.Stdin = nil
-
-	output, err := cmd.CombinedOutput()
+	err := util.RunCommand(job.Command...)
 	if err != nil {
-		return status.Errorf(codes.Internal, "job \"%s\" failed: %s: %s", job.Name, err, output)
+		return status.Errorf(codes.Internal, "job \"%s\" failed: %s", job.Name, err)
 	}
 
 	return nil

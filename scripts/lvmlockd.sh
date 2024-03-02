@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 
-set -ex
+set -o errexit -o pipefail -o nounset -o xtrace
 
 # TODO: We currently base the lvmlockd host_id on the last 10 bits of the host's
 # IP. This may not always lead to unique IDs and only works with up to 1024
