@@ -12,7 +12,7 @@ __stage() {
         # shellcheck disable=SC2154
         if (( pause_on_stage )); then
             __log_yellow "Pausing before ${text_lower::1}${text:1}"
-            __debug_shell
+            __shell 32 false
         fi
 
         printf "\033[36m--- [%6.1f] %s\033[0m\n" "$( __elapsed )" "${text}"
