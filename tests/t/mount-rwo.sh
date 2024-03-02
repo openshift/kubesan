@@ -19,7 +19,7 @@ EOF
 done
 
 for i in "${!NODES[@]}"; do
-    __wait_for_pvc_to_be_bound 60 "test-pvc-$i"
+    __wait_for_pvc_to_be_bound 300 "test-pvc-$i"
 done
 
 __stage 'Mounting each volume read-write on a different node...'

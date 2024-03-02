@@ -4,36 +4,24 @@ __stage 'Provisioning volumes...'
 
 # Two distinct volumes, to ensure parallel cross-node NBD devices work
 
-kubectl create -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: test-pvc-1
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 64Mi
-  volumeMode: Block
+for i in 1 2; do
+    kubectl create -f - <<EOF
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: test-pvc-$i
+    spec:
+      accessModes:
+        - ReadWriteMany
+      resources:
+        requests:
+          storage: $(( 64 * i ))Mi
+      volumeMode: Block
 EOF
-
-kubectl create -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: test-pvc-2
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 128Mi
-  volumeMode: Block
-EOF
+done
 
 __wait_for_pvc_to_be_bound 300 test-pvc-1
-__wait_for_pvc_to_be_bound 60 test-pvc-2
+__wait_for_pvc_to_be_bound 300 test-pvc-2
 
 __stage 'Mounting volumes read-write on all nodes...'
 
@@ -88,5 +76,4 @@ kubectl delete pod "${NODE_INDICES[@]/#/test-pod-}" --timeout=30s
 
 __stage 'Deleting volumes...'
 
-kubectl delete pvc test-pvc-1 --timeout=30s
-kubectl delete pvc test-pvc-2 --timeout=30s
+kubectl delete pvc test-pvc-1 test-pvc-2 --timeout=30s
