@@ -11,6 +11,7 @@ fi
 start_time="$( date +%s.%N )"
 script_dir="$( realpath -e "$0" | xargs dirname )"
 repo_root="$( realpath -e "${script_dir}/.." )"
+initial_working_dir="$( pwd )"
 
 # parse usage
 
@@ -186,6 +187,7 @@ __shell() {
     (
         export subprovisioner_tests_run_sh_path
         export subprovisioner_retry_path="${temp_dir}/retry"
+        cd "${initial_working_dir}"
         # shellcheck disable=SC2016,SC2028
         "$BASH" --init-file <( echo "
             . \"\$HOME/.bashrc\"
