@@ -92,7 +92,7 @@ func setup(csiSocketPath string) (*k8s.Clientset, net.Listener, *grpc.Server, er
 		return nil, nil, nil, fmt.Errorf("failed to listen: %v", err)
 	}
 
-	interceptor := func(
+	loggingInterceptor := func(
 		ctx context.Context,
 		req interface{},
 		info *grpc.UnaryServerInfo,
@@ -107,7 +107,24 @@ func setup(csiSocketPath string) (*k8s.Clientset, net.Listener, *grpc.Server, er
 		}
 		return resp, err
 	}
-	server := grpc.NewServer(grpc.UnaryInterceptor(interceptor))
+
+	contextInterceptor := func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		// The default context often has a too-short deadline, interrupting out work midway and later retrying
+		// it just for it to get interrupted midway once again. Work around this simply by disabling any
+		// timeout, ensuring we make progress. Note that Kubernetes will still eventually retry the call,
+		// potentially concurrently to the current call. Hopefully there is some limit to the number of gRPCs
+		// that this server can process at once, and this doesn't cause a thousand coroutines to run at once.
+		ctx = context.Background()
+
+		return handler(ctx, req)
+	}
+
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(loggingInterceptor, contextInterceptor))
 
 	return clientset, listener, server, nil
 }
