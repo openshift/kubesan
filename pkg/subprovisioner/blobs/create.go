@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package volumemanager
+package blobs
 
 import (
 	"context"
@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/jobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/lvm"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	storagev1 "k8s.io/api/storage/v1"
@@ -16,35 +18,35 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+// Creates an empty blob.
+//
 // This method is idempotent and may be called from any node.
-func (vm *VolumeManager) CreateVolume(ctx context.Context, vol *Volume, k8sStorageClassName string, size int64) error {
+func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStorageClassName string, size int64) error {
 	// TODO: Make this idempotent and concurrency-safe and ensure cleanup under error conditions.
 
 	// ensure LVM VG exists
 
-	err := vm.createLvmVg(ctx, k8sStorageClassName, vol.BackingDevicePath)
+	err := bm.createLvmVg(ctx, k8sStorageClassName, blob.BackingDevicePath)
 	if err != nil {
 		return err
 	}
 
 	// ensure LVM VG lockspace is started
 
-	err = lvm.StartVgLockspace(ctx, vol.BackingDevicePath)
+	err = lvm.StartVgLockspace(ctx, blob.BackingDevicePath)
 	if err != nil {
 		return err
 	}
 
 	// create LVM thin pool LV
 
-	sizeString := fmt.Sprintf("%db", size)
-
 	output, err := lvm.IdempotentLvCreate(
 		ctx,
-		"--devices", vol.BackingDevicePath,
+		"--devices", blob.BackingDevicePath,
 		"--activate", "n",
 		"--type", "thin-pool",
-		"--name", vol.lvmThinPoolLvName(),
-		"--size", sizeString,
+		"--name", blob.lvmThinPoolLvName(),
+		"--size", fmt.Sprintf("%db", 2*size),
 		config.LvmVgName,
 	)
 	if err != nil {
@@ -55,11 +57,11 @@ func (vm *VolumeManager) CreateVolume(ctx context.Context, vol *Volume, k8sStora
 
 	output, err = lvm.IdempotentLvCreate(
 		ctx,
-		"--devices", vol.BackingDevicePath,
+		"--devices", blob.BackingDevicePath,
 		"--type", "thin",
-		"--name", vol.lvmThinLvName(),
-		"--thinpool", vol.lvmThinPoolLvName(),
-		"--virtualsize", sizeString,
+		"--name", blob.lvmThinLvName(),
+		"--thinpool", blob.lvmThinPoolLvName(),
+		"--virtualsize", fmt.Sprintf("%db", size),
 		config.LvmVgName,
 	)
 	if err != nil {
@@ -71,9 +73,9 @@ func (vm *VolumeManager) CreateVolume(ctx context.Context, vol *Volume, k8sStora
 	output, err = lvm.Command(
 		ctx,
 		"lvchange",
-		"--devices", vol.BackingDevicePath,
+		"--devices", blob.BackingDevicePath,
 		"--activate", "n",
-		vol.lvmThinLvRef(),
+		blob.lvmThinLvRef(),
 	)
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to deactivate LVM thin LV: %s: %s", err, output)
@@ -84,11 +86,59 @@ func (vm *VolumeManager) CreateVolume(ctx context.Context, vol *Volume, k8sStora
 	return nil
 }
 
-func (vm *VolumeManager) createLvmVg(ctx context.Context, storageClassName string, pvPath string) error {
+// Creates a blob that is a copy of the given sourceBlob. Subsequent writes to the latter don't affect the former.
+//
+// sourceBlob does not need to be attached to any node.
+//
+// This method is idempotent and may be called from any node.
+//
+// (Internal behavior note: The two blobs gain the restriction that they can only be directly attached simultaneously to
+// the same node. Indirect attachments are not affected.)
+func (bm *BlobManager) CreateBlobCopy(ctx context.Context, blobName string, sourceBlob *Blob) (*Blob, error) {
+	blob := &Blob{
+		Name:                    blobName,
+		K8sPersistentVolumeName: sourceBlob.K8sPersistentVolumeName,
+		BackingDevicePath:       sourceBlob.BackingDevicePath,
+	}
+
+	cookie := fmt.Sprintf("copying-to-%s", blob.Name)
+
+	nodeName, _, err := bm.AttachBlob(ctx, sourceBlob, nil, cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	job := &jobs.Job{
+		Name:     fmt.Sprintf("create-lv-%s", util.Hash(nodeName, blob.Name)),
+		NodeName: nodeName,
+		Command: []string{
+			"./lvm/snapshot.sh", blob.BackingDevicePath, sourceBlob.lvmThinLvName(), blob.lvmThinLvName(),
+		},
+	}
+
+	err = jobs.CreateAndRun(ctx, bm.clientset, job)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to snapshot LVM LV: %s", err)
+	}
+
+	err = jobs.Delete(ctx, bm.clientset, job.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	err = bm.DetachBlob(ctx, sourceBlob, nodeName, cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	return blob, nil
+}
+
+func (bm *BlobManager) createLvmVg(ctx context.Context, storageClassName string, pvPath string) error {
 	// TODO: This will hang if the CSI controller plugin creating the VG dies. Fix this, maybe using leases.
 	// TODO: Communicate VG creation errors to users through events/status on the SC and PVC.
 
-	storageClasses := vm.clientset.StorageV1().StorageClasses()
+	storageClasses := bm.clientset.StorageV1().StorageClasses()
 	stateAnnotation := fmt.Sprintf("%s/vg-state", config.Domain)
 
 	// check VG state

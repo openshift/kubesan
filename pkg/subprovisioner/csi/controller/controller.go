@@ -6,20 +6,21 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/blobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/volumemanager"
 )
 
 type ControllerServer struct {
 	csi.UnimplementedControllerServer
-	Clientset     *k8s.Clientset
-	VolumeManager *volumemanager.VolumeManager
+	Clientset   *k8s.Clientset
+	BlobManager *blobs.BlobManager
 }
 
 func (s *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	caps := []csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_CLONE_VOLUME,
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
 		csi.ControllerServiceCapability_RPC_SINGLE_NODE_MULTI_WRITER,
 	}
 

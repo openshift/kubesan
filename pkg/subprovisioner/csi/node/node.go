@@ -6,18 +6,18 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/blobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/fs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/volumemanager"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type NodeServer struct {
 	csi.UnimplementedNodeServer
-	Clientset     *k8s.Clientset
-	VolumeManager *volumemanager.VolumeManager
+	Clientset   *k8s.Clientset
+	BlobManager *blobs.BlobManager
 }
 
 func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
@@ -60,21 +60,21 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Errorf(codes.InvalidArgument, "expected a block volume")
 	}
 
-	volume, err := volumemanager.VolumeFromString(req.VolumeId)
+	blob, err := blobs.BlobFromString(req.VolumeId)
 	if err != nil {
 		return nil, err
 	}
 
-	// attach volume to current node
+	// attach blob to current node
 
-	_, path, err := s.VolumeManager.AttachVolume(ctx, volume, &config.LocalNodeName, "staged")
+	_, path, err := s.BlobManager.AttachBlob(ctx, blob, &config.LocalNodeName, "staged")
 	if err != nil {
 		return nil, err
 	}
 
 	// create symlink to device for NodePublishVolume()
 
-	err = fs.Symlink(path, req.StagingTargetPath)
+	err = util.Symlink(path, req.StagingTargetPath)
 	if err != nil {
 		return nil, err
 	}
@@ -88,14 +88,14 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	// validate request
 
-	volume, err := volumemanager.VolumeFromString(req.VolumeId)
+	blob, err := blobs.BlobFromString(req.VolumeId)
 	if err != nil {
 		return nil, err
 	}
 
-	// detach volume from current node
+	// detach blob from current node
 
-	err = s.VolumeManager.DetachVolume(ctx, volume, config.LocalNodeName, "staged")
+	err = s.BlobManager.DetachBlob(ctx, blob, config.LocalNodeName, "staged")
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	// create symlink to device for Kubernetes
 
-	err := fs.Symlink(req.StagingTargetPath, req.TargetPath)
+	err := util.Symlink(req.StagingTargetPath, req.TargetPath)
 	if err != nil {
 		return nil, err
 	}

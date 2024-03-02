@@ -11,7 +11,4 @@ host_ip=$1
 IFS=. read -r _ _ c d <<< "$host_ip"
 lvm_host_id=$(( ((c * 256 + d) & 0x3ff) + 1 ))
 
-exec lvmlockd \
-    --daemon-debug \
-    --gl-type sanlock \
-    --host-id "$lvm_host_id"
+exec lvmlockd --daemon-debug --gl-type sanlock --host-id "$lvm_host_id"

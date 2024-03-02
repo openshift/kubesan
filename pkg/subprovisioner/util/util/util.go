@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package fs
+package util
 
 import (
+	"crypto/sha1"
 	"errors"
+	"fmt"
 	"os"
 )
 
@@ -16,4 +18,12 @@ func Symlink(oldname string, newname string) error {
 	}
 
 	return os.Symlink(oldname, newname)
+}
+
+func Hash(strings ...string) string {
+	hash := sha1.New()
+	for _, s := range strings {
+		hash.Write([]byte(s))
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }

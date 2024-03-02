@@ -53,6 +53,13 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /run/csi
+        - name: csi-snapshotter
+          image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.3
+          args:
+            - --extra-create-metadata  # to get VS/VSC info in CreateSnapshot()
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /run/csi
       volumes:
         - name: socket-dir
           emptyDir:

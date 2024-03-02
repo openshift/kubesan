@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/blobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/jobs"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/volumemanager"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,15 +18,6 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// TODO: Reject unknown parameters in req.Parameters that *don't* start with `csi.storage.k8s.io/`.
 
 	// validate request
-
-	switch {
-	case req.VolumeContentSource == nil:
-		// ok, no volume content source
-	case req.VolumeContentSource.GetVolume() != nil:
-		// ok, volume content source is another volume
-	default:
-		return nil, status.Errorf(codes.InvalidArgument, "unsupported volume content source")
-	}
 
 	for _, cap := range req.VolumeCapabilities {
 		if cap.GetBlock() == nil {
@@ -64,33 +55,46 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
-	// retrieve PVC so we can get its UID
+	// retrieve PVC so we can get its StorageClass
 
 	pvc, err := s.Clientset.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(
+			codes.Internal, "failed to get PVC \"%s\" in namespace \"%s\": %s", pvcName, pvcNamespace, err,
+		)
 	}
 
-	volume := &volumemanager.Volume{
-		K8sPvcUid:         pvc.UID,
-		K8sPvName:         pvName,
-		BackingDevicePath: backingDevicePath,
+	// create blob
+
+	blob := &blobs.Blob{
+		Name:                    pvName,
+		K8sPersistentVolumeName: pvName,
+		BackingDevicePath:       backingDevicePath,
 	}
 
-	err = s.VolumeManager.CreateVolume(ctx, volume, *pvc.Spec.StorageClassName, capacity)
+	err = s.BlobManager.CreateBlobEmpty(ctx, blob, *pvc.Spec.StorageClassName, capacity)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to create empty blob \"%s\": %s", blob, err)
 	}
 
-	// populate LVM thin LV
+	// populate blob
 
-	if source := req.VolumeContentSource.GetVolume(); source != nil {
-		sourceVolume, err := volumemanager.VolumeFromString(source.VolumeId)
+	if req.VolumeContentSource != nil {
+		var sourceBlob *blobs.Blob
+
+		if source := req.VolumeContentSource.GetVolume(); source != nil {
+			sourceBlob, err = blobs.BlobFromString(source.VolumeId)
+		} else if source := req.VolumeContentSource.GetSnapshot(); source != nil {
+			sourceBlob, err = blobs.BlobFromString(source.SnapshotId)
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "unsupported volume content source")
+		}
+
 		if err != nil {
 			return nil, err
 		}
 
-		err = s.cloneVolume(ctx, sourceVolume, volume)
+		err = s.populateVolume(ctx, sourceBlob, blob)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +105,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	resp := &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: capacity,
-			VolumeId:      volume.ToString(),
+			VolumeId:      blob.String(),
 			VolumeContext: map[string]string{},
 			ContentSource: req.VolumeContentSource,
 		},
@@ -134,27 +138,27 @@ func validateCapacity(capacityRange *csi.CapacityRange) (capacity int64, minCapa
 	return
 }
 
-func (s *ControllerServer) cloneVolume(ctx context.Context, sourceVol *volumemanager.Volume, targetVol *volumemanager.Volume) error {
+func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs.Blob, targetBlob *blobs.Blob) error {
 	// TODO: Ensure that target isn't smaller than source.
 
-	// attach both volumes (preferring a node where there already is a primary attachment for the source volume)
+	// attach both blobs (preferring a node where there already is a direct attachment for the source blob)
 
-	cookie := fmt.Sprintf("cloning-into-%s", targetVol.K8sPvcUid)
+	cookie := fmt.Sprintf("copying-to-%s", targetBlob.Name)
 
-	nodeName, sourcePathOnHost, err := s.VolumeManager.AttachVolume(ctx, sourceVol, nil, cookie)
+	nodeName, sourcePathOnHost, err := s.BlobManager.AttachBlob(ctx, sourceBlob, nil, cookie)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Internal, "failed to attach blob \"%s\": %s", sourceBlob, err)
 	}
 
-	_, targetPathOnHost, err := s.VolumeManager.AttachVolumeUnmanaged(ctx, targetVol, &nodeName)
+	_, targetPathOnHost, err := s.BlobManager.AttachBlobUnmanaged(ctx, targetBlob, &nodeName)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Internal, "failed to attach blob \"%s\": %s", targetBlob, err)
 	}
 
-	// run clone job
+	// run population job
 
 	job := &jobs.Job{
-		Name:     fmt.Sprintf("populate-volume-%s", targetVol.K8sPvcUid),
+		Name:     fmt.Sprintf("populate-%s", targetBlob.Name),
 		NodeName: nodeName,
 		Command: []string{
 			"dd",
@@ -165,24 +169,49 @@ func (s *ControllerServer) cloneVolume(ctx context.Context, sourceVol *volumeman
 		},
 	}
 
-	err = jobs.Run(ctx, s.Clientset, job)
+	err = jobs.CreateAndRun(ctx, s.Clientset, job)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Internal, "failed to populate blob \"%s\": %s", targetBlob, err)
 	}
 
-	// detach both volumes
+	// detach both blobs
 
-	err = s.VolumeManager.DetachVolumeUnmanaged(ctx, targetVol, nodeName)
+	err = s.BlobManager.DetachBlobUnmanaged(ctx, targetBlob, nodeName)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Internal, "failed to detach blob \"%s\": %s", targetBlob, err)
 	}
 
-	err = s.VolumeManager.DetachVolume(ctx, sourceVol, nodeName, cookie)
+	err = s.BlobManager.DetachBlob(ctx, sourceBlob, nodeName, cookie)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Internal, "failed to detach blob \"%s\": %s", sourceBlob, err)
 	}
 
 	// success
 
 	return nil
+}
+
+func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	// validate request
+
+	if req.VolumeId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify volume id")
+	}
+
+	blob, err := blobs.BlobFromString(req.VolumeId)
+	if err != nil {
+		return nil, err
+	}
+
+	// delete blob
+
+	err = s.BlobManager.DeleteBlob(ctx, blob)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete blob \"%s\": %s", blob, err)
+	}
+
+	// success
+
+	resp := &csi.DeleteVolumeResponse{}
+	return resp, nil
 }

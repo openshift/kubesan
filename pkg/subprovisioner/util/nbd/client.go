@@ -4,48 +4,42 @@ package nbd
 
 import (
 	"context"
-	"crypto/sha1"
 	"fmt"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/jobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func ConnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode string, id *ServerId) (string, error) {
+func ConnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode string, serverId *ServerId) (string, error) {
 	// TODO: Make idempotent.
 	// TODO: Find available device programmatically.
 
 	// connect device to server
 
-	hash := sha1.New()
-	hash.Write([]byte(clientNode))
-	hash.Write([]byte(id.NodeName))
-	hash.Write([]byte(id.PvcUid))
-	hashBytes := hash.Sum(nil)
-
-	deviceSymlinkPath := fmt.Sprintf("/run/subprovisioner/nbd/%x", hashBytes)
+	deviceSymlinkPath := fmt.Sprintf("/run/subprovisioner/nbd/%s", serverId.Hostname())
 
 	// we run the job in the host net namespace, so we must resolve the server's hostname here
-	serverIp, err := id.ResolveHost()
+	serverIp, err := serverId.ResolveHost()
 	if err != nil {
 		return "", err
 	}
 
 	job := &jobs.Job{
-		Name:        fmt.Sprintf("nbd-connect-%x", hashBytes),
+		Name:        fmt.Sprintf("nbd-connect-%s", util.Hash(clientNode, serverId.hash())),
 		NodeName:    clientNode,
-		Command:     []string{"./nbd/connect.sh", deviceSymlinkPath, serverIp.String()},
+		Command:     []string{"./nbd/client-connect.sh", deviceSymlinkPath, serverIp.String()},
 		HostNetwork: true, // for netlink to work
 	}
 
-	err = jobs.Run(ctx, clientset, job)
+	err = jobs.CreateAndRun(ctx, clientset, job)
 	if err != nil {
 		return "", status.Errorf(
 			codes.Internal,
 			"failed to connect NBD client device to hostname '%s': %s",
-			id.Hostname(), err,
+			serverId.Hostname(), err,
 		)
 	}
 
@@ -59,23 +53,17 @@ func ConnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode str
 	return deviceSymlinkPath, nil
 }
 
-func DisconnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode string, id *ServerId) error {
-	hash := sha1.New()
-	hash.Write([]byte(clientNode))
-	hash.Write([]byte(id.NodeName))
-	hash.Write([]byte(id.PvcUid))
-	hashBytes := hash.Sum(nil)
-
-	deviceSymlinkPath := fmt.Sprintf("/run/subprovisioner/nbd/%x", hashBytes)
+func DisconnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode string, serverId *ServerId) error {
+	deviceSymlinkPath := fmt.Sprintf("/run/subprovisioner/nbd/%s", serverId.Hostname())
 
 	job := &jobs.Job{
-		Name:        fmt.Sprintf("nbd-disconnect-%x", hashBytes),
+		Name:        fmt.Sprintf("nbd-disconnect-%s", util.Hash(clientNode, serverId.hash())),
 		NodeName:    clientNode,
-		Command:     []string{"./nbd/disconnect.sh", deviceSymlinkPath},
+		Command:     []string{"./nbd/client-disconnect.sh", deviceSymlinkPath},
 		HostNetwork: true, // for netlink to work
 	}
 
-	err := jobs.Run(ctx, clientset, job)
+	err := jobs.CreateAndRun(ctx, clientset, job)
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to disconnect NBD client device: %s", err)
 	}

@@ -3,14 +3,8 @@
 
 set -ex
 
-# TODO: Should we run wdmd too?
+# TODO: Must run wdmd as well.
 
 host_hostname=$1
 
-exec sanlock \
-    daemon \
-    -D \
-    -w 0 \
-    -U root \
-    -G root \
-    -e "$host_hostname"
+exec sanlock daemon -D -w 0 -U root -G root -e "$host_hostname"

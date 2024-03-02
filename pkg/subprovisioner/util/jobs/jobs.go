@@ -9,11 +9,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"os/exec"
 	"strconv"
 	"time"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	batchv1 "k8s.io/api/batch/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,19 +32,39 @@ type Job struct {
 }
 
 // Idempotent, until you call Delete() on the job.
-func Run(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
+func CreateAndRun(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
+	if job.NodeName == config.LocalNodeName && !job.HostNetwork {
+		return runLocal(job)
+	} else {
+		return runRemote(ctx, clientset, job)
+	}
+}
+
+func runLocal(job *Job) error {
+	cmd := exec.Command(job.Command[0], job.Command[1:]...)
+	cmd.Stdin = nil
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return status.Errorf(codes.Internal, "job \"%s\" failed: %s: %s", job.Name, err, output)
+	}
+
+	return nil
+}
+
+func runRemote(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
 	// create job
 
 	jobObject, err := job.instantiateTemplate()
 	if err != nil {
-		return err
+		return status.Errorf(codes.Internal, "failed to generate YAML for job \"%s\": %s", job.Name, err)
 	}
 
 	jobs := clientset.BatchV1().Jobs(config.K8sNamespace)
 
 	_, err = jobs.Create(ctx, jobObject, v1.CreateOptions{})
 	if err != nil && !k8serrors.IsAlreadyExists(err) {
-		return err
+		return status.Errorf(codes.Internal, "failed to create job \"%s\": %s", job.Name, err)
 	}
 
 	// wait until job succeeds
@@ -53,7 +76,7 @@ func Run(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
 		if jobObject.Status.Succeeded > 0 {
 			break
 		} else if err != nil {
-			return err
+			return status.Errorf(codes.Internal, "failed to get job \"%s\": %s", job.Name, err)
 		} else if ctx.Err() != nil {
 			return ctx.Err()
 		}

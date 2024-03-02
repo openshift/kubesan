@@ -5,7 +5,6 @@ package nbd
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
 	_ "embed"
 	"fmt"
 	"html/template"
@@ -14,12 +13,12 @@ import (
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -35,22 +34,15 @@ type ServerId struct {
 	// The node to which the server should be scheduled.
 	NodeName string
 
-	// The UID of the PVC of the volume being exported.
-	PvcUid types.UID
+	BlobName string
 }
 
 func (id *ServerId) Hostname() string {
-	// Node object names are DNS Subdomain Names, and so can be up to 253 characters in length, which means we can't
-	// embed id.NodeName directly in the object name we return here. But we also don't want to use the Node object'id
-	// UID, just in case the Node object is recreated with the same name for some reason but still refers to the
-	// same actual node in the cluster. We get around this by hashing id.PvcUid and id.NodeName and basing the name on
-	// that.
+	return fmt.Sprintf("nbd-server-%s", id.hash())
+}
 
-	hash := sha1.New()
-	hash.Write([]byte(id.NodeName))
-	hash.Write([]byte(id.PvcUid))
-
-	return fmt.Sprintf("nbd-server-%x", hash.Sum(nil))
+func (id *ServerId) hash() string {
+	return util.Hash(id.NodeName, id.BlobName)
 }
 
 func (id *ServerId) ResolveHost() (net.IP, error) {

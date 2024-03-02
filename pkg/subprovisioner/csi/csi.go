@@ -10,11 +10,12 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
+	blobs "gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/blobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/controller"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/identity"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/node"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/volumemanager"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -30,8 +31,8 @@ func RunControllerPlugin(csiSocketPath string) error {
 
 	csi.RegisterIdentityServer(server, &identity.IdentityServer{})
 	csi.RegisterControllerServer(server, &controller.ControllerServer{
-		Clientset:     clientset,
-		VolumeManager: volumemanager.New(clientset),
+		Clientset:   clientset,
+		BlobManager: blobs.NewBlobManager(clientset),
 	})
 	return server.Serve(listener)
 
@@ -48,8 +49,8 @@ func RunNodePlugin(csiSocketPath string) error {
 
 	csi.RegisterIdentityServer(server, &identity.IdentityServer{})
 	csi.RegisterNodeServer(server, &node.NodeServer{
-		Clientset:     clientset,
-		VolumeManager: volumemanager.New(clientset),
+		Clientset:   clientset,
+		BlobManager: blobs.NewBlobManager(clientset),
 	})
 	return server.Serve(listener)
 
@@ -69,8 +70,14 @@ func setup(csiSocketPath string) (*k8s.Clientset, net.Listener, *grpc.Server, er
 		return nil, nil, nil, err
 	}
 
+	snapshotClientset, err := versioned.NewForConfig(config)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	clientset := &k8s.Clientset{
-		Clientset: kubernetesClientset,
+		Clientset:         kubernetesClientset,
+		SnapshotClientSet: snapshotClientset,
 	}
 
 	// create gRPC server

@@ -5,6 +5,7 @@ package k8s
 import (
 	"context"
 
+	"github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -13,8 +14,10 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+type SnapshotClientSet = versioned.Clientset
 type Clientset struct {
 	*kubernetes.Clientset
+	*SnapshotClientSet
 }
 
 type ObjectWithMeta interface {
