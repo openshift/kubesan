@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-FROM quay.io/projectquay/golang:1.20 AS builder
+FROM quay.io/projectquay/golang:1.21 AS builder
 
 WORKDIR /subprovisioner
 
