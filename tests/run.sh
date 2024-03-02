@@ -346,6 +346,8 @@ __run() {
 
     trap 'rm -fr "${temp_dir}"' EXIT
 
+    unset KUBECONFIG
+
     if (( maintain_two_clusters )); then
 
         if ! __minikube_cluster_exists "${cluster_base_name}-a" &&
@@ -361,7 +363,7 @@ __run() {
 
         else
 
-            if [[ -n "${current_cluster:-}" ]]; then
+            if [[ -n "${current_cluster:-}" && -n "${!:-}" ]]; then
                 if kill -0 "$!" &>/dev/null; then
                     __log_cyan "Waiting for minikube cluster '%s' to be ready..." "${background_cluster}"
                 fi
@@ -414,7 +416,6 @@ __run() {
         }' EXIT
 
     if (( set_kubectl_context )); then
-        unset KUBECONFIG
         kubectl config use-context "${current_cluster}"
     fi
 
