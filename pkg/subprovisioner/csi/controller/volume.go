@@ -203,6 +203,13 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, err
 	}
 
+	// delete population job (if any)
+
+	err = jobs.Delete(ctx, s.Clientset, fmt.Sprintf("populate-%s", blob.Name))
+	if err != nil {
+		return nil, err
+	}
+
 	// delete blob
 
 	err = s.BlobManager.DeleteBlob(ctx, blob)
