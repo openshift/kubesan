@@ -480,7 +480,7 @@ __run() {
         set -o errexit -o pipefail -o nounset +o xtrace
 
         __log_cyan "Installing Subprovisioner..."
-        for file in "${repo_root}/deploy/"*; do
+        for file in "${repo_root}/deploy/0"*; do
             sed \
                 -E 's|quay.io/subprovisioner/([a-z-]+):[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
                 "$file" \
@@ -488,18 +488,14 @@ __run() {
         done
 
         __log_cyan "Enabling volume snapshot support in the cluster..."
-        base_url=https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/v6.2.2
-        kubectl create \
-            -f "${base_url}/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml" \
-            -f "${base_url}/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml" \
-            -f "${base_url}/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml" \
-            -f "${base_url}/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml" \
-            -f "${base_url}/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml"
+        base_url=https://github.com/kubernetes-csi/external-snapshotter
+        kubectl create -k "${base_url}/client/config/crd?ref=v7.0.1"
+        kubectl create -k "${base_url}/deploy/kubernetes/snapshot-controller?ref=v7.0.1"
         unset base_url
 
         __log_cyan "Creating common objects..."
         kubectl patch sc standard \
-            -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+            -p '{ "metadata": { "annotations": { "storageclass.kubernetes.io/is-default-class": "false" } } }'
         kubectl create -f "${script_dir}/lib/common-objects.yaml"
 
         if (( sandbox )); then
@@ -519,7 +515,7 @@ __run() {
         if ! (( sandbox )); then
             __log_cyan "Uninstalling Subprovisioner..."
             kubectl delete --ignore-not-found --timeout=60s \
-                -f "${repo_root}/deploy/" \
+                -k "${repo_root}/deploy" \
                 || exit_code="$?"
 
             if (( exit_code != 0 )); then

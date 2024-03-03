@@ -7,7 +7,7 @@ LUN in a SAN).
 ## Installation
 
 ```console
-$ kubectl create -f deploy/
+$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy?ref=main
 ```
 
 ## Setting up a shared block device
