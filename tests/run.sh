@@ -451,7 +451,7 @@ __run() {
     __log_cyan "Starting NBD server to serve as a shared block device..."
 
     __minikube_ssh "${NODES[0]}" "
-        sudo truncate -s 1G /mnt/vda1/backing.raw
+        sudo truncate -s 4G /mnt/vda1/backing.raw
         __run_in_test_container_async --net host -v /mnt/vda1/backing.raw:/disk -- \
             nbd-server --nodaemon --config-file /dev/null 10809 /disk
         __run_in_test_container --net host -- bash -c '
