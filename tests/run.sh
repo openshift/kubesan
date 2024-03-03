@@ -287,6 +287,7 @@ __minikube_cluster_exists() {
 # Usage: __restart_minikube_cluster <profile> [<extra_minikube_opts...>]
 __restart_minikube_cluster() {
     minikube start \
+        --iso-url=https://gitlab.com/subprovisioner/subprovisioner/-/package_files/115854116/download \
         --profile="$1" \
         --driver=kvm2 \
         --cpus=2 \
