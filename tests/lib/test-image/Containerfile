@@ -2,6 +2,6 @@
 
 FROM quay.io/fedora/fedora:39
 
-RUN dnf install -qy lvm2-lockd sanlock strace nbd nmap-ncat && dnf clean all
+RUN dnf install -qy fio lvm2-lockd sanlock strace nbd nmap-ncat && dnf clean all
 
 ENTRYPOINT []
