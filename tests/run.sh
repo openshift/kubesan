@@ -471,7 +471,7 @@ __run() {
             __run_in_test_container --net host -- \
                 nbd-client ${NODE_IPS[0]} /dev/nbd0
             sudo ln -s /dev/nbd0 /dev/subprovisioner-backing-volume
-            sudo ln -s /dev/nbd0 /dev/my-san-lun  # good for demos
+            sudo cp -r /dev/nbd0 /dev/my-san-lun  # good for demos
             "
     done
 
