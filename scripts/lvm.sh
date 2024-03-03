@@ -6,7 +6,6 @@ set -o errexit -o pipefail -o nounset -o xtrace
 command=$1
 backing_device_path=$2
 lvm_thin_pool_lv_name=$3
-lvm_thin_lv_name=$4
 
 export DM_DISABLE_UDEV=
 
@@ -28,10 +27,11 @@ __lockstart() {
 __lockstart || __lockstart
 
 case "${command}" in
-    create)
+    create-empty)
+        lvm_thin_lv_name=$4
         size_bytes=$5
 
-        # create LVM thin pool LV
+        # create LVM thin *pool* LV
 
         __run_ignoring_error "already exists in volume group" \
             lvm lvcreate \
@@ -47,7 +47,7 @@ case "${command}" in
         __run_ignoring_error "already exists in volume group" \
             lvm lvcreate \
             --devices "$backing_device_path" \
-            --type "thin" \
+            --type thin \
             --name "$lvm_thin_lv_name" \
             --thinpool "$lvm_thin_pool_lv_name" \
             --virtualsize "${size_bytes}b" \
@@ -56,14 +56,38 @@ case "${command}" in
         # deactivate LVM thin LV (`--activate n` has no effect on `lvcreate
         # --type thin`)
 
+        lvm lvchange \
+            --devices "$backing_device_path" \
+            --activate n \
+            "subprovisioner/$lvm_thin_lv_name"
+        ;;
+
+    create-snapshot)
+        lvm_thin_lv_name=$4
+        lvm_source_thin_lv_name=$5
+
+        # create snapshot LVM thin LV
+
         __run_ignoring_error "already exists in volume group" \
-            lvm lvchange \
+            lvm lvcreate \
+            --devices "$backing_device_path" \
+            --name "$lvm_thin_lv_name" \
+            --snapshot \
+            --setactivationskip n \
+            "subprovisioner/$lvm_source_thin_lv_name"
+
+        # deactivate LVM thin LV (`--activate n` has no effect on `lvcreate
+        # --type thin`)
+
+        lvm lvchange \
             --devices "$backing_device_path" \
             --activate n \
             "subprovisioner/$lvm_thin_lv_name"
         ;;
 
     delete)
+        lvm_thin_lv_name=$4
+
 	    # remove LVM thin LV
 
         __run_ignoring_error "failed to find logical volume" \
@@ -71,7 +95,7 @@ case "${command}" in
             --devices "$backing_device_path" \
             "subprovisioner/$lvm_thin_lv_name"
 
-	    # remove LVM thin pool LV if there are no more thin LVs
+	    # remove LVM thin *pool* LV if there are no more thin LVs
 
         __run_ignoring_error "failed to find logical volume|removing pool \S+ will remove" \
             lvm lvremove \
@@ -79,13 +103,26 @@ case "${command}" in
             "subprovisioner/$lvm_thin_pool_lv_name"
         ;;
 
-    activate)
-        # activate LVM thin pool LV
+    activate-pool)
+        # activate LVM thin *pool* LV
 
         lvm lvchange \
             --devices "$backing_device_path" \
             --activate ey \
             "subprovisioner/$lvm_thin_pool_lv_name"
+        ;;
+
+    deactivate-pool)
+        # deactivate LVM thin *pool* LV
+
+        lvm lvchange \
+            --devices "$backing_device_path" \
+            --activate n \
+            "subprovisioner/$lvm_thin_pool_lv_name"
+        ;;
+
+    activate)
+        lvm_thin_lv_name=$4
 
         # activate LVM thin LV
 
@@ -96,40 +133,13 @@ case "${command}" in
         ;;
 
     deactivate)
+        lvm_thin_lv_name=$4
+
         # deactivate LVM thin LV
 
         lvm lvchange \
             --devices "$backing_device_path" \
             --activate n \
             "subprovisioner/$lvm_thin_lv_name"
-
-        # deactivate LVM thin pool LV
-
-        lvm lvchange \
-            --devices "$backing_device_path" \
-            --activate n \
-            "subprovisioner/$lvm_thin_pool_lv_name"
-        ;;
-
-    snapshot)
-        lvm_target_thin_lv_name=$5
-
-        # create snapshot LVM thin LV
-
-        __run_ignoring_error "already exists in volume group" \
-            lvm lvcreate \
-            --devices "$backing_device_path" \
-            --name "$lvm_target_thin_lv_name" \
-            --snapshot \
-            --setactivationskip n \
-            "subprovisioner/$lvm_thin_lv_name"
-
-        # deactivate LVM thin LV (`--activate n` has no effect on `lvcreate
-        # --type thin`)
-
-        lvm lvchange \
-            --devices "$backing_device_path" \
-            --activate n \
-            "subprovisioner/$lvm_target_thin_lv_name"
         ;;
 esac

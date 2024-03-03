@@ -3,15 +3,10 @@
 package blobs
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 )
 
 // Some info describing a particular blob.
@@ -21,49 +16,62 @@ type Blob struct {
 	// No two blobs may have the same name.
 	Name string
 
+	pool *blobPool
+}
+
+type blobPool struct {
 	// The name of the Kubernetes PersistentVolume that this blob corresponds to.
 	//
 	// Every blob is associated to a single PersistentVolume that conceptually "backs" it. Several blobs may
 	// correspond to the same PersistentVolume.
-	K8sPersistentVolumeName string
+	k8sPersistentVolumeName string
 
 	// Path to the shared block device used as storage for this blob.
-	BackingDevicePath string
+	backingDevicePath string
+}
+
+func NewBlob(blobName string, k8sPersistentVolumeName string, backingDevicePath string) *Blob {
+	return &Blob{
+		Name: blobName,
+		pool: &blobPool{
+			k8sPersistentVolumeName: k8sPersistentVolumeName,
+			backingDevicePath:       backingDevicePath,
+		},
+	}
 }
 
 func BlobFromString(s string) (*Blob, error) {
 	split := strings.SplitN(s, ":", 3)
 	blob := &Blob{
-		Name:                    split[0],
-		K8sPersistentVolumeName: split[1],
-		BackingDevicePath:       split[2],
+		Name: split[0],
+		pool: &blobPool{
+			k8sPersistentVolumeName: split[1],
+			backingDevicePath:       split[2]},
 	}
 	return blob, nil
 }
 
 func (b *Blob) String() string {
-	return fmt.Sprintf("%s:%s:%s", b.Name, b.K8sPersistentVolumeName, b.BackingDevicePath)
+	return fmt.Sprintf("%s:%s:%s", b.Name, b.pool.k8sPersistentVolumeName, b.pool.backingDevicePath)
 }
 
 func (b *Blob) lvmThinLvName() string {
 	return fmt.Sprintf("%s-thin", b.Name)
 }
 
-func (b *Blob) lvmThinPoolLvName() string {
-	return b.K8sPersistentVolumeName
+func (b *Blob) lvmThinLvPath() string {
+	return fmt.Sprintf("/dev/mapper/%s-%s", config.LvmVgName, strings.ReplaceAll(b.lvmThinLvName(), "-", "--"))
 }
 
-func (bm *BlobManager) atomicUpdateK8sPvForBlob(
-	ctx context.Context,
-	blob *Blob,
-	f func(*corev1.PersistentVolume) error,
-) error {
-	pv := &corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: blob.K8sPersistentVolumeName}}
+func (b *Blob) dmMultipathVolumeName() string {
+	return fmt.Sprintf("subprovisioner-%s-dm-multipath", strings.ReplaceAll(b.Name, "-", "--"))
+}
 
-	err := k8s.AtomicUpdate(ctx, bm.clientset.CoreV1().RESTClient(), "persistentvolumes", pv, f)
-	if err != nil {
-		err = status.Errorf(codes.Internal, "failed to update PersistentVolume: %s", err)
-	}
+// The returned path is valid on all nodes in the cluster.
+func (b *Blob) dmMultipathVolumePath() string {
+	return fmt.Sprintf("/dev/mapper/%s", b.dmMultipathVolumeName())
+}
 
-	return nil
+func (bp *blobPool) lvmThinPoolLvName() string {
+	return bp.k8sPersistentVolumeName
 }

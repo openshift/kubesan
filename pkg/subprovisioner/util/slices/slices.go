@@ -2,6 +2,25 @@
 
 package slices
 
+func Any[T any](list []T, predicate func(T) bool) bool {
+	for _, e := range list {
+		if predicate(e) {
+			return true
+		}
+	}
+	return false
+}
+
+func Filter[T any](list []T, predicate func(T) bool) []T {
+	var result []T
+	for _, e := range list {
+		if predicate(e) {
+			result = append(result, e)
+		}
+	}
+	return result
+}
+
 func AppendUnique[T comparable](list []T, elem T) []T {
 	for _, e := range list {
 		if e == elem {

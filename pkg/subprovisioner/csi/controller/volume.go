@@ -66,11 +66,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// create blob
 
-	blob := &blobs.Blob{
-		Name:                    pvName,
-		K8sPersistentVolumeName: pvName,
-		BackingDevicePath:       backingDevicePath,
-	}
+	blob := blobs.NewBlob(pvName, pvName, backingDevicePath)
 
 	err = s.BlobManager.CreateBlobEmpty(ctx, blob, *pvc.Spec.StorageClassName, capacity)
 	if err != nil {
@@ -141,7 +137,7 @@ func validateCapacity(capacityRange *csi.CapacityRange) (capacity int64, minCapa
 func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs.Blob, targetBlob *blobs.Blob) error {
 	// TODO: Ensure that target isn't smaller than source.
 
-	// attach both blobs (preferring a node where there already is a direct attachment for the source blob)
+	// attach both blobs (preferring a node where there already is a fast attachment for the source blob)
 
 	cookie := fmt.Sprintf("copying-to-%s", targetBlob.Name)
 

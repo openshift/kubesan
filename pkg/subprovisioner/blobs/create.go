@@ -9,9 +9,7 @@ import (
 	"time"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/jobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/lvm"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	storagev1 "k8s.io/api/storage/v1"
@@ -27,17 +25,14 @@ func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStora
 
 	// ensure LVM VG exists
 
-	err := bm.createLvmVg(ctx, k8sStorageClassName, blob.BackingDevicePath)
+	err := bm.createLvmVg(ctx, k8sStorageClassName, blob.pool.backingDevicePath)
 	if err != nil {
 		return err
 	}
 
 	// create LVM thin pool LV and thin LV
 
-	err = util.RunCommand(
-		"scripts/lvm.sh", "create",
-		blob.BackingDevicePath, blob.lvmThinPoolLvName(), blob.lvmThinLvName(), strconv.FormatInt(size, 10),
-	)
+	err = bm.runLvmScriptForThinLv(ctx, blob, config.LocalNodeName, "create-empty", strconv.FormatInt(size, 10))
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to create LVM thin pool LV and thin LV: %s", err)
 	}
@@ -49,17 +44,19 @@ func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStora
 
 // Creates a blob that is a copy of the given sourceBlob. Subsequent writes to the latter don't affect the former.
 //
-// sourceBlob does not need to be attached to any node.
+// sourceBlob does not need to be attached on any node.
+//
+// Performance note: Whenever the source and target volumes are simultaneously attached, they cannot each have a "fast"
+// attachment to a different node each.
 //
 // This method is idempotent and may be called from any node.
 //
-// (Internal behavior note: The two blobs gain the restriction that they can only be directly attached simultaneously to
-// the same node. Indirect attachments are not affected.)
+// (Internal behavior note: The two blobs gain the restriction that they can only ever have a "fast" attachment
+// simultaneously on the same node.)
 func (bm *BlobManager) CreateBlobCopy(ctx context.Context, blobName string, sourceBlob *Blob) (*Blob, error) {
 	blob := &Blob{
-		Name:                    blobName,
-		K8sPersistentVolumeName: sourceBlob.K8sPersistentVolumeName,
-		BackingDevicePath:       sourceBlob.BackingDevicePath,
+		Name: blobName,
+		pool: sourceBlob.pool,
 	}
 
 	cookie := fmt.Sprintf("copying-to-%s", blob.Name)
@@ -69,17 +66,7 @@ func (bm *BlobManager) CreateBlobCopy(ctx context.Context, blobName string, sour
 		return nil, err
 	}
 
-	job := &jobs.Job{
-		Name:     fmt.Sprintf("create-lv-%s", util.Hash(nodeName, blob.Name)),
-		NodeName: nodeName,
-		Command: []string{
-			"scripts/lvm.sh", "snapshot",
-			blob.BackingDevicePath, sourceBlob.lvmThinPoolLvName(), sourceBlob.lvmThinLvName(),
-			blob.lvmThinLvName(),
-		},
-	}
-
-	err = jobs.CreateAndRunAndDelete(ctx, bm.clientset, job)
+	err = bm.runLvmScriptForThinLv(ctx, blob, nodeName, "create-snapshot", sourceBlob.lvmThinLvName())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to snapshot LVM LV: %s", err)
 	}
@@ -97,7 +84,7 @@ func (bm *BlobManager) createLvmVg(ctx context.Context, storageClassName string,
 	// TODO: Communicate VG creation errors to users through events/status on the SC and PVC.
 
 	storageClasses := bm.clientset.StorageV1().StorageClasses()
-	stateAnnotation := fmt.Sprintf("%s/vg-state", config.Domain)
+	stateAnnotation := fmt.Sprintf("%s/lvm-vg-state", config.Domain)
 
 	// check VG state
 
@@ -168,4 +155,22 @@ func (bm *BlobManager) createLvmVg(ctx context.Context, storageClassName string,
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+// Fails if the volume is attached.
+//
+// This method is idempotent and may be called from any node.
+func (bm *BlobManager) DeleteBlob(ctx context.Context, blob *Blob) error {
+	// TODO: Make this idempotent and concurrency-safe and ensure cleanup under error conditions.
+
+	// delete LVM thin LV and thin pool LV
+
+	err := bm.runLvmScriptForThinLv(ctx, blob, config.LocalNodeName, "delete")
+	if err != nil {
+		return status.Errorf(codes.Internal, "failed to delete LVM thin LV and thin pool LV: %s", err)
+	}
+
+	// success
+
+	return nil
 }

@@ -13,6 +13,8 @@ import (
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/lvm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type BlobManager struct {
@@ -28,7 +30,7 @@ func (bm *BlobManager) GetBlobSize(ctx context.Context, blob *Blob) (int64, erro
 	output, err := lvm.Command(
 		ctx,
 		"lvs",
-		"--devices", blob.BackingDevicePath,
+		"--devices", blob.pool.backingDevicePath,
 		"--options", "lv_size",
 		"--units", "b",
 		"--nosuffix",
@@ -49,21 +51,21 @@ func (bm *BlobManager) GetBlobSize(ctx context.Context, blob *Blob) (int64, erro
 	return size, nil
 }
 
-// The returned path is valid on all nodes in the cluster.
-//
-// This method may be called from any node, and fails if the volume does not exist.
-func (bm *BlobManager) getBlobLvmThinLvPath(ctx context.Context, blob *Blob) (string, error) {
-	output, err := lvm.Command(
-		ctx,
-		"lvs",
-		"--devices", blob.BackingDevicePath,
-		"--options", "lv_path",
-		"--noheadings",
-		fmt.Sprintf("%s/%s", config.LvmVgName, blob.lvmThinLvName()),
-	)
+func (bm *BlobManager) getK8sPvForBlob(ctx context.Context, blob *Blob) (*corev1.PersistentVolume, error) {
+	return bm.clientset.CoreV1().PersistentVolumes().Get(ctx, blob.pool.k8sPersistentVolumeName, metav1.GetOptions{})
+}
+
+func (bm *BlobManager) atomicUpdateK8sPvForBlob(
+	ctx context.Context,
+	blob *Blob,
+	f func(*corev1.PersistentVolume) error,
+) error {
+	pv := &corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: blob.pool.k8sPersistentVolumeName}}
+
+	err := k8s.AtomicUpdate(ctx, bm.clientset.CoreV1().RESTClient(), "persistentvolumes", pv, f)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "failed to get path to LVM LV: %s: %s", err, output)
+		err = status.Errorf(codes.Internal, "failed to update PersistentVolume: %s", err)
 	}
 
-	return strings.TrimSpace(output), nil
+	return nil
 }
