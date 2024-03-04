@@ -16,7 +16,7 @@ spec:
       shareProcessNamespace: true
       containers:
         - name: lvmlockd
-          image: quay.io/subprovisioner/subprovisioner:v0.0.1
+          image: quay.io/subprovisioner/subprovisioner:v0.0.2
           command:
             - scripts/lvmlockd.sh
             - $(HOST_IP)
@@ -35,7 +35,7 @@ spec:
           securityContext:
             privileged: true
         - name: sanlock
-          image: quay.io/subprovisioner/subprovisioner:v0.0.1
+          image: quay.io/subprovisioner/subprovisioner:v0.0.2
           command:
             - scripts/sanlock.sh
             - $(NODE_NAME)
