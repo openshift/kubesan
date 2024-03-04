@@ -35,11 +35,18 @@ func (bm *BlobManager) OptimizeBlobAttachmentForNode(ctx context.Context, blob *
 //
 // Does nothing if the pool has no holders at all.
 func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolState *blobPoolState, toNode string) error {
-	if len(poolState.Holders) == 0 {
+	if poolState.ActiveOnNode == nil || *poolState.ActiveOnNode == toNode {
+		// nothing to do
 		return nil
 	}
 
-	err := bm.migratePoolDown(ctx, pool, poolState)
+	// proactively start LVM VG lockspace on `toNode`, which can take a while, otherwise migration may take too long
+	err := bm.runLvmScriptForThinPoolLv(ctx, pool, toNode, "lockstart")
+	if err != nil {
+		return err
+	}
+
+	err = bm.migratePoolDown(ctx, pool, poolState)
 	if err != nil {
 		return err
 	}
