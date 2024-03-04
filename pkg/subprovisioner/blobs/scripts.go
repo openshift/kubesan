@@ -66,7 +66,7 @@ func (bm *BlobManager) runDmMultipathScript(
 	}
 
 	job := &jobs.Job{
-		Name:     fmt.Sprintf("%s-dm-multipath-%s", command, util.Hash(node, blob.lvmThinLvName())),
+		Name:     fmt.Sprintf("%s-dm-mp-%s", command, util.Hash(node, blob.lvmThinLvName())),
 		NodeName: node,
 		Command: append(
 			[]string{
