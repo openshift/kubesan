@@ -11,6 +11,25 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Adjusts blob attachments such that `blob` has the best I/O performance on `node`.
+//
+// This may affect the performance of blobs the were (transitively) copied from `blob` or from which `blob` was copied.
+//
+// Does nothing if the blob isn't attached to any node.
+func (bm *BlobManager) OptimizeBlobAttachmentForNode(ctx context.Context, blob *Blob, node string) error {
+	poolState, err := bm.getBlobPoolState(ctx, blob)
+	if err != nil {
+		return err
+	}
+
+	err = bm.migratePool(ctx, blob.pool, poolState, node)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Works even if the pool has no holders on `toNode`.
 //
 // Does nothing if the pool has no holders at all.
