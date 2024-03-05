@@ -162,7 +162,6 @@ __shell() {
     __log "$1" '  $ __controller_plugin describe|exec|logs [<args...>]'
     __log "$1" '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
     __log "$1" '  $ __lvmlockd <node_name>|<node_index> describe|exec|logs [<args...>]'
-    __log "$1" '  $ __sanlock <node_name>|<node_index> describe|exec|logs [<args...>]'
     __log "$1" '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
 
     if [[ "$2" != true ]]; then
