@@ -208,7 +208,7 @@ func (bm *BlobManager) AttachBlob(
 
 	// TODO: For now we assume that the state hasn't changed since we checked it at the beginning of this method.
 
-	err = bm.atomicUpdateK8sPvForBlob(ctx, blob, func(pv *corev1.PersistentVolume) error {
+	err = bm.atomicUpdateK8sPvForBlobPool(ctx, blob.pool, func(pv *corev1.PersistentVolume) error {
 		poolState, err := blobPoolStateFromK8sMeta(pv)
 		if err != nil {
 			return err
@@ -343,7 +343,7 @@ func (bm *BlobManager) DetachBlob(ctx context.Context, blob *Blob, node string, 
 
 	// TODO: For now we assume that the state hasn't changed since we checked it at the beginning of this method.
 
-	err = bm.atomicUpdateK8sPvForBlob(ctx, blob, func(pv *corev1.PersistentVolume) error {
+	err = bm.atomicUpdateK8sPvForBlobPool(ctx, blob.pool, func(pv *corev1.PersistentVolume) error {
 		poolState, err := blobPoolStateFromK8sMeta(pv)
 		if err != nil {
 			return err

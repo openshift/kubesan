@@ -9,6 +9,7 @@ import (
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/slices"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Adjusts blob attachments such that `blob` has the best I/O performance on `node`.
@@ -34,16 +35,42 @@ func (bm *BlobManager) OptimizeBlobAttachmentForNode(ctx context.Context, blob *
 //
 // Does nothing if the pool has no holders at all.
 func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolState *blobPoolState, toNode string) error {
-	if len(poolState.Holders) == 0 {
+	if poolState.ActiveOnNode == nil || *poolState.ActiveOnNode == toNode {
+		// nothing to do
 		return nil
 	}
 
-	err := bm.migratePoolDown(ctx, pool, poolState)
+	// proactively start LVM VG lockspace on `toNode`, which can take a while, otherwise migration may take too long
+	err := bm.runLvmScriptForThinPoolLv(ctx, pool, toNode, "lockstart")
+	if err != nil {
+		return err
+	}
+
+	err = bm.migratePoolDown(ctx, pool, poolState)
 	if err != nil {
 		return err
 	}
 
 	err = bm.migratePoolUp(ctx, pool, poolState, toNode)
+	if err != nil {
+		return err
+	}
+
+	err = bm.atomicUpdateK8sPvForBlobPool(ctx, pool, func(pv *corev1.PersistentVolume) error {
+		poolState, err := blobPoolStateFromK8sMeta(pv)
+		if err != nil {
+			return err
+		}
+
+		poolState.ActiveOnNode = &toNode
+
+		err = poolState.setBlobPoolStateOnK8sMeta(pv)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}

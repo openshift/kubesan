@@ -27,6 +27,9 @@ __lockstart() {
 __lockstart || __lockstart
 
 case "${command}" in
+    lockstart)
+        ;;
+
     create-empty)
         lvm_thin_lv_name=$4
         size_bytes=$5
