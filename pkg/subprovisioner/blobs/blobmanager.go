@@ -55,12 +55,12 @@ func (bm *BlobManager) getK8sPvForBlob(ctx context.Context, blob *Blob) (*corev1
 	return bm.clientset.CoreV1().PersistentVolumes().Get(ctx, blob.pool.k8sPersistentVolumeName, metav1.GetOptions{})
 }
 
-func (bm *BlobManager) atomicUpdateK8sPvForBlob(
+func (bm *BlobManager) atomicUpdateK8sPvForBlobPool(
 	ctx context.Context,
-	blob *Blob,
+	pool *blobPool,
 	f func(*corev1.PersistentVolume) error,
 ) error {
-	pv := &corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: blob.pool.k8sPersistentVolumeName}}
+	pv := &corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: pool.k8sPersistentVolumeName}}
 
 	err := k8s.AtomicUpdate(ctx, bm.clientset.CoreV1().RESTClient(), "persistentvolumes", pv, f)
 	if err != nil {
