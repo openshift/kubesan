@@ -9,7 +9,6 @@ import (
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/slices"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // Adjusts blob attachments such that `blob` has the best I/O performance on `node`.
@@ -18,12 +17,12 @@ import (
 //
 // Does nothing if the blob isn't attached to any node.
 func (bm *BlobManager) OptimizeBlobAttachmentForNode(ctx context.Context, blob *Blob, node string) error {
-	poolState, err := bm.getBlobPoolState(ctx, blob)
+	poolSpec, err := bm.getBlobPoolCrd(ctx, blob.pool.name)
 	if err != nil {
 		return err
 	}
 
-	err = bm.migratePool(ctx, blob.pool, poolState, node)
+	err = bm.migratePool(ctx, blob.pool, poolSpec, node)
 	if err != nil {
 		return err
 	}
@@ -34,8 +33,8 @@ func (bm *BlobManager) OptimizeBlobAttachmentForNode(ctx context.Context, blob *
 // Works even if the pool has no holders on `toNode`.
 //
 // Does nothing if the pool has no holders at all.
-func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolState *blobPoolState, toNode string) error {
-	if poolState.ActiveOnNode == nil || *poolState.ActiveOnNode == toNode {
+func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolSpec *blobPoolCrdSpec, toNode string) error {
+	if poolSpec.ActiveOnNode == nil || *poolSpec.ActiveOnNode == toNode {
 		// nothing to do
 		return nil
 	}
@@ -46,29 +45,18 @@ func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolStat
 		return err
 	}
 
-	err = bm.migratePoolDown(ctx, pool, poolState)
+	err = bm.migratePoolDown(ctx, pool, poolSpec)
 	if err != nil {
 		return err
 	}
 
-	err = bm.migratePoolUp(ctx, pool, poolState, toNode)
+	err = bm.migratePoolUp(ctx, pool, poolSpec, toNode)
 	if err != nil {
 		return err
 	}
 
-	err = bm.atomicUpdateK8sPvForBlobPool(ctx, pool, func(pv *corev1.PersistentVolume) error {
-		poolState, err := blobPoolStateFromK8sMeta(pv)
-		if err != nil {
-			return err
-		}
-
-		poolState.ActiveOnNode = &toNode
-
-		err = poolState.setBlobPoolStateOnK8sMeta(pv)
-		if err != nil {
-			return err
-		}
-
+	err = bm.atomicUpdateBlobPoolCrd(ctx, pool.name, func(poolSpec *blobPoolCrdSpec) error {
+		poolSpec.ActiveOnNode = &toNode
 		return nil
 	})
 	if err != nil {
@@ -78,12 +66,12 @@ func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolStat
 	return nil
 }
 
-func (bm *BlobManager) migratePoolDown(ctx context.Context, pool *blobPool, poolState *blobPoolState) error {
-	nodeWithActiveLvmThinPoolLv := *poolState.ActiveOnNode
+func (bm *BlobManager) migratePoolDown(ctx context.Context, pool *blobPool, poolSpec *blobPoolCrdSpec) error {
+	nodeWithActiveLvmThinPoolLv := *poolSpec.ActiveOnNode
 
-	for _, blobName := range poolState.blobsWithHolders() {
+	for _, blobName := range poolSpec.blobsWithHolders() {
 		blob := &Blob{
-			Name: blobName,
+			name: blobName,
 			pool: pool,
 		}
 
@@ -92,7 +80,7 @@ func (bm *BlobManager) migratePoolDown(ctx context.Context, pool *blobPool, pool
 			BlobName: blobName,
 		}
 
-		for _, node := range poolState.nodesWithHoldersForBlob(blobName) {
+		for _, node := range poolSpec.nodesWithHoldersForBlob(blobName) {
 			err := bm.runDmMultipathScript(ctx, blob, node, "disconnect")
 			if err != nil {
 				return err
@@ -130,7 +118,7 @@ func (bm *BlobManager) migratePoolDown(ctx context.Context, pool *blobPool, pool
 
 // Assumes that there are holders for the pool.
 func (bm *BlobManager) migratePoolUp(
-	ctx context.Context, pool *blobPool, poolState *blobPoolState, newNodeWithActiveLvmThinPoolLv string,
+	ctx context.Context, pool *blobPool, poolSpec *blobPoolCrdSpec, newNodeWithActiveLvmThinPoolLv string,
 ) error {
 	// activate LVM thin *pool* LV
 
@@ -139,9 +127,9 @@ func (bm *BlobManager) migratePoolUp(
 		return status.Errorf(codes.Internal, "failed to activate LVM thin pool LV: %s", err)
 	}
 
-	for _, blobName := range poolState.blobsWithHolders() {
+	for _, blobName := range poolSpec.blobsWithHolders() {
 		blob := &Blob{
-			Name: blobName,
+			name: blobName,
 			pool: pool,
 		}
 
@@ -150,14 +138,14 @@ func (bm *BlobManager) migratePoolUp(
 			return status.Errorf(codes.Internal, "failed to activate LVM thin LV: %s", err)
 		}
 
-		if poolState.hasHolderForBlobOnNode(blobName, newNodeWithActiveLvmThinPoolLv) {
+		if poolSpec.hasHolderForBlobOnNode(blobName, newNodeWithActiveLvmThinPoolLv) {
 			err = bm.runDmMultipathScript(ctx, blob, newNodeWithActiveLvmThinPoolLv, "connect", blob.lvmThinLvPath())
 			if err != nil {
 				return err
 			}
 		}
 
-		otherNodesHoldingBlob := poolState.nodesWithHoldersForBlob(blobName)
+		otherNodesHoldingBlob := poolSpec.nodesWithHoldersForBlob(blobName)
 		slices.Remove(otherNodesHoldingBlob, newNodeWithActiveLvmThinPoolLv)
 
 		if len(otherNodesHoldingBlob) > 0 {

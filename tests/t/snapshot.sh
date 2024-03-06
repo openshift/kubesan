@@ -132,10 +132,8 @@ EOF
 __wait_for_pod_to_succeed 60 test-pod
 kubectl delete pod test-pod --timeout=60s
 
-# TODO: We can't yet enable this because we rely on the PV existing until all of
-# its snapshots are gone. Reenable after we lift that restriction somehow.
-# __stage 'Deleting volume 1...'
-# kubectl delete pvc test-pvc-1 --timeout=60s
+__stage 'Deleting volume 1...'
+kubectl delete pvc test-pvc-1 --timeout=60s
 
 __stage 'Creating volume 3 from the snapshot of volume 1 but with a bigger size...'
 

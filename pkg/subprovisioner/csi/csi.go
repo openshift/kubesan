@@ -10,19 +10,20 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 	blobs "gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/blobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/controller"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/identity"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/csi/node"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
 	"google.golang.org/grpc"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 func RunControllerPlugin(csiSocketPath string) error {
-	clientset, listener, server, err := setup(csiSocketPath)
+	listener, server, err := setup(csiSocketPath)
+	if err != nil {
+		return err
+	}
+
+	blobManager, err := blobs.NewBlobManager()
 	if err != nil {
 		return err
 	}
@@ -30,17 +31,19 @@ func RunControllerPlugin(csiSocketPath string) error {
 	// run gRPC server
 
 	csi.RegisterIdentityServer(server, &identity.IdentityServer{})
-	csi.RegisterControllerServer(server, &controller.ControllerServer{
-		Clientset:   clientset,
-		BlobManager: blobs.NewBlobManager(clientset),
-	})
+	csi.RegisterControllerServer(server, &controller.ControllerServer{BlobManager: blobManager})
 	return server.Serve(listener)
 
 	// TODO: Handle SIGTERM gracefully.
 }
 
 func RunNodePlugin(csiSocketPath string) error {
-	clientset, listener, server, err := setup(csiSocketPath)
+	listener, server, err := setup(csiSocketPath)
+	if err != nil {
+		return err
+	}
+
+	blobManager, err := blobs.NewBlobManager()
 	if err != nil {
 		return err
 	}
@@ -48,48 +51,23 @@ func RunNodePlugin(csiSocketPath string) error {
 	// run gRPC server
 
 	csi.RegisterIdentityServer(server, &identity.IdentityServer{})
-	csi.RegisterNodeServer(server, &node.NodeServer{
-		Clientset:   clientset,
-		BlobManager: blobs.NewBlobManager(clientset),
-	})
+	csi.RegisterNodeServer(server, &node.NodeServer{BlobManager: blobManager})
 	return server.Serve(listener)
 
 	// TODO: Handle SIGTERM gracefully.
 }
 
-func setup(csiSocketPath string) (*k8s.Clientset, net.Listener, *grpc.Server, error) {
-	// set up Kubernetes API connection
-
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	kubernetesClientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	snapshotClientset, err := versioned.NewForConfig(config)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	clientset := &k8s.Clientset{
-		Clientset:         kubernetesClientset,
-		SnapshotClientSet: snapshotClientset,
-	}
-
+func setup(csiSocketPath string) (net.Listener, *grpc.Server, error) {
 	// create gRPC server
 
-	err = os.Remove(csiSocketPath)
+	err := os.Remove(csiSocketPath)
 	if err != nil && !os.IsNotExist(err) {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	listener, err := net.Listen("unix", csiSocketPath)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to listen: %v", err)
+		return nil, nil, fmt.Errorf("failed to listen: %v", err)
 	}
 
 	loggingInterceptor := func(
@@ -126,5 +104,5 @@ func setup(csiSocketPath string) (*k8s.Clientset, net.Listener, *grpc.Server, er
 
 	server := grpc.NewServer(grpc.ChainUnaryInterceptor(loggingInterceptor, contextInterceptor))
 
-	return clientset, listener, server, nil
+	return listener, server, nil
 }

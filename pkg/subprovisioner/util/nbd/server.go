@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -61,7 +61,7 @@ func (id *ServerId) ResolveHost() (net.IP, error) {
 }
 
 // Returns only once the server is running and has the TCP port open.
-func StartServer(ctx context.Context, clientset *k8s.Clientset, id *ServerId, devicePathOnHost string) error {
+func StartServer(ctx context.Context, clientset kubernetes.Interface, id *ServerId, devicePathOnHost string) error {
 	// create  Service
 
 	service := &corev1.Service{}
@@ -108,7 +108,7 @@ func StartServer(ctx context.Context, clientset *k8s.Clientset, id *ServerId, de
 	}
 }
 
-func StopServer(ctx context.Context, clientset *k8s.Clientset, id *ServerId) error {
+func StopServer(ctx context.Context, clientset kubernetes.Interface, id *ServerId) error {
 	name := id.Hostname()
 
 	// delete server Service

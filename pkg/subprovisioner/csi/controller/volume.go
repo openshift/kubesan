@@ -57,7 +57,8 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// retrieve PVC so we can get its StorageClass
 
-	pvc, err := s.Clientset.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+	pvc, err := s.BlobManager.Clientset().CoreV1().PersistentVolumeClaims(pvcNamespace).
+		Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal, "failed to get PVC \"%s\" in namespace \"%s\": %s", pvcName, pvcNamespace, err,
@@ -66,7 +67,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// create blob
 
-	blob := blobs.NewBlob(pvName, pvName, backingDevicePath)
+	blob := blobs.NewBlob(pvName, backingDevicePath)
 
 	err = s.BlobManager.CreateBlobEmpty(ctx, blob, *pvc.Spec.StorageClassName, capacity)
 	if err != nil {
@@ -139,14 +140,14 @@ func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs
 
 	// attach both blobs (preferring a node where there already is a fast attachment for the source blob)
 
-	cookie := fmt.Sprintf("copying-to-%s", targetBlob.Name)
+	cookie := fmt.Sprintf("copying-to-%s", targetBlob.Name())
 
 	nodeName, sourcePathOnHost, err := s.BlobManager.AttachBlob(ctx, sourceBlob, nil, cookie)
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to attach blob \"%s\": %s", sourceBlob, err)
 	}
 
-	_, targetPathOnHost, err := s.BlobManager.AttachBlobUnmanaged(ctx, targetBlob, &nodeName)
+	_, targetPathOnHost, err := s.BlobManager.AttachBlob(ctx, targetBlob, &nodeName, "populating")
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to attach blob \"%s\": %s", targetBlob, err)
 	}
@@ -154,7 +155,7 @@ func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs
 	// run population job
 
 	job := &jobs.Job{
-		Name:     fmt.Sprintf("populate-%s", targetBlob.Name),
+		Name:     fmt.Sprintf("populate-%s", targetBlob.Name()),
 		NodeName: nodeName,
 		Command: []string{
 			"dd",
@@ -165,14 +166,14 @@ func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs
 		},
 	}
 
-	err = jobs.CreateAndRun(ctx, s.Clientset, job)
+	err = jobs.CreateAndRun(ctx, s.BlobManager.Clientset(), job)
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to populate blob \"%s\": %s", targetBlob, err)
 	}
 
 	// detach both blobs
 
-	err = s.BlobManager.DetachBlobUnmanaged(ctx, targetBlob, nodeName)
+	err = s.BlobManager.DetachBlob(ctx, targetBlob, nodeName, "populating")
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to detach blob \"%s\": %s", targetBlob, err)
 	}
@@ -201,7 +202,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	// delete population job (if any)
 
-	err = jobs.Delete(ctx, s.Clientset, fmt.Sprintf("populate-%s", blob.Name))
+	err = jobs.Delete(ctx, s.BlobManager.Clientset(), fmt.Sprintf("populate-%s", blob.Name()))
 	if err != nil {
 		return nil, err
 	}
