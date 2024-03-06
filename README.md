@@ -52,6 +52,10 @@ spec:
 You can have several Subprovisioner `StorageClass`es on the same cluster that
 are backed by different shared block devices.
 
+## Reporting issues
+
+[Create an issue] on GitLab or send an email to afaria@redhat.com.
+
 ## Development
 
 To test, run `tests/run.sh all`. You may need to add yourself to the `libvirt`
@@ -61,6 +65,7 @@ group for it to work without prompting you for your password repeatedly.
 
 This project is released under the Apache 2.0 license. See [LICENSE](LICENSE).
 
+[Create an issue]: https://gitlab.com/subprovisioner/subprovisioner/-/issues
 [CSI]: https://github.com/container-storage-interface/spec
 [`/etc/lvm/lvmlocal.conf`]: https://man7.org/linux/man-pages/man5/lvm.conf.5.html
 [Kubernetes]: https://kubernetes.io/
