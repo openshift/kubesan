@@ -8,12 +8,10 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/blobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
 )
 
 type NodeServer struct {
 	csi.UnimplementedNodeServer
-	Clientset   *k8s.Clientset
 	BlobManager *blobs.BlobManager
 }
 

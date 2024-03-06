@@ -7,12 +7,10 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/blobs"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
 )
 
 type ControllerServer struct {
 	csi.UnimplementedControllerServer
-	Clientset   *k8s.Clientset
 	BlobManager *blobs.BlobManager
 }
 

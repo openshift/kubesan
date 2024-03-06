@@ -13,16 +13,50 @@ import (
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/lvm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 )
 
 type BlobManager struct {
-	clientset *k8s.Clientset
+	clientset kubernetes.Interface
+	crdRest   rest.Interface
 }
 
-func NewBlobManager(clientset *k8s.Clientset) *BlobManager {
-	return &BlobManager{clientset: clientset}
+func NewBlobManager() (*BlobManager, error) {
+	restConfig, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	crdRestConfig := rest.CopyConfig(restConfig)
+	crdRestConfig.GroupVersion = &schema.GroupVersion{Group: config.Domain, Version: "v1alpha1"}
+	crdRestConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	crdRestConfig.APIPath = "/apis"
+	if crdRestConfig.UserAgent == "" {
+		crdRestConfig.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+
+	crdRest, err := rest.RESTClientFor(crdRestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BlobManager{
+		clientset: clientset,
+		crdRest:   crdRest,
+	}, nil
+}
+
+func (bm *BlobManager) Clientset() kubernetes.Interface {
+	return bm.clientset
 }
 
 // This method may be called from any node, and fails if the blob does not exist.
@@ -51,20 +85,15 @@ func (bm *BlobManager) GetBlobSize(ctx context.Context, blob *Blob) (int64, erro
 	return size, nil
 }
 
-func (bm *BlobManager) getK8sPvForBlob(ctx context.Context, blob *Blob) (*corev1.PersistentVolume, error) {
-	return bm.clientset.CoreV1().PersistentVolumes().Get(ctx, blob.pool.k8sPersistentVolumeName, metav1.GetOptions{})
-}
+func (bm *BlobManager) atomicUpdateBlobPoolCrd(ctx context.Context, poolName string, f func(*blobPoolCrdSpec) error) error {
+	crd := blobPoolCrd{ObjectMeta: metav1.ObjectMeta{Name: poolName}}
 
-func (bm *BlobManager) atomicUpdateK8sPvForBlobPool(
-	ctx context.Context,
-	pool *blobPool,
-	f func(*corev1.PersistentVolume) error,
-) error {
-	pv := &corev1.PersistentVolume{ObjectMeta: metav1.ObjectMeta{Name: pool.k8sPersistentVolumeName}}
-
-	err := k8s.AtomicUpdate(ctx, bm.clientset.CoreV1().RESTClient(), "persistentvolumes", pv, f)
+	err := k8s.AtomicUpdate(
+		ctx, bm.crdRest, "blobpools", &crd,
+		func(crd *blobPoolCrd) error { return f(&crd.Spec) },
+	)
 	if err != nil {
-		err = status.Errorf(codes.Internal, "failed to update PersistentVolume: %s", err)
+		return status.Errorf(codes.Internal, "failed to update BlobPool: %s", err)
 	}
 
 	return nil

@@ -7,13 +7,13 @@ import (
 	"fmt"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/jobs"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
 )
 
-func ConnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode string, serverId *ServerId) (string, error) {
+func ConnectClient(ctx context.Context, clientset kubernetes.Interface, clientNode string, serverId *ServerId) (string, error) {
 	// TODO: Make idempotent.
 	// TODO: Find available device programmatically.
 
@@ -48,7 +48,7 @@ func ConnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode str
 	return deviceSymlinkPath, nil
 }
 
-func DisconnectClient(ctx context.Context, clientset *k8s.Clientset, clientNode string, serverId *ServerId) error {
+func DisconnectClient(ctx context.Context, clientset kubernetes.Interface, clientNode string, serverId *ServerId) error {
 	deviceSymlinkPath := fmt.Sprintf("/run/subprovisioner/nbd/%s", serverId.Hostname())
 
 	job := &jobs.Job{

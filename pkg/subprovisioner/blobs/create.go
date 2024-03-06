@@ -10,6 +10,7 @@ import (
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/lvm"
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/slices"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	storagev1 "k8s.io/api/storage/v1"
@@ -23,9 +24,16 @@ import (
 func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStorageClassName string, size int64) error {
 	// TODO: Make this idempotent and concurrency-safe and ensure cleanup under error conditions.
 
+	// create CRD
+
+	err := bm.createBlobPoolCrd(ctx, blob.pool.name, &blobPoolCrdSpec{Blobs: []string{blob.name}})
+	if err != nil {
+		return err
+	}
+
 	// ensure LVM VG exists
 
-	err := bm.createLvmVg(ctx, k8sStorageClassName, blob.pool.backingDevicePath)
+	err = bm.createLvmVg(ctx, k8sStorageClassName, blob.pool.backingDevicePath)
 	if err != nil {
 		return err
 	}
@@ -54,12 +62,20 @@ func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStora
 // (Internal behavior note: The two blobs gain the restriction that they can only ever have a "fast" attachment
 // simultaneously on the same node.)
 func (bm *BlobManager) CreateBlobCopy(ctx context.Context, blobName string, sourceBlob *Blob) (*Blob, error) {
+	err := bm.atomicUpdateBlobPoolCrd(ctx, sourceBlob.pool.name, func(spec *blobPoolCrdSpec) error {
+		spec.Blobs = slices.AppendUnique(spec.Blobs, blobName)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	blob := &Blob{
-		Name: blobName,
+		name: blobName,
 		pool: sourceBlob.pool,
 	}
 
-	cookie := fmt.Sprintf("copying-to-%s", blob.Name)
+	cookie := fmt.Sprintf("copying-to-%s", blob.name)
 
 	nodeName, _, err := bm.AttachBlob(ctx, sourceBlob, nil, cookie)
 	if err != nil {
@@ -168,6 +184,24 @@ func (bm *BlobManager) DeleteBlob(ctx context.Context, blob *Blob) error {
 	err := bm.runLvmScriptForThinLv(ctx, blob, config.LocalNodeName, "delete")
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to delete LVM thin LV and thin pool LV: %s", err)
+	}
+
+	var delete bool
+
+	err = bm.atomicUpdateBlobPoolCrd(ctx, blob.pool.name, func(spec *blobPoolCrdSpec) error {
+		spec.Blobs = slices.Remove(spec.Blobs, blob.name)
+		delete = len(spec.Blobs) == 0
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if delete {
+		err = bm.deleteBlobPoolCrd(ctx, blob.pool.name)
+		if err != nil {
+			return err
+		}
 	}
 
 	// success

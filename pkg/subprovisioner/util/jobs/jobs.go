@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/k8s"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,6 +20,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -31,7 +31,7 @@ type Job struct {
 	HostNetwork bool
 }
 
-func CreateAndRunAndDelete(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
+func CreateAndRunAndDelete(ctx context.Context, clientset kubernetes.Interface, job *Job) error {
 	err := CreateAndRun(ctx, clientset, job)
 	if err != nil {
 		return err
@@ -46,7 +46,7 @@ func CreateAndRunAndDelete(ctx context.Context, clientset *k8s.Clientset, job *J
 }
 
 // Idempotent, until you call Delete() on the job.
-func CreateAndRun(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
+func CreateAndRun(ctx context.Context, clientset kubernetes.Interface, job *Job) error {
 	if job.NodeName == config.LocalNodeName && !job.HostNetwork {
 		return runLocal(job)
 	} else {
@@ -63,7 +63,7 @@ func runLocal(job *Job) error {
 	return nil
 }
 
-func runRemote(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
+func runRemote(ctx context.Context, clientset kubernetes.Interface, job *Job) error {
 	// create job
 
 	jobObject, err := job.instantiateTemplate()
@@ -101,7 +101,7 @@ func runRemote(ctx context.Context, clientset *k8s.Clientset, job *Job) error {
 }
 
 // Idempotent.
-func Delete(ctx context.Context, clientset *k8s.Clientset, jobName string) error {
+func Delete(ctx context.Context, clientset kubernetes.Interface, jobName string) error {
 	jobs := clientset.BatchV1().Jobs(config.K8sNamespace)
 
 	propagation := metav1.DeletePropagationForeground
