@@ -5,6 +5,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/blobs"
@@ -14,7 +15,56 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var createVolumeTasks struct {
+	mu    sync.Mutex
+	tasks map[string]*createVolumeTask
+}
+
+type createVolumeTask struct {
+	done  chan struct{}
+	reply *csi.CreateVolumeResponse
+	err   error
+}
+
 func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	// launch task if not already running
+
+	createVolumeTasks.mu.Lock()
+
+	if createVolumeTasks.tasks == nil {
+		createVolumeTasks.tasks = map[string]*createVolumeTask{}
+	}
+
+	var task *createVolumeTask
+	var ok bool
+
+	if task, ok = createVolumeTasks.tasks[req.Name]; !ok {
+		task = &createVolumeTask{done: make(chan struct{})}
+		createVolumeTasks.tasks[req.Name] = task
+
+		go func() {
+			reply, err := s.createVolume(ctx, req)
+
+			createVolumeTasks.mu.Lock()
+
+			delete(createVolumeTasks.tasks, req.Name)
+			task.reply = reply
+			task.err = err
+			close(task.done)
+
+			createVolumeTasks.mu.Unlock()
+		}()
+	}
+
+	createVolumeTasks.mu.Unlock()
+
+	// wait until task completes
+
+	_, _ = <-task.done
+	return task.reply, task.err
+}
+
+func (s *ControllerServer) createVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	// TODO: Reject unknown parameters in req.Parameters that *don't* start with `csi.storage.k8s.io/`.
 
 	// validate request

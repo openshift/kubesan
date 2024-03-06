@@ -36,7 +36,7 @@ case "${command}" in
 
         # create LVM thin *pool* LV
 
-        __run_ignoring_error "already exists in volume group|is used by another device" \
+        __run_ignoring_error "already exists in volume group" \
             lvm lvcreate \
             --devices "$backing_device_path" \
             --activate n \
@@ -47,7 +47,7 @@ case "${command}" in
 
 	    # create LVM thin LV
 
-        __run_ignoring_error "already exists in volume group|is used by another device" \
+        __run_ignoring_error "already exists in volume group" \
             lvm lvcreate \
             --devices "$backing_device_path" \
             --type thin \
@@ -59,11 +59,10 @@ case "${command}" in
         # deactivate LVM thin LV (`--activate n` has no effect on `lvcreate
         # --type thin`)
 
-        __run_ignoring_error "is used by another device" \
-            lvm lvchange \
-                --devices "$backing_device_path" \
-                --activate n \
-                "subprovisioner/$lvm_thin_lv_name"
+        lvm lvchange \
+            --devices "$backing_device_path" \
+            --activate n \
+            "subprovisioner/$lvm_thin_lv_name"
         ;;
 
     create-snapshot)
