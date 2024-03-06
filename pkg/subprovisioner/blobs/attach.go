@@ -62,13 +62,18 @@ func (bps *blobPoolState) hasHolderForBlobOnNode(blob string, node string) bool 
 	return slices.Any(bps.Holders, func(h blobPoolHolder) bool { return h.Blob == blob && h.Node == node })
 }
 
-func (bps *blobPoolState) addHolder(blob *Blob, node string, cookie string) {
-	holder := blobPoolHolder{Blob: blob.Name, Node: node, Cookie: cookie}
+func (bps *blobPoolState) hasHolder(blob string, node string, cookie string) bool {
+	holder := blobPoolHolder{Blob: blob, Node: node, Cookie: cookie}
+	return slices.Contains(bps.Holders, holder)
+}
+
+func (bps *blobPoolState) addHolder(blob string, node string, cookie string) {
+	holder := blobPoolHolder{Blob: blob, Node: node, Cookie: cookie}
 	bps.Holders = slices.AppendUnique(bps.Holders, holder)
 }
 
-func (bps *blobPoolState) removeHolder(blob *Blob, node string, cookie string) {
-	holder := blobPoolHolder{Blob: blob.Name, Node: node, Cookie: cookie}
+func (bps *blobPoolState) removeHolder(blob string, node string, cookie string) {
+	holder := blobPoolHolder{Blob: blob, Node: node, Cookie: cookie}
 	bps.Holders = slices.Remove(bps.Holders, holder)
 }
 
@@ -162,6 +167,13 @@ func (bm *BlobManager) AttachBlob(
 		activeOnNode = *poolState.ActiveOnNode
 	}
 
+	path = blob.dmMultipathVolumePath()
+
+	if poolState.hasHolder(blob.Name, actualNode, cookie) {
+		// nothing to do
+		return
+	}
+
 	if !poolState.hasHolderForBlobOnNode(blob.Name, actualNode) {
 		var lvmOrNbdPath string
 
@@ -204,8 +216,6 @@ func (bm *BlobManager) AttachBlob(
 		}
 	}
 
-	path = blob.dmMultipathVolumePath()
-
 	// TODO: For now we assume that the state hasn't changed since we checked it at the beginning of this method.
 
 	err = bm.atomicUpdateK8sPvForBlobPool(ctx, blob.pool, func(pv *corev1.PersistentVolume) error {
@@ -215,7 +225,7 @@ func (bm *BlobManager) AttachBlob(
 		}
 
 		poolState.ActiveOnNode = &activeOnNode
-		poolState.addHolder(blob, actualNode, cookie)
+		poolState.addHolder(blob.Name, actualNode, cookie)
 
 		err = poolState.setBlobPoolStateOnK8sMeta(pv)
 		if err != nil {
@@ -275,11 +285,12 @@ func (bm *BlobManager) DetachBlob(ctx context.Context, blob *Blob, node string, 
 		return err
 	}
 
-	if poolState.ActiveOnNode == nil {
+	if !poolState.hasHolder(blob.Name, node, cookie) {
+		// nothing to do
 		return nil
 	}
 
-	poolState.removeHolder(blob, node, cookie)
+	poolState.removeHolder(blob.Name, node, cookie)
 
 	if !poolState.hasHolderForBlobOnNode(blob.Name, node) {
 		// remove dm-multipath volume
@@ -349,7 +360,7 @@ func (bm *BlobManager) DetachBlob(ctx context.Context, blob *Blob, node string, 
 			return err
 		}
 
-		poolState.removeHolder(blob, node, cookie)
+		poolState.removeHolder(blob.Name, node, cookie)
 		if len(poolState.Holders) == 0 {
 			poolState.ActiveOnNode = nil
 		}

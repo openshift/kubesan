@@ -21,6 +21,10 @@ func Filter[T any](list []T, predicate func(T) bool) []T {
 	return result
 }
 
+func Contains[T comparable](list []T, elem T) bool {
+	return Any(list, func(e T) bool { return e == elem })
+}
+
 func AppendUnique[T comparable](list []T, elem T) []T {
 	for _, e := range list {
 		if e == elem {
