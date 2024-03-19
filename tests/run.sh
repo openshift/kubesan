@@ -494,8 +494,7 @@ __run() {
         unset base_url
 
         __log_cyan "Creating common objects..."
-        kubectl patch sc standard \
-            -p '{ "metadata": { "annotations": { "storageclass.kubernetes.io/is-default-class": "false" } } }'
+        kubectl delete sc standard
         kubectl create -f "${script_dir}/lib/common-objects.yaml"
 
         if (( sandbox )); then
