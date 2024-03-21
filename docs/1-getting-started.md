@@ -19,7 +19,7 @@ Then create a `StorageClass` that uses the Subprovisioner CSI plugin and
 specifies the path to the backing device:
 
 ```yaml
-apiVersion: subprovisioner.gitlab.io/v1
+apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: my-san
