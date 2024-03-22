@@ -3,7 +3,7 @@
 ## Installing Subprovisioner
 
 ```console
-$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy?ref=v0.0.3
+$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy?ref=v0.1.0
 ```
 
 ## Setting up a shared block device
