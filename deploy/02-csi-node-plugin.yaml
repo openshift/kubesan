@@ -24,7 +24,7 @@ spec:
       serviceAccountName: csi-node-plugin
       containers:
         - name: csi-plugin
-          image: &image quay.io/subprovisioner/subprovisioner:v0.0.3
+          image: &image quay.io/subprovisioner/subprovisioner:v0.1.0
           command:
             - ./subprovisioner
             - csi-node-plugin
