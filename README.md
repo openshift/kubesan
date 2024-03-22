@@ -4,6 +4,30 @@ Subprovisioner is a [CSI] plugin for [Kubernetes] that enables you to provision
 `Block` volumes backed by a single, cluster-wide, shared block device (*e.g.*, a
 single big LUN on a SAN).
 
+Whilst SANs often come with vendor CSI plugins, they cannot always be used.
+Subprovisioner is intended for cases where:
+- No vendor CSI plugin is available, the vendor plugin is broken, or lacks features.
+- The vendor CSI plugin cannot be used due to organizational reasons (storage
+  team does not want to give Kubernetes team access).
+- 1 SAN LUN per `PersistentVolume` is undesirable for scalability or
+  organizational reasons.
+
+In these cases Subprovisioner steps in to provide storage without help from a
+vendor CSI plugin.
+
+![Diagram showing Subprovisioner volumes backed by a SAN LUN](img/overview.png)
+
+Features:
+- Dynamic provisioning of `Block` volumes
+- Snapshots
+- Cloning
+- `ReadWriteMany` (RWX) support
+
+Roadmap:
+- [ ] Volume expansion
+- [ ] `Filesystem` volumes (without `ReadWriteMany`)
+- [ ] Thin provisioning
+
 ### Documentation
 
 1. [Getting started](docs/1-getting-started.md)
