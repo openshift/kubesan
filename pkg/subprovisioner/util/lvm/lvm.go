@@ -14,8 +14,8 @@ import (
 
 // This returns an error if ctx is canceled, but never attempts to kill the process before it terminates.
 func Command(ctx context.Context, command string, arg ...string) (string, error) {
-	fullArgs := append([]string{command}, arg...)
-	cmd := exec.Command("lvm", fullArgs...)
+	fullArgs := append([]string{"--target", "1", "--all", "lvm", command}, arg...)
+	cmd := exec.Command("nsenter", fullArgs...)
 
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "DM_DISABLE_UDEV=")

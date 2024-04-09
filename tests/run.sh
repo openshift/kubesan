@@ -161,7 +161,6 @@ __shell() {
     __log "$1" '  $ kubectl [...]'
     __log "$1" '  $ __controller_plugin describe|exec|logs [<args...>]'
     __log "$1" '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
-    __log "$1" '  $ __lvmlockd <node_name>|<node_index> describe|exec|logs [<args...>]'
     __log "$1" '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
 
     if [[ "$2" != true ]]; then
@@ -286,7 +285,7 @@ __minikube_cluster_exists() {
 # Usage: __restart_minikube_cluster <profile> [<extra_minikube_opts...>]
 __restart_minikube_cluster() {
     minikube start \
-        --iso-url=https://gitlab.com/subprovisioner/subprovisioner/-/package_files/115854116/download \
+        --iso-url=https://gitlab.com/subprovisioner/minikube/-/package_files/123597630/download \
         --profile="$1" \
         --driver=kvm2 \
         --cpus=2 \
@@ -472,6 +471,20 @@ __run() {
                 nbd-client ${NODE_IPS[0]} /dev/nbd0
             sudo ln -s /dev/nbd0 /dev/subprovisioner-backing-volume
             sudo cp -r /dev/nbd0 /dev/my-san-lun  # good for demos
+            "
+    done
+
+    __log_cyan "Configuring LVM on all cluster nodes..."
+
+    for node_index in "${NODE_INDICES[@]}"; do
+        __minikube_ssh "${NODES[node_index]}" "
+            sudo sed -i 's|# use_lvmlockd = 0|use_lvmlockd = 1|' /etc/lvm/lvm.conf
+            sudo sed -i 's|# host_id = 0|host_id = $((node_index + 1))|' /etc/lvm/lvmlocal.conf
+
+            # TODO set up watchdog
+            sudo sed -i 's|# use_watchdog = 1|use_watchdog = 0|' /etc/sanlock/sanlock.conf
+
+            sudo systemctl restart sanlock lvmlockd
             "
     done
 
