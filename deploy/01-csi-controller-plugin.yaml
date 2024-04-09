@@ -24,6 +24,7 @@ spec:
       labels: *labels
     spec:
       serviceAccountName: csi-controller-plugin
+      hostPID: true
       containers:
         - name: csi-plugin
           image: &image quay.io/subprovisioner/subprovisioner:v0.1.0
@@ -42,8 +43,6 @@ spec:
               mountPath: /run/csi
             - name: dev
               mountPath: /dev
-            - name: run-lvm
-              mountPath: /run/lvm
           securityContext:
             privileged: true
         - name: csi-provisioner
@@ -67,7 +66,3 @@ spec:
           hostPath:
             path: /dev
             type: Directory
-        - name: run-lvm
-          hostPath:
-            path: /run/subprovisioner/lvm
-            type: DirectoryOrCreate

@@ -15,8 +15,14 @@ __run_ignoring_error() {
     output=$( "${@:2}" 2>&1 | tee /dev/stderr ) || grep -iE "$1" <<< "$output"
 }
 
+# Run LVM commands outside container because they are designed for a single
+# system-wide instance and do not support containers.
+__lvm() {
+    nsenter --target 1 --all lvm "$@"
+}
+
 __lockstart() {
-    lvm vgchange \
+    __lvm vgchange \
         --devices "$backing_device_path" \
         --lock-start \
         subprovisioner
@@ -37,7 +43,7 @@ case "${command}" in
         # create LVM thin *pool* LV
 
         __run_ignoring_error "already exists in volume group" \
-            lvm lvcreate \
+            __lvm lvcreate \
             --devices "$backing_device_path" \
             --activate n \
             --type thin-pool \
@@ -48,7 +54,7 @@ case "${command}" in
 	    # create LVM thin LV
 
         __run_ignoring_error "already exists in volume group" \
-            lvm lvcreate \
+            __lvm lvcreate \
             --devices "$backing_device_path" \
             --type thin \
             --name "$lvm_thin_lv_name" \
@@ -59,7 +65,7 @@ case "${command}" in
         # deactivate LVM thin LV (`--activate n` has no effect on `lvcreate
         # --type thin`)
 
-        lvm lvchange \
+        __lvm lvchange \
             --devices "$backing_device_path" \
             --activate n \
             "subprovisioner/$lvm_thin_lv_name"
@@ -72,7 +78,7 @@ case "${command}" in
         # create snapshot LVM thin LV
 
         __run_ignoring_error "already exists in volume group" \
-            lvm lvcreate \
+            __lvm lvcreate \
             --devices "$backing_device_path" \
             --name "$lvm_thin_lv_name" \
             --snapshot \
@@ -82,7 +88,7 @@ case "${command}" in
         # deactivate LVM thin LV (`--activate n` has no effect on `lvcreate
         # --type thin`)
 
-        lvm lvchange \
+        __lvm lvchange \
             --devices "$backing_device_path" \
             --activate n \
             "subprovisioner/$lvm_thin_lv_name"
@@ -94,14 +100,14 @@ case "${command}" in
 	    # remove LVM thin LV
 
         __run_ignoring_error "failed to find logical volume" \
-            lvm lvremove \
+            __lvm lvremove \
             --devices "$backing_device_path" \
             "subprovisioner/$lvm_thin_lv_name"
 
 	    # remove LVM thin *pool* LV if there are no more thin LVs
 
         __run_ignoring_error "failed to find logical volume|removing pool \S+ will remove" \
-            lvm lvremove \
+            __lvm lvremove \
             --devices "$backing_device_path" \
             "subprovisioner/$lvm_thin_pool_lv_name"
         ;;
@@ -109,7 +115,7 @@ case "${command}" in
     activate-pool)
         # activate LVM thin *pool* LV
 
-        lvm lvchange \
+        __lvm lvchange \
             --devices "$backing_device_path" \
             --activate ey \
             "subprovisioner/$lvm_thin_pool_lv_name"
@@ -118,7 +124,7 @@ case "${command}" in
     deactivate-pool)
         # deactivate LVM thin *pool* LV
 
-        lvm lvchange \
+        __lvm lvchange \
             --devices "$backing_device_path" \
             --activate n \
             "subprovisioner/$lvm_thin_pool_lv_name"
@@ -129,7 +135,7 @@ case "${command}" in
 
         # activate LVM thin LV
 
-        lvm lvchange \
+        __lvm lvchange \
             --devices "$backing_device_path" \
             --activate ey \
             "subprovisioner/$lvm_thin_lv_name"
@@ -140,7 +146,7 @@ case "${command}" in
 
         # deactivate LVM thin LV
 
-        lvm lvchange \
+        __lvm lvchange \
             --devices "$backing_device_path" \
             --activate n \
             "subprovisioner/$lvm_thin_lv_name"
