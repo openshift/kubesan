@@ -38,6 +38,8 @@ case "${command}" in
 
         __run_ignoring_error "device or resource busy" \
             dmsetup create "$vol_name" --table "$( __upper_table )"
+
+        dmsetup mknodes "$vol_name"
         ;;
 
     remove)
