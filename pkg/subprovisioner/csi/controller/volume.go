@@ -188,6 +188,8 @@ func validateCapacity(capacityRange *csi.CapacityRange) (capacity int64, minCapa
 func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs.Blob, targetBlob *blobs.Blob) error {
 	// TODO: Ensure that target isn't smaller than source.
 
+	var ret error
+
 	// attach both blobs (preferring a node where there already is a fast attachment for the source blob)
 
 	cookie := fmt.Sprintf("copying-to-%s", targetBlob.Name())
@@ -196,11 +198,23 @@ func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to attach blob \"%s\": %s", sourceBlob, err)
 	}
+	defer func() {
+		err = s.BlobManager.DetachBlob(ctx, sourceBlob, nodeName, cookie)
+		if err != nil && ret == nil {
+			ret = status.Errorf(codes.Internal, "failed to detach blob \"%s\": %s", sourceBlob, err)
+		}
+	}()
 
 	_, targetPathOnHost, err := s.BlobManager.AttachBlob(ctx, targetBlob, &nodeName, "populating")
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to attach blob \"%s\": %s", targetBlob, err)
 	}
+	defer func() {
+		err = s.BlobManager.DetachBlob(ctx, targetBlob, nodeName, "populating")
+		if err != nil && ret == nil {
+			ret = status.Errorf(codes.Internal, "failed to detach blob \"%s\": %s", targetBlob, err)
+		}
+	}()
 
 	// run population job
 
@@ -221,21 +235,7 @@ func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs
 		return status.Errorf(codes.Internal, "failed to populate blob \"%s\": %s", targetBlob, err)
 	}
 
-	// detach both blobs
-
-	err = s.BlobManager.DetachBlob(ctx, targetBlob, nodeName, "populating")
-	if err != nil {
-		return status.Errorf(codes.Internal, "failed to detach blob \"%s\": %s", targetBlob, err)
-	}
-
-	err = s.BlobManager.DetachBlob(ctx, sourceBlob, nodeName, cookie)
-	if err != nil {
-		return status.Errorf(codes.Internal, "failed to detach blob \"%s\": %s", sourceBlob, err)
-	}
-
-	// success
-
-	return nil
+	return ret
 }
 
 func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
