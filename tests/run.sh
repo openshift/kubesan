@@ -9,9 +9,9 @@ if [[ -n "${subprovisioner_tests_run_sh_path:-}" ]]; then
 fi
 
 start_time="$( date +%s.%N )"
-script_dir="$( realpath -e "$0" | xargs dirname )"
+script_dir="$( dirname "$(realpath -e "$0")")"
 repo_root="$( realpath -e "${script_dir}/.." )"
-initial_working_dir="$( pwd )"
+initial_working_dir="${PWD}"
 
 # parse usage
 
