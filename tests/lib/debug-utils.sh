@@ -101,12 +101,6 @@ __node_plugin() {
 }
 export -f __node_plugin
 
-# Usage: __lvmlockd <node_name>|<node_index> describe|exec|logs [<args...>]
-__lvmlockd() {
-    __per_node_component __lvmlockd lvmlockd "$@"
-}
-export -f __lvmlockd
-
 # Usage: __ssh_into_node <node_name>|<node_index> [<command...>]
 __ssh_into_node() {
     if (( $# < 1 )); then

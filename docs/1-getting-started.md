@@ -61,6 +61,41 @@ or by:
 $ sudo dd if=/dev/zero of=/dev/my-san-lun bs=1M count=8
 ```
 
+## LVM configuration
+
+Before installing Subprovisioner, each node in the cluster must have LVM and
+sanlock configured.  Use the following settings in /etc/lvm/lvm.conf:
+
+```
+global {
+	use_lvmlockd = 1
+}
+```
+
+Use the following settings in /etc/lvm/lvmlocal.conf:
+
+```
+local {
+	# The lvmlockd sanlock host_id.
+	# This must be unique among all hosts, and must be between 1 and 2000.
+	host_id = ...
+}
+```
+
+Use the following settings in /etc/sanlock/sanlock.conf:
+
+```
+# TODO enable watchdog and consider host reset scenarios
+use_watchdog = 0
+```
+
+Enable and restart associated services as follows:
+
+```
+# systemctl enable sanlock lvmlockd
+# systemctl restart sanlock lvmlockd
+```
+
 ## Installing Subprovisioner
 
 Adding Subprovisioner to your cluster is straightforward:

@@ -6,5 +6,4 @@ resources:
   - 00-subprovisioner.yaml
   - 01-csi-controller-plugin.yaml
   - 02-csi-node-plugin.yaml
-  - 03-lvmlockd.yaml
-  - 04-rbac.yaml
+  - 03-rbac.yaml
