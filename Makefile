@@ -11,3 +11,7 @@ fmt:
 .PHONY: vet
 vet:
 	go vet ./...
+
+.PHONY: check
+check:
+	cd tests && ./run.sh all
