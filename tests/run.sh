@@ -13,6 +13,10 @@ script_dir="$( dirname "$(realpath -e "$0")")"
 repo_root="$( realpath -e "${script_dir}/.." )"
 initial_working_dir="${PWD}"
 
+# quick sanity check
+( minikube --help ) >/dev/null 2>&1 ||
+    { echo "skipping: minikube not installed" >&2; exit 77; }
+
 # parse usage
 
 fail_fast=0
