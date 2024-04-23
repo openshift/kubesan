@@ -8,7 +8,7 @@ if [[ -n "${subprovisioner_tests_run_sh_path:-}" ]]; then
     exit 1
 fi
 
-start_time="$( date +%s.%N )"
+start_time="$( date +%s%N )" # Does not overflow 63 bits until 2262
 script_dir="$( dirname "$(realpath -e "$0")")"
 repo_root="$( realpath -e "${script_dir}/.." )"
 initial_working_dir="${PWD}"
@@ -115,7 +115,9 @@ done
 
 # Usage: __elapsed
 __elapsed() {
-    bc -l <<< "$( date +%s.%N ) - ${start_time}"
+    local delta
+    delta=$(( $( date +%s%N ) - start_time ))
+    printf '%d.%09d' $(( delta / 10**9 )) $(( delta % 10**9 ))
 }
 
 # Usage: __big_log <color> <format> <args...>
