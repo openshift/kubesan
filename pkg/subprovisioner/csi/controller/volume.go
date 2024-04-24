@@ -100,7 +100,7 @@ func (s *ControllerServer) createVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, err
 	}
-	backingDevicePath, err := getParameter("backingDevicePath")
+	backingVolumeGroup, err := getParameter("backingVolumeGroup")
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (s *ControllerServer) createVolume(ctx context.Context, req *csi.CreateVolu
 
 	// create blob
 
-	blob := blobs.NewBlob(pvName, backingDevicePath)
+	blob := blobs.NewBlob(pvName, backingVolumeGroup)
 
 	err = s.BlobManager.CreateBlobEmpty(ctx, blob, *pvc.Spec.StorageClassName, capacity)
 	if err != nil {

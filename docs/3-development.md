@@ -10,7 +10,7 @@ manager layer knows nothing about CSI or gRPC, while the CSI layer relies on the
 former and knows nothing about LVM or NBD.
 
 This leads to a nice separation of concerns, with the blob manager layer
-managing all storage on the backing shared block device (including everything
+managing all storage on the backing shared volume group (including everything
 LVM-, device mapper-, and NBD-related), and the CSI layer implementing
 higher-level functionality like copying data between blobs (volumes/snapshots)
 to implement volume cloning and creating and managing file systems inside blobs
@@ -19,7 +19,7 @@ to provision `Filesystem` volumes for users.
 ### The blob manager layer
 
 The blob manager layer is fully responsible for managing storage on the backing
-shared block device. It exposes functionality to provision "blobs" (essentially
+shared volume group. It exposes functionality to provision "blobs" (essentially
 disks) and to attach those blobs to nodes as needed, dealing with all
 complexities like managing NBD connections and keeping track of whether a blob
 is still needed on a given node and so on. It implements its functionality using
@@ -33,7 +33,7 @@ This layer fully resides in the `pkg/subprovisioner/blobs` package and provides
 a couple types:
 
 - `Blob`: An opaque blob identifier. Create one with `NewBlob(blobName string,
-  backingDevicePath string)`.
+  backingVolumeGroup string)`.
 - `BlobManager`: Exposes all functionality around blobs. Create one with
   `NewBlobManager()`.
 
@@ -55,11 +55,15 @@ supposed to operate on other nodes.
 
 #### How blobs are stored
 
-An LVM Physical Volume (PV) containing a single "subprovisioner" Volume Group
-(VG) is initially created on the backing device. Whenever a new empty blob is
-created (`CreateBlobEmpty()`), a thin pool Logical Volume (LV) is created in the
-VG, and a thin LV is created in the thin pool. The blob's contents reside in
-that last thin LV.
+An LVM shared Volume Group (VG) must be pre-created on a shared
+backing device; subprovisioner assumes that the LVM global lock will
+already be accessible to each node in the cluster (things should work
+whether the global lock shares the same VG as passed to the
+StorageClass, or is stored in a separate VG to make external
+management of global lock handover easier). Whenever a new empty blob
+is created (`CreateBlobEmpty()`), a thin pool Logical Volume (LV) is
+created in the VG, and a thin LV is created in the thin pool. The
+blob's contents reside in that last thin LV.
 
 Whenever a blob is created by copying another blob (`CreateBlobCopy()`), a thin
 LV snapshotting the source blob's thin LV is created in the latter's pool. This
@@ -93,13 +97,15 @@ The diagrams below illustrate the before, midway, and after of a migration:
 - **Before** migration:
 
                                    ===========
-                      +----------> === SAN === <----------+
-                      |            ===========            |
+                                   === SAN ===
+                                   ===========
+                                        ^
+                                        |
+                                =================
+                      +-------> === shared VG === <-------+
+                      |         =================         |
                       |                                   |
-       +--------------|--------------+     +--------------|--------------+
-       |              |              |     |              |              |
-       |       /dev/my-san-lun       |     |       /dev/my-san-lun       |
-       |              ^              |     |                             |
+       +--------------|--------------+     +-----------------------------+
        |              |              |     |                             |
        |       LVM thin pool LV      |     |                             |
        |              ^              |     |                             |
@@ -120,13 +126,15 @@ The diagrams below illustrate the before, midway, and after of a migration:
 - **Halfway** through the migration:
 
                                    ===========
-                      +----------> === SAN === <----------+
-                      |            ===========            |
+                                   === SAN ===
+                                   ===========
+                                        ^
+                                        |
+                                =================
+                      +-------> === shared VG === <-------+
+                      |         =================         |
                       |                                   |
-       +--------------|--------------+     +--------------|--------------+
-       |              |              |     |              |              |
-       |       /dev/my-san-lun       |     |       /dev/my-san-lun       |
-       |                             |     |                             |
+       +-----------------------------+     +-----------------------------+
        |                             |     |                             |
        |                             |     |                             |
        |                             |     |                             |
@@ -147,13 +155,15 @@ The diagrams below illustrate the before, midway, and after of a migration:
 - **After** migration:
 
                                    ===========
-                      +----------> === SAN === <----------+
-                      |            ===========            |
+                                   === SAN ===
+                                   ===========
+                                        ^
+                                        |
+                                =================
+                      +-------> === shared VG === <-------+
+                      |         =================         |
                       |                                   |
-       +--------------|--------------+     +--------------|--------------+
-       |              |              |     |              |              |
-       |       /dev/my-san-lun       |     |       /dev/my-san-lun       |
-       |                             |     |              ^              |
+       +-----------------------------+     +--------------|--------------+
        |                             |     |              |              |
        |                             |     |       LVM thin pool LV      |
        |                             |     |              ^              |

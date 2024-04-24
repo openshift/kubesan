@@ -2,7 +2,7 @@
 
 Subprovisioner is a [CSI] plugin for [Kubernetes] that enables you to provision
 `Block` volumes backed by a single, cluster-wide, shared block device (*e.g.*, a
-single big LUN on a SAN).
+single big LUN on a SAN), exposed as a shared Volume Group under lvm2.
 
 Whilst SANs often come with vendor CSI plugins, they cannot always be used.
 Subprovisioner is intended for cases where:

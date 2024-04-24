@@ -4,9 +4,8 @@
 set -o errexit -o pipefail -o nounset -o xtrace
 
 command=$1
-backing_device_path=$2
-lvm_vg_name=$3
-lvm_thin_pool_lv_name=$4
+lvm_vg_name=$2
+lvm_thin_pool_lv_name=$3
 
 export DM_DISABLE_UDEV=
 
@@ -24,7 +23,6 @@ __lvm() {
 
 __lockstart() {
     __lvm vgchange \
-        --devices "$backing_device_path" \
         --lock-start \
         "$lvm_vg_name"
 }
@@ -38,8 +36,8 @@ case "${command}" in
         ;;
 
     create-empty)
-        lvm_thin_lv_name=$5
-        size_bytes=$6
+        lvm_thin_lv_name=$4
+        size_bytes=$5
 
         # Start off with a smallish thin pool to avoid wasting space
 
@@ -53,7 +51,6 @@ case "${command}" in
 
         __run_ignoring_error "already exists in volume group" \
             __lvm lvcreate \
-            --devices "$backing_device_path" \
             --activate n \
             --type thin-pool \
             --metadataprofile subprovisioner \
@@ -65,7 +62,6 @@ case "${command}" in
 
         __run_ignoring_error "already exists in volume group" \
             __lvm lvcreate \
-            --devices "$backing_device_path" \
             --type thin \
             --name "$lvm_thin_lv_name" \
             --thinpool "$lvm_thin_pool_lv_name" \
@@ -76,20 +72,18 @@ case "${command}" in
         # --type thin`)
 
         __lvm lvchange \
-            --devices "$backing_device_path" \
             --activate n \
             "$lvm_vg_name/$lvm_thin_lv_name"
         ;;
 
     create-snapshot)
-        lvm_thin_lv_name=$5
-        lvm_source_thin_lv_name=$6
+        lvm_thin_lv_name=$4
+        lvm_source_thin_lv_name=$5
 
         # create snapshot LVM thin LV
 
         __run_ignoring_error "already exists in volume group" \
             __lvm lvcreate \
-            --devices "$backing_device_path" \
             --name "$lvm_thin_lv_name" \
             --snapshot \
             --setactivationskip n \
@@ -99,26 +93,23 @@ case "${command}" in
         # --type thin`)
 
         __lvm lvchange \
-            --devices "$backing_device_path" \
             --activate n \
             "$lvm_vg_name/$lvm_thin_lv_name"
         ;;
 
     delete)
-        lvm_thin_lv_name=$5
+        lvm_thin_lv_name=$4
 
 	    # remove LVM thin LV
 
         __run_ignoring_error "failed to find logical volume" \
             __lvm lvremove \
-            --devices "$backing_device_path" \
             "$lvm_vg_name/$lvm_thin_lv_name"
 
 	    # remove LVM thin *pool* LV if there are no more thin LVs
 
         __run_ignoring_error "failed to find logical volume|removing pool \S+ will remove" \
             __lvm lvremove \
-            --devices "$backing_device_path" \
             "$lvm_vg_name/$lvm_thin_pool_lv_name"
         ;;
 
@@ -126,7 +117,6 @@ case "${command}" in
         # activate LVM thin *pool* LV
 
         __lvm lvchange \
-            --devices "$backing_device_path" \
             --activate ey \
             "$lvm_vg_name/$lvm_thin_pool_lv_name"
         ;;
@@ -135,30 +125,27 @@ case "${command}" in
         # deactivate LVM thin *pool* LV
 
         __lvm lvchange \
-            --devices "$backing_device_path" \
             --activate n \
             "$lvm_vg_name/$lvm_thin_pool_lv_name"
         ;;
 
     activate)
-        lvm_thin_lv_name=$5
+        lvm_thin_lv_name=$4
 
         # activate LVM thin LV
 
         __lvm lvchange \
-            --devices "$backing_device_path" \
             --activate ey \
             --monitor y \
             "$lvm_vg_name/$lvm_thin_lv_name"
         ;;
 
     deactivate)
-        lvm_thin_lv_name=$5
+        lvm_thin_lv_name=$4
 
         # deactivate LVM thin LV
 
         __lvm lvchange \
-            --devices "$backing_device_path" \
             --activate n \
             "$lvm_vg_name/$lvm_thin_lv_name"
         ;;

@@ -461,6 +461,7 @@ __run() {
     __log_cyan "Starting NBD server to serve as a shared block device..."
 
     __minikube_ssh "${NODES[0]}" "
+        sudo truncate -s 0 /mnt/vda1/backing.raw
         sudo truncate -s 2G /mnt/vda1/backing.raw
         __run_in_test_container_async --net host -v /mnt/vda1/backing.raw:/disk -- \
             qemu-nbd --cache=none --format=raw --persistent --shared=0 /disk
@@ -498,6 +499,12 @@ __run() {
             sudo systemctl restart sanlock lvmlockd
             "
     done
+
+    __log_cyan "Creating shared VG on controller node..."
+
+    __minikube_ssh "${NODES[0]}" "
+        sudo lvm vgcreate --shared subprovisioner-vg /dev/my-san-lun
+        "
 
     set +o errexit
     (

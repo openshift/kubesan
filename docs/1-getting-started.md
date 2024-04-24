@@ -1,6 +1,6 @@
 # Getting started
 
-## Setting up the cluster and shared block device
+## Setting up the cluster
 
 This guide assumes you already have a working cluster for Kubernetes;
 if you still need to set that up, you might try [CRI-O on
@@ -29,37 +29,6 @@ $ systemctl restart systemd-modules-load.service
 Generally you should enable as many NBD devices on each node as the
 maximum number of Subprovisioner volumes you may need to have mounted
 on a single node at once.
-
-Second, subprovisioner assumes that you have shared storage visible as
-a block device to each node of the cluster, such as a LUN from a SAN.
-You need to ensure that this block device can be seen at the same path
-in each node.  It may help to use `multipath -ll` or `lsblk -o +uuid`
-to determine a stable name, such as /dev/disk/by-id/dm-uuid-mpath-XXXX
-when accessing a LUN through multipath.
-
-Other shared storage solutions, such as a shared LV, an NFS file
-mounted through loopback, or even /dev/nbdX pointing to a common NBD
-server, will likely work, although they are less tested.  However,
-shared storage based on host-based mirroring or replication is not
-likely to work correctly, since subprovisioner uses sanlock which
-works best when all its io is ultimately directed to the same physical
-location.
-
-Subprovisioner assumes that it will be the sole owner of the complete
-block device; you should not assume that any pre-existing data will be
-preserved.  However, in case there may be stale LVM data left over
-from previous use of the storage, you may want to wipe the storage
-from the control plane before deploying Subprovisioner, either by:
-
-```console
-$ sudo pvremove --devices /dev/my-san-lun /dev/my-san-lun
-```
-
-or by:
-
-```
-$ sudo dd if=/dev/zero of=/dev/my-san-lun bs=1M count=8
-```
 
 ## LVM configuration
 
@@ -96,6 +65,32 @@ Enable and restart associated services as follows:
 # systemctl restart sanlock lvmlockd
 ```
 
+## Shared VG configuration
+
+Finally, subprovisioner assumes that you have shared storage visible
+as a shared LVM Volume Group accessible via one or more block devices
+shared to each node of the cluster, such as atop a LUN from a SAN.
+This shared VG and lockspace can be created on any node with access to
+the LUN, although you may find it easiest to do it on the control-plan
+node; here is how to create a VG named `my-vg`:
+
+```console
+$ sudo vgcreate --shared my-vg /dev/my-san-lun
+```
+
+Subprovisioner will then ensure that all cluster nodes use `vgchange
+--lock-start` as needed to access the VG.  Subprovisioner assumes that
+it will be the sole owner of the shared volume group; you should not
+assume that any pre-existing data will be preserved.
+
+Other shared storage solutions, such as an NFS file mounted through
+loopback, or even /dev/nbdX pointing to a common NBD server, will
+likely work for hosting a shared VG, although they are less tested.
+However, shared storage based on host-based mirroring or replication
+is not likely to work correctly, since lvm documents that when
+lvmlockd uses sanlock for maintaining shared VG consistency, it works
+best when all io is ultimately directed to the same physical location.
+
 ## Installing Subprovisioner
 
 Adding Subprovisioner to your cluster is straightforward:
@@ -129,8 +124,9 @@ driver: subprovisioner.gitlab.io
 deletionPolicy: Delete
 ```
 
-Create a `StorageClass` that uses the Subprovisioner CSI plugin and specifies
-the path to the backing device:
+Create a `StorageClass` that uses the Subprovisioner CSI plugin and
+specifies the name of the shared volume group that you previously
+created (here, `my-vg`):
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -139,7 +135,7 @@ metadata:
   name: my-san
 provisioner: subprovisioner.gitlab.io
 parameters:
-  backingDevicePath: /dev/my-san-lun
+  backingVolumeGroup: my-vg
 ```
 
 Now you can create volumes like so:
@@ -160,4 +156,4 @@ spec:
 ```
 
 You can have several Subprovisioner `StorageClass`es on the same cluster that
-are backed by different shared block devices.
+are backed by different shared volume groups.

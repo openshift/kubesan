@@ -85,12 +85,11 @@ func (bm *BlobManager) GetBlobSize(ctx context.Context, blob *Blob) (int64, erro
 	output, err := lvm.Command(
 		ctx,
 		"lvs",
-		"--devices", blob.pool.backingDevicePath,
 		"--options", "lv_size",
 		"--units", "b",
 		"--nosuffix",
 		"--noheadings",
-		fmt.Sprintf("%s/%s", config.LvmVgName, blob.lvmThinLvName()),
+		fmt.Sprintf("%s/%s", blob.pool.backingVolumeGroup, blob.lvmThinLvName()),
 	)
 	if err != nil {
 		return -1, status.Errorf(codes.Internal, "failed to get size of LVM LV: %s: %s", err, output)
