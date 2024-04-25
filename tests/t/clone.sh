@@ -1,49 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
-__stage 'Provisioning volume 1...'
-
-kubectl create -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: test-pvc-1
-spec:
-  volumeMode: Block
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 64Mi
-EOF
-
-__wait_for_pvc_to_be_bound 300 test-pvc-1
-
-__stage 'Writing some random data to volume 1...'
-
-kubectl create -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-spec:
-  restartPolicy: Never
-  containers:
-    - name: container
-      image: $TEST_IMAGE
-      command:
-        - bash
-        - -c
-        - |
-          set -o errexit -o pipefail -o nounset -o xtrace
-          dd if=/dev/urandom of=/var/pvc-1 conv=fsync bs=1M count=64
-      volumeDevices:
-        - { name: test-pvc-1, devicePath: /var/pvc-1 }
-  volumes:
-    - { name: test-pvc-1, persistentVolumeClaim: { claimName: test-pvc-1 } }
-EOF
-
-__wait_for_pod_to_succeed 60 test-pod
-kubectl delete pod test-pod --timeout=30s
+__create_volume test-pvc-1 64Mi
+__fill_volume test-pvc-1 64
 
 __stage 'Creating volume 2 by cloning volume 1...'
 

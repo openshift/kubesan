@@ -61,3 +61,81 @@ __wait_for_pvc_to_be_bound() {
 __wait_for_vs_to_be_ready() {
     __poll 1 "$1" "[[ \"\$( kubectl get vs ${*:2} -o=jsonpath='{.status.readyToUse}' )\" = true ]]"
 }
+
+# Usage: __create_volume <name> <size>
+__create_volume() {
+    name=$1
+    size=$2
+
+    __stage "Creating volume \"$name\"..."
+
+    kubectl create -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: $name
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: $size
+  volumeMode: Block
+EOF
+
+    __wait_for_pvc_to_be_bound 300 "$name"
+}
+
+# Usage: __fill_volume <name> <size_mb>
+__fill_volume() {
+    name=$1
+    size_mb=$2
+
+    __stage "Writing random data to volume \"$name\"..."
+
+    kubectl create -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+spec:
+  restartPolicy: Never
+  containers:
+    - name: container
+      image: $TEST_IMAGE
+      command:
+        - bash
+        - -c
+        - |
+          set -o errexit -o pipefail -o nounset -o xtrace
+          dd if=/dev/urandom of=/var/pvc conv=fsync bs=1M count=$size_mb
+      volumeDevices:
+        - { name: $name, devicePath: /var/pvc }
+  volumes:
+    - { name: $name, persistentVolumeClaim: { claimName: $name } }
+EOF
+
+    __wait_for_pod_to_succeed 60 test-pod
+    kubectl delete pod test-pod --timeout=60s
+}
+
+# Usage: __create_snapshot <volume> <snapshot>
+__create_snapshot() {
+    volume=$1
+    snapshot=$2
+
+    __stage "Snapshotting \"$volume\"..."
+
+    kubectl create -f - <<EOF
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: $snapshot
+spec:
+  volumeSnapshotClassName: subprovisioner
+  source:
+    persistentVolumeClaimName: $volume
+EOF
+
+    __wait_for_vs_to_be_ready 60 "$snapshot"
+}

@@ -51,21 +51,7 @@ ensure_pod_is_writing() {
 
 # ACTUAL TEST
 
-__stage 'Provisioning volume...'
-kubectl create -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: test-pvc
-spec:
-  volumeMode: Block
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 64Mi
-EOF
-__wait_for_pvc_to_be_bound 300 test-pvc
+__create_volume test-pvc 64Mi
 
 __stage 'Launching pod mounting the volume and writing to it...'
 start_pod 0
