@@ -444,7 +444,12 @@ __run() {
 
     __log_cyan "Importing Subprovisioner images into minikube cluster '%s'..." "${current_cluster}"
     for image in subprovisioner test; do
-        podman save "subprovisioner/${image}:test" | __minikube image load -
+        # Streaming the image over a pipe would be nicer but `minikube image
+        # load -` writes the image to /tmp and does not clean it up.
+        image_file="${temp_dir}/${image}.tar"
+        podman save --quiet --output "${image_file}" "subprovisioner/${image}:test"
+        __minikube image load "${image_file}"
+        rm -f "${image_file}" # also deleted by temp_dir trap handler on failure
     done
 
     for node in "${NODES[@]}"; do
