@@ -143,7 +143,7 @@ func (bm *BlobManager) createLvmVg(ctx context.Context, storageClassName string,
 	// create VG or wait until it is created
 
 	if shouldCreateVg {
-		_, err = lvm.Command(ctx, "vgcreate", "--lock-type", "sanlock", config.LvmVgName, pvPath)
+		_, err = lvm.Command(ctx, "vgcreate", "--lock-type", "sanlock", "--metadataprofile", "subprovisioner", config.LvmVgName, pvPath)
 
 		if err == nil {
 			sc.Annotations[stateAnnotation] = "created"

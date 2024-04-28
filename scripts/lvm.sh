@@ -40,6 +40,14 @@ case "${command}" in
         lvm_thin_lv_name=$4
         size_bytes=$5
 
+        # Start off with a smallish thin pool to avoid wasting space
+
+        max_thin_pool_start_bytes=$((1024 * 1024 * 1024))
+        thin_pool_size=$((max_thin_pool_start_bytes))
+        if [ "$size_bytes" -lt $((max_thin_pool_start_bytes / 2)) ]; then
+                thin_pool_size=$((size_bytes * 2))
+        fi
+
         # create LVM thin *pool* LV
 
         __run_ignoring_error "already exists in volume group" \
@@ -48,7 +56,7 @@ case "${command}" in
             --activate n \
             --type thin-pool \
             --name "$lvm_thin_pool_lv_name" \
-            --size "$(( size_bytes * 2 ))b" \
+            --size "${thin_pool_size}b" \
             subprovisioner
 
 	    # create LVM thin LV
@@ -138,6 +146,7 @@ case "${command}" in
         __lvm lvchange \
             --devices "$backing_device_path" \
             --activate ey \
+            --monitor y \
             "subprovisioner/$lvm_thin_lv_name"
         ;;
 

@@ -25,7 +25,28 @@ type BlobManager struct {
 	crdRest   rest.Interface
 }
 
+// Subprovisioner VGs use their own LVM profile to avoid interfering with the
+// system-wide lvm.conf configuration. This profile is hardcoded here and is
+// put in place before creating LVs that get their configuration from the
+// profile.
+func setUpLvmProfile() error {
+	return lvm.WriteProfile("subprovisioner",
+		`# This file is part of the Subprovisioner CSI plugin and may be automatically
+# updated. Do not edit!
+
+activation {
+        thin_pool_autoextend_threshold=95
+        thin_pool_autoextend_percent=20
+}
+`)
+}
+
 func NewBlobManager() (*BlobManager, error) {
+	err := setUpLvmProfile()
+	if err != nil {
+		return nil, err
+	}
+
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
