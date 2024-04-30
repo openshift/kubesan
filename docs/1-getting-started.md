@@ -104,8 +104,33 @@ Adding Subprovisioner to your cluster is straightforward:
 $ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy?ref=v0.1.0
 ```
 
-Then create a `StorageClass` that uses the Subprovisioner CSI plugin and
-specifies the path to the backing device:
+If you wish to create snapshots of volumes, your Kubernetes cluster must have
+the external-snapshotter sidecar and its CRDs defined. Some Kubernetes
+distributions ship with them already available, while others (including plain
+Kubernetes) do not.
+
+If you need to create them, use these commands to do so:
+
+```console
+$ kubectl create -k "https://github.com/kubernetes-csi/external-snapshotter/client/config/crd?ref=v7.0.1"
+$ kubectl create -k "https://github.com/kubernetes-csi/external-snapshotter/deploy/kubernetes/snapshot-controller?ref=v7.0.1"
+```
+
+Then create a `VolumeSnapshotClass` that uses the Subprovisioner CSI plugin:
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: subprovisioner
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: subprovisioner.gitlab.io
+deletionPolicy: Delete
+```
+
+Create a `StorageClass` that uses the Subprovisioner CSI plugin and specifies
+the path to the backing device:
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -117,7 +142,7 @@ parameters:
   backingDevicePath: /dev/my-san-lun
 ```
 
-And finally you can use that `StorageClass` as normal:
+Now you can create volumes like so:
 
 ```yaml
 apiVersion: v1
