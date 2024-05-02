@@ -16,7 +16,7 @@ RUN go build -o bin/subprovisioner ./cmd/subprovisioner
 # FROM quay.io/centos/centos:stream9
 FROM quay.io/fedora/fedora:40
 
-RUN dnf install -qy nbd nbdkit-basic-plugins && dnf clean all
+RUN dnf install -qy nbd qemu-img && dnf clean all
 
 WORKDIR /subprovisioner
 
