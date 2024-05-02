@@ -13,7 +13,7 @@ case "${command}" in
             sleep 1
         done
 
-        exec nbdkit --foreground --port 10809 file "$device_to_export"
+        exec qemu-nbd --cache=none --format=raw --persistent --shared=0 "$device_to_export"
         ;;
 
     client-connect)
