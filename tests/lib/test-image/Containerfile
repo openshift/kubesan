@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-FROM quay.io/fedora/fedora:39
+FROM quay.io/fedora/fedora:40
 
 RUN dnf install -qy fio strace nbd nmap-ncat && dnf clean all
 

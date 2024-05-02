@@ -14,7 +14,7 @@ RUN go build -o bin/subprovisioner ./cmd/subprovisioner
 
 # CentOS Stream 9 doesn't provide package nbd
 # FROM quay.io/centos/centos:stream9
-FROM quay.io/fedora/fedora:39
+FROM quay.io/fedora/fedora:40
 
 RUN dnf install -qy nbd nbdkit-basic-plugins && dnf clean all
 
