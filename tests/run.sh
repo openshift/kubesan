@@ -463,7 +463,7 @@ __run() {
     __minikube_ssh "${NODES[0]}" "
         sudo truncate -s 2G /mnt/vda1/backing.raw
         __run_in_test_container_async --net host -v /mnt/vda1/backing.raw:/disk -- \
-            nbd-server --nodaemon --config-file /dev/null 10809 /disk
+            qemu-nbd --cache=none --format=raw --persistent --shared=0 /disk
         __run_in_test_container --net host -- bash -c '
             for (( i = 0; i < 50; ++i )); do
                 if nc -z localhost 10809; then exit 0; fi
