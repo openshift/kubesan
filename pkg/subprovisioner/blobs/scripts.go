@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/jobs"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/util"
 )
@@ -20,7 +21,8 @@ func (bm *BlobManager) runLvmScriptForThinPoolLv(
 		Command: append(
 			[]string{
 				"scripts/lvm.sh", command,
-				blobPool.backingDevicePath, blobPool.lvmThinPoolLvName(),
+				blobPool.backingDevicePath,
+				config.LvmVgName, blobPool.lvmThinPoolLvName(),
 			},
 			extraArgs...,
 		),
@@ -43,7 +45,8 @@ func (bm *BlobManager) runLvmScriptForThinLv(
 		Command: append(
 			[]string{
 				"scripts/lvm.sh", command,
-				blob.pool.backingDevicePath, blob.pool.lvmThinPoolLvName(), blob.lvmThinLvName(),
+				blob.pool.backingDevicePath,
+				config.LvmVgName, blob.pool.lvmThinPoolLvName(), blob.lvmThinLvName(),
 			},
 			extraArgs...,
 		),

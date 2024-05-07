@@ -54,11 +54,11 @@ func (b *Blob) lvmThinLvName() string {
 }
 
 func (b *Blob) lvmThinLvPath() string {
-	return fmt.Sprintf("/dev/mapper/%s-%s", config.LvmVgName, strings.ReplaceAll(b.lvmThinLvName(), "-", "--"))
+	return fmt.Sprintf("/dev/%s/%s", config.LvmVgName, b.lvmThinLvName())
 }
 
 func (b *Blob) dmMultipathVolumeName() string {
-	return fmt.Sprintf("subprovisioner-%s-dm-multipath", strings.ReplaceAll(b.name, "-", "--"))
+	return fmt.Sprintf("%s-%s-dm-multipath", strings.ReplaceAll(config.LvmVgName, "-", "--"), strings.ReplaceAll(b.name, "-", "--"))
 }
 
 // The returned path is valid on all nodes in the cluster.
