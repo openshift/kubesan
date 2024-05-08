@@ -56,6 +56,7 @@ case "${command}" in
             --devices "$backing_device_path" \
             --activate n \
             --type thin-pool \
+            --metadataprofile subprovisioner \
             --name "$lvm_thin_pool_lv_name" \
             --size "${thin_pool_size}b" \
             "$lvm_vg_name"
