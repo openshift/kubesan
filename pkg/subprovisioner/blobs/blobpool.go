@@ -18,8 +18,8 @@ type blobPool struct {
 	// Matches the name of the pool's Kubernetes BlobPool CRD object.
 	name string
 
-	// Path to the shared block device used as storage for this blob.
-	backingDevicePath string
+	// Name of the shared VG used as storage for this blob.
+	backingVolumeGroup string
 }
 
 type blobPoolCrd struct {

@@ -6,16 +6,11 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"time"
 
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/lvm"
 	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/slices"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	storagev1 "k8s.io/api/storage/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 // Creates an empty blob.
@@ -27,13 +22,6 @@ func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStora
 	// create CRD
 
 	err := bm.createBlobPoolCrd(ctx, blob.pool.name, &blobPoolCrdSpec{Blobs: []string{blob.name}})
-	if err != nil {
-		return err
-	}
-
-	// ensure LVM VG exists
-
-	err = bm.createLvmVg(ctx, k8sStorageClassName, blob.pool.backingDevicePath)
 	if err != nil {
 		return err
 	}
@@ -93,84 +81,6 @@ func (bm *BlobManager) CreateBlobCopy(ctx context.Context, blobName string, sour
 	}
 
 	return blob, nil
-}
-
-func (bm *BlobManager) createLvmVg(ctx context.Context, storageClassName string, pvPath string) error {
-	// TODO: This will hang if the CSI controller plugin creating the VG dies. Fix this, maybe using leases.
-	// TODO: Communicate VG creation errors to users through events/status on the SC and PVC.
-
-	storageClasses := bm.clientset.StorageV1().StorageClasses()
-	stateAnnotation := fmt.Sprintf("%s/lvm-vg-state", config.Domain)
-
-	// check VG state
-
-	var sc *storagev1.StorageClass
-	var shouldCreateVg bool
-
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		var err error
-		sc, err = storageClasses.Get(ctx, storageClassName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		switch state, _ := sc.Annotations[stateAnnotation]; state {
-		case "", "creation-failed":
-			// VG wasn't created and isn't being created, try to create it ourselves
-
-			if sc.Annotations == nil {
-				sc.Annotations = map[string]string{}
-			}
-			sc.Annotations[stateAnnotation] = "creating"
-
-			sc, err = storageClasses.Update(ctx, sc, metav1.UpdateOptions{})
-			if err != nil {
-				return err
-			}
-
-			shouldCreateVg = true
-
-		case "creating", "created":
-			shouldCreateVg = false
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// create VG or wait until it is created
-
-	if shouldCreateVg {
-		_, err = lvm.Command(ctx, "vgcreate", "--lock-type", "sanlock", "--metadataprofile", "subprovisioner", config.LvmVgName, pvPath)
-
-		if err == nil {
-			sc.Annotations[stateAnnotation] = "created"
-		} else {
-			sc.Annotations[stateAnnotation] = "creation-failed"
-		}
-
-		// don't use ctx so that we don't fail to update the annotation after successfully creating the VG
-		// TODO: This fails if the SC was modified meanwhile, fix this.
-		_, err = storageClasses.Update(context.Background(), sc, metav1.UpdateOptions{})
-		return err
-	} else {
-		// TODO: Watch instead of polling.
-		for {
-			sc, err := storageClasses.Get(ctx, storageClassName, metav1.GetOptions{})
-
-			if err != nil {
-				return err
-			} else if ctx.Err() != nil {
-				return ctx.Err()
-			} else if sc.Annotations[stateAnnotation] == "created" {
-				return nil
-			}
-
-			time.Sleep(1 * time.Second)
-		}
-	}
 }
 
 // Fails if the volume is attached.

@@ -458,30 +458,41 @@ __run() {
             "${node}:/home/docker/.bashrc"
     done
 
-    __log_cyan "Starting NBD server to serve as a shared block device..."
+    __log_cyan "Starting NBD servers to serve as shared block devices..."
 
-    __minikube_ssh "${NODES[0]}" "
-        sudo truncate -s 2G /mnt/vda1/backing.raw
-        __run_in_test_container_async --net host -v /mnt/vda1/backing.raw:/disk -- \
-            qemu-nbd --cache=none --format=raw --persistent --shared=0 /disk
-        __run_in_test_container --net host -- bash -c '
-            for (( i = 0; i < 50; ++i )); do
-                if nc -z localhost 10809; then exit 0; fi
-                sleep 0.1
-            done
-            exit 1
-            '
-        "
+    for (( i = 0; i < 2; ++i )); do
+        port=$(( 10809 + i ))
+        __minikube_ssh "${NODES[0]}" "
+            sudo truncate -s 0 /mnt/vda1/backing${i}.raw
+            sudo truncate -s 2G /mnt/vda1/backing${i}.raw
+            __run_in_test_container_async --net host \
+                -v /mnt/vda1/backing${i}.raw:/disk${i} -- \
+                qemu-nbd --cache=none --format=raw --persistent \
+                    --port=${port} --shared=0 /disk${i}
+            __run_in_test_container --net host -- bash -c '
+                for (( i = 0; i < 50; ++i )); do
+                    if nc -z localhost ${port}; then exit 0; fi
+                    sleep 0.1
+                done
+                exit 1
+                '
+            "
+    done
 
-    __log_cyan "Attaching shared block device to all cluster nodes..."
+    __log_cyan "Attaching shared block devices to all cluster nodes..."
 
     for node in "${NODES[@]}"; do
         __minikube_ssh "${node}" "
             sudo modprobe nbd nbds_max=16  # for Subprovisioner to use as well
+
             __run_in_test_container --net host -- \
-                nbd-client ${NODE_IPS[0]} /dev/nbd0
-            sudo ln -s /dev/nbd0 /dev/subprovisioner-backing-volume
+                nbd-client ${NODE_IPS[0]} 10809 /dev/nbd0
+            sudo ln -s /dev/nbd0 /dev/subprovisioner-drive-0
             sudo cp -r /dev/nbd0 /dev/my-san-lun  # good for demos
+
+            __run_in_test_container --net host -- \
+                nbd-client ${NODE_IPS[0]} 10810 /dev/nbd1
+            sudo ln -s /dev/nbd1 /dev/subprovisioner-drive-1
             "
     done
 
@@ -498,6 +509,12 @@ __run() {
             sudo systemctl restart sanlock lvmlockd
             "
     done
+
+    __log_cyan "Creating shared VG on controller node..."
+
+    __minikube_ssh "${NODES[0]}" "
+        sudo lvm vgcreate --shared subprovisioner-vg /dev/my-san-lun
+        "
 
     set +o errexit
     (

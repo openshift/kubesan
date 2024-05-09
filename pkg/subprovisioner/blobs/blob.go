@@ -5,8 +5,6 @@ package blobs
 import (
 	"fmt"
 	"strings"
-
-	"gitlab.com/subprovisioner/subprovisioner/pkg/subprovisioner/util/config"
 )
 
 // Some info describing a particular blob.
@@ -19,12 +17,12 @@ type Blob struct {
 	pool *blobPool
 }
 
-func NewBlob(blobName string, backingDevicePath string) *Blob {
+func NewBlob(blobName string, backingVolumeGroup string) *Blob {
 	return &Blob{
 		name: blobName,
 		pool: &blobPool{
-			name:              blobName,
-			backingDevicePath: backingDevicePath,
+			name:               blobName,
+			backingVolumeGroup: backingVolumeGroup,
 		},
 	}
 }
@@ -34,15 +32,15 @@ func BlobFromString(s string) (*Blob, error) {
 	blob := &Blob{
 		name: split[0],
 		pool: &blobPool{
-			name:              split[1],
-			backingDevicePath: split[2],
+			name:               split[1],
+			backingVolumeGroup: split[2],
 		},
 	}
 	return blob, nil
 }
 
 func (b *Blob) String() string {
-	return fmt.Sprintf("%s:%s:%s", b.name, b.pool.name, b.pool.backingDevicePath)
+	return fmt.Sprintf("%s:%s:%s", b.name, b.pool.name, b.pool.backingVolumeGroup)
 }
 
 func (b *Blob) Name() string {
@@ -54,11 +52,11 @@ func (b *Blob) lvmThinLvName() string {
 }
 
 func (b *Blob) lvmThinLvPath() string {
-	return fmt.Sprintf("/dev/mapper/%s-%s", config.LvmVgName, strings.ReplaceAll(b.lvmThinLvName(), "-", "--"))
+	return fmt.Sprintf("/dev/%s/%s", b.pool.backingVolumeGroup, b.lvmThinLvName())
 }
 
 func (b *Blob) dmMultipathVolumeName() string {
-	return fmt.Sprintf("subprovisioner-%s-dm-multipath", strings.ReplaceAll(b.name, "-", "--"))
+	return fmt.Sprintf("%s-%s-dm-multipath", strings.ReplaceAll(b.pool.backingVolumeGroup, "-", "--"), strings.ReplaceAll(b.name, "-", "--"))
 }
 
 // The returned path is valid on all nodes in the cluster.

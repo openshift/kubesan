@@ -20,7 +20,8 @@ func (bm *BlobManager) runLvmScriptForThinPoolLv(
 		Command: append(
 			[]string{
 				"scripts/lvm.sh", command,
-				blobPool.backingDevicePath, blobPool.lvmThinPoolLvName(),
+				blobPool.backingVolumeGroup,
+				blobPool.lvmThinPoolLvName(),
 			},
 			extraArgs...,
 		),
@@ -43,7 +44,8 @@ func (bm *BlobManager) runLvmScriptForThinLv(
 		Command: append(
 			[]string{
 				"scripts/lvm.sh", command,
-				blob.pool.backingDevicePath, blob.pool.lvmThinPoolLvName(), blob.lvmThinLvName(),
+				blob.pool.backingVolumeGroup,
+				blob.pool.lvmThinPoolLvName(), blob.lvmThinLvName(),
 			},
 			extraArgs...,
 		),

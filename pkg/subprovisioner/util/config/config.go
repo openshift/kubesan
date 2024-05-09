@@ -9,7 +9,6 @@ const (
 	Version = "v0.1.0"
 
 	K8sNamespace = "subprovisioner"
-	LvmVgName    = "subprovisioner"
 )
 
 var (
