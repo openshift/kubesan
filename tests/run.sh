@@ -226,9 +226,9 @@ __canceled() {
 export REPO_ROOT=${repo_root}
 export TEST_IMAGE=docker.io/localhost/subprovisioner/test:test
 
-for f in debug-utils.sh test-utils.sh; do
+for f in cluster-helpers.sh lib/debug-utils.sh lib/test-utils.sh; do
     # shellcheck disable=SC1090
-    source "${script_dir}/lib/$f"
+    source "${script_dir}/$f"
 done
 
 # build images
