@@ -521,7 +521,7 @@ __run() {
         set -o errexit -o pipefail -o nounset +o xtrace
 
         __log_cyan "Installing Subprovisioner..."
-        for file in "${repo_root}/deploy/0"*; do
+        for file in "${repo_root}/deploy/kubernetes/0"*; do
             sed \
                 -E 's|quay.io/subprovisioner/([a-z-]+):v[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
                 "$file" \
@@ -555,7 +555,7 @@ __run() {
         if ! (( sandbox )); then
             __log_cyan "Uninstalling Subprovisioner..."
             kubectl delete --ignore-not-found --timeout=60s \
-                -k "${repo_root}/deploy" \
+                -k "${repo_root}/deploy/kubernetes" \
                 || exit_code="$?"
 
             if (( exit_code != 0 )); then

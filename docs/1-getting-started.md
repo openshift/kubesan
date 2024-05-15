@@ -106,10 +106,16 @@ best when all io is ultimately directed to the same physical location.
 
 ## Installing Subprovisioner
 
-Adding Subprovisioner to your cluster is straightforward:
+If you are using OpenShift:
 
 ```console
-$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy?ref=v0.1.0
+$ kubectl create -f https://gitlab.com/subprovisioner/subprovisioner/deploy/openshift?ref=v0.1.0
+```
+
+Otherwise use the vanilla Kubernetes kustomization:
+
+```console
+$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy/kubernetes?ref=v0.1.0
 ```
 
 If you wish to create snapshots of volumes, your Kubernetes cluster must have
