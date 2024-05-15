@@ -10,6 +10,19 @@ for bare-metal.
 [//]: # (Comment - this would be a good place to add information on
 how to set up a Kubevirt or minikube setup)
 
+Every node in the cluster must have lvmlockd and sanlock installed. Install the
+packages on RHEL, CentOS Stream, and Fedora nodes with:
+
+```console
+$ sudo dnf install lvm2-lockd sanlock
+```
+
+Install the packages OpenShift RHCOS nodes with:
+```console
+# You may first need to configure a package repository in /etc/yum.repos.d/
+$ sudo rpm-ostree install lvm2-lockd sanlock && sudo systemctl reboot
+```
+
 Additionally, before you deploy Subprovisioner, you need to make sure
 every node in your cluster provides the global resources that
 Subprovisioner will be using.
