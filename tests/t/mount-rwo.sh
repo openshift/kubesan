@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-__stage 'Provisioning %d volumes...' "${#NODES[@]}"
+sp-stage 'Provisioning %d volumes...' "${#NODES[@]}"
 
 for i in "${!NODES[@]}"; do
     kubectl create -f - <<EOF
@@ -19,10 +19,10 @@ EOF
 done
 
 for i in "${!NODES[@]}"; do
-    __wait_for_pvc_to_be_bound 300 "test-pvc-$i"
+    sp-wait-for-pvc-to-be-bound 300 "test-pvc-$i"
 done
 
-__stage 'Mounting each volume read-write on a different node...'
+sp-stage 'Mounting each volume read-write on a different node...'
 
 for i in "${!NODES[@]}"; do
     kubectl create -f - <<EOF
@@ -54,19 +54,19 @@ EOF
 done
 
 for i in "${!NODES[@]}"; do
-    __wait_for_pod_to_start_running 60 "test-pod-$i"
+    sp-wait-for-pod-to-start-running 60 "test-pod-$i"
 done
 
 sleep 10
 
 for i in "${!NODES[@]}"; do
-    __pod_is_running "test-pod-$i"
+    sp-pod-is-running "test-pod-$i"
 done
 
-__stage 'Unmounting volumes...'
+sp-stage 'Unmounting volumes...'
 
 kubectl delete pod "${NODE_INDICES[@]/#/test-pod-}" --timeout=30s
 
-__stage 'Deleting volumes...'
+sp-stage 'Deleting volumes...'
 
 kubectl delete pvc "${NODE_INDICES[@]/#/test-pvc-}" --timeout=30s

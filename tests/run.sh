@@ -165,13 +165,13 @@ __shell() {
     __log "$1" 'Starting interactive shell.'
     __log "$1" 'Inspect the cluster with:'
     __log "$1" '  $ kubectl [...]'
-    __log "$1" '  $ __controller_plugin describe|exec|logs [<args...>]'
-    __log "$1" '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
-    __log "$1" '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
+    __log "$1" '  $ sp-csi-controller-plugin describe|exec|logs [<args...>]'
+    __log "$1" '  $ sp-csi-node-plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
+    __log "$1" '  $ sp-ssh-into-node <node_name>|<node_index> [<command...>]'
 
     if [[ "$2" != true ]]; then
         __log "$1" 'To retry the current test:'
-        __log "$1" '  $ retry'
+        __log "$1" '  $ sp-retry'
     fi
 
     IFS='/' read -r -a script_path <<< "$0"
