@@ -62,6 +62,7 @@ if (( "${#tests_arg[@]}" == 0 )); then
 Usage: $0 [<options...>] <tests...>
        $0 [<options...>] all
        $0 [<options...>] sandbox
+       $0 [<options...>] sandbox-no-install
 
 Run each given test against a temporary minikube cluster.
 
@@ -90,8 +91,16 @@ fi
 
 if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox ]]; then
     sandbox=1
+    install_subprovisioner=1
+    uninstall_subprovisioner=0
+elif (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox-no-install ]]; then
+    sandbox=1
+    install_subprovisioner=0
+    uninstall_subprovisioner=0
 else
     sandbox=0
+    install_subprovisioner=1
+    uninstall_subprovisioner=1
 
     if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = all ]]; then
         tests_arg=()
@@ -522,13 +531,15 @@ __run() {
     (
         set -o errexit -o pipefail -o nounset +o xtrace
 
-        __log_cyan "Installing Subprovisioner..."
-        for file in "${repo_root}/deploy/kubernetes/0"*; do
-            sed \
-                -E 's|quay.io/subprovisioner/([a-z-]+):v[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
-                "$file" \
-                | kubectl create -f -
-        done
+        if (( install_subprovisioner )); then
+            __log_cyan "Installing Subprovisioner..."
+            for file in "${repo_root}/deploy/kubernetes/0"*; do
+                sed \
+                    -E 's|quay.io/subprovisioner/([a-z-]+):v[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
+                    "$file" \
+                    | kubectl create -f -
+            done
+        fi
 
         __log_cyan "Enabling volume snapshot support in the cluster..."
         base_url=https://github.com/kubernetes-csi/external-snapshotter
@@ -538,7 +549,10 @@ __run() {
 
         __log_cyan "Creating common objects..."
         kubectl delete sc standard
-        kubectl create -f "${script_dir}/lib/common-objects.yaml"
+        kubectl create -f "${script_dir}/lib/volume-snapshot-class.yaml"
+        if (( install_subprovisioner )); then
+            kubectl create -f "${script_dir}/lib/storage-class.yaml"
+        fi
 
         if (( sandbox )); then
             __shell 32 true
@@ -554,7 +568,7 @@ __run() {
 
     if (( exit_code == 0 )); then
 
-        if ! (( sandbox )); then
+        if (( uninstall_subprovisioner )); then
             __log_cyan "Uninstalling Subprovisioner..."
             kubectl delete --ignore-not-found --timeout=60s \
                 -k "${repo_root}/deploy/kubernetes" \
