@@ -566,7 +566,12 @@ __run() {
     exit_code="$?"
     set -o errexit
 
-    if (( exit_code == 0 )); then
+    if [[ -e "${temp_dir}/retry" ]]; then
+
+        # sp-retry was run from a --pause-on-stage debug shell
+        true
+
+    elif (( exit_code == 0 )); then
 
         if (( uninstall_subprovisioner )); then
             __log_cyan "Uninstalling Subprovisioner..."
