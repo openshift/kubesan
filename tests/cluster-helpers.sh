@@ -113,7 +113,7 @@ sp-poll() {
     (
         set -o errexit -o pipefail -o nounset +o xtrace
 
-        for (( i = 1; i < "$2"; ++i )); do
+        for (( i = 1; $2 == 0 || i < $2; ++i )); do
             if eval "${*:3}"; then return 0; fi
             sleep "$1"
         done
@@ -156,3 +156,57 @@ sp-wait-for-vs-to-be-bound() {
     sp-poll 1 "$1" "[[ \"\$( kubectl get vs ${*:2} -o=jsonpath='{.status.readyToUse}' )\" = true ]]"
 }
 export -f sp-wait-for-vs-to-be-bound
+
+if (( ${sandbox:-1} )); then
+
+    # Usage: sp-pull <images...>
+    sp-pull() {
+        if (( $# == 0 )); then
+            >&2 echo "Usage: sp-pull <images...>"
+            return 2
+        fi
+
+        local __containers="" __i __name="subprovisioner-pre-pull-images" __desired
+
+        for (( __i = 1; __i <= $#; ++__i )); do
+            __containers+=", { name: c$__i, image: \"${!__i}\", command: [ \"true\" ] }"
+        done
+
+        kubectl create -f - <<-EOF || return 1
+        apiVersion: apps/v1
+        kind: DaemonSet
+        metadata:
+          name: $__name
+        spec:
+          selector:
+            matchLabels: &labels
+              subprovisioner.gitlab.io/component: $__name
+          template:
+            metadata:
+              labels: *labels
+            spec:
+              initContainers: [ ${__containers:2} ]
+              containers:
+                - name: pause
+                  image: gcr.io/google_containers/pause:3.2
+EOF
+
+        __desired=$( kubectl get daemonset "$__name" -o=jsonpath='{.status.desiredNumberScheduled}' )
+
+        echo "Waiting for image(s) to be pulled in $__desired nodes..."
+
+        sp-poll 1 0 \
+            "(( \$( kubectl get daemonset \"$__name\" -o=jsonpath='{.status.numberReady}' )
+            == $__desired )) " \
+        || {
+            kubectl delete daemonset "$__name"
+            return 1
+        }
+
+        echo "Done."
+
+        kubectl delete daemonset "$__name"
+    }
+    export -f sp-pull
+
+fi
