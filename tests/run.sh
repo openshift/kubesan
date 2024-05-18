@@ -308,9 +308,11 @@ __start_minikube_cluster() {
 
 # Usage: __create_minikube_cluster_async <profile> [<extra_minikube_opts...>]
 __create_minikube_cluster_async() {
-    __log_cyan "Creating minikube cluster '%s' in the background to use later..." "$1"
-    creating_cluster_in_background=1
-    __start_minikube_cluster "$@" &>/dev/null &
+    if ! (( sandbox )); then
+        __log_cyan "Creating minikube cluster '%s' in the background to use later..." "$1"
+        creating_cluster_in_background=1
+        __start_minikube_cluster "$@" &>/dev/null &
+    fi
 }
 
 __wait_until_background_cluster_is_ready() {
@@ -636,7 +638,7 @@ fi
 trap 'rm -fr "${temp_dir}"' EXIT
 __wait_until_background_cluster_is_ready
 
-if [[ -n "${background_cluster:-}" ]]; then
+if (( "${creating_cluster_in_background:-0}" == 1 )); then
     minikube stop \
         --profile="${background_cluster}" \
         --keep-context-active \
