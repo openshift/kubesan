@@ -13,7 +13,7 @@ sp-stage() {
         if (( pause_on_stage )); then
             __log_yellow "Pausing before ${text_lower::1}${text:1}"
             __shell 32 false
-            if [[ -e "${temp_dir}/retry" ]]; then
+            if [[ -e "${temp_dir}/retry" || -e "${temp_dir}/cancel" ]]; then
                 exit 1
             fi
         fi

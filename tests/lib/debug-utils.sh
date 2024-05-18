@@ -7,6 +7,16 @@ sp-retry() {
 }
 export -f sp-retry
 
+# shellcheck disable=SC2154
+if (( ! sandbox )); then
+    sp-cancel() {
+        # shellcheck disable=SC2154
+        touch "${subprovisioner_cancel_path}"
+        exit 0
+    }
+    export -f sp-cancel
+fi
+
 # Usage: sp-ssh-into-node <node_name>|<node_index> [<command...>]
 sp-ssh-into-node() {
     if (( $# < 1 )); then

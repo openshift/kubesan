@@ -178,9 +178,14 @@ __shell() {
     __log "$1" '  $ sp-csi-node-plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
     __log "$1" '  $ sp-ssh-into-node <node_name>|<node_index> [<command...>]'
 
-    if [[ "$2" != true ]]; then
+    if [[ "$2" == true ]]; then
+        __log "$1" 'To reset the sandbox:'
+        __log "$1" '  $ sp-retry'
+    else
         __log "$1" 'To retry the current test:'
         __log "$1" '  $ sp-retry'
+        __log "$1" 'To cancel this and all remaining tests:'
+        __log "$1" '  $ sp-cancel'
     fi
 
     IFS='/' read -r -a script_path <<< "$0"
@@ -200,6 +205,7 @@ __shell() {
     (
         export subprovisioner_tests_run_sh_path
         export subprovisioner_retry_path="${temp_dir}/retry"
+        export subprovisioner_cancel_path="${temp_dir}/cancel"
         cd "${initial_working_dir}"
         # shellcheck disable=SC2016,SC2028
         "$BASH" --init-file <( echo "
@@ -566,9 +572,9 @@ __run() {
     exit_code="$?"
     set -o errexit
 
-    if [[ -e "${temp_dir}/retry" ]]; then
+    if [[ -e "${temp_dir}/retry" || -e "${temp_dir}/cancel" ]]; then
 
-        # sp-retry was run from a --pause-on-stage debug shell
+        # sp-retry/sp-cancel was run from a --pause-on-stage debug shell
         true
 
     elif (( exit_code == 0 )); then
@@ -625,7 +631,7 @@ else
         if [[ -e "${temp_dir}/retry" ]]; then
             canceled=0
             : $(( --test_i ))
-        elif (( canceled )); then
+        elif (( canceled )) || [[ -e "${temp_dir}/cancel" ]]; then
             break
         elif (( exit_code == 0 )); then
             : $(( num_succeeded++ ))
