@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
 resources:
-  - scc.yaml
-  - ../kubernetes
+  - cluster.yaml
+  - node.yaml
