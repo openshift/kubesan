@@ -10,6 +10,19 @@ for bare-metal.
 [//]: # (Comment - this would be a good place to add information on
 how to set up a Kubevirt or minikube setup)
 
+Every node in the cluster must have lvmlockd and sanlock installed. Install the
+packages on RHEL, CentOS Stream, and Fedora nodes with:
+
+```console
+$ sudo dnf install lvm2-lockd sanlock
+```
+
+Install the packages OpenShift RHCOS nodes with:
+```console
+# You may first need to configure a package repository in /etc/yum.repos.d/
+$ sudo rpm-ostree install lvm2-lockd sanlock && sudo systemctl reboot
+```
+
 Additionally, before you deploy Subprovisioner, you need to make sure
 every node in your cluster provides the global resources that
 Subprovisioner will be using.
@@ -93,10 +106,16 @@ best when all io is ultimately directed to the same physical location.
 
 ## Installing Subprovisioner
 
-Adding Subprovisioner to your cluster is straightforward:
+If you are using OpenShift:
 
 ```console
-$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy?ref=v0.1.0
+$ kubectl create -f https://gitlab.com/subprovisioner/subprovisioner/deploy/openshift?ref=v0.1.0
+```
+
+Otherwise use the vanilla Kubernetes kustomization:
+
+```console
+$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy/kubernetes?ref=v0.1.0
 ```
 
 If you wish to create snapshots of volumes, your Kubernetes cluster must have
