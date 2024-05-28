@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
-__create_volume test-pvc-1 64Mi
-__fill_volume test-pvc-1 64
-__create_snapshot test-pvc-1 test-vs-1
+sp-create-volume test-pvc-1 64Mi
+sp-fill-volume test-pvc-1 64
+sp-create-snapshot test-pvc-1 test-vs-1
 
-__stage 'Deleting snapshot of volume 1...'
+sp-stage 'Deleting snapshot of volume 1...'
 
 kubectl delete vs test-vs-1 --timeout=60s
 
-__create_snapshot test-pvc-1 test-vs-1
+sp-create-snapshot test-pvc-1 test-vs-1
 
-__stage 'Creating volume 2 from snapshot of volume 1...'
+sp-stage 'Creating volume 2 from snapshot of volume 1...'
 
 kubectl create -f - <<EOF
 apiVersion: v1
@@ -30,9 +30,9 @@ spec:
       storage: 64Mi
 EOF
 
-__wait_for_pvc_to_be_bound 300 test-pvc-2
+sp-wait-for-pvc-to-be-bound 300 test-pvc-2
 
-__stage 'Validating volume data and independence between volumes 1 and 2...'
+sp-stage 'Validating volume data and independence between volumes 1 and 2...'
 
 kubectl create -f - <<EOF
 apiVersion: v1
@@ -60,13 +60,13 @@ spec:
     - { name: test-pvc-2, persistentVolumeClaim: { claimName: test-pvc-2 } }
 EOF
 
-__wait_for_pod_to_succeed 60 test-pod
+sp-wait-for-pod-to-succeed 60 test-pod
 kubectl delete pod test-pod --timeout=60s
 
-__stage 'Deleting volume 1...'
+sp-stage 'Deleting volume 1...'
 kubectl delete pvc test-pvc-1 --timeout=60s
 
-__stage 'Creating volume 3 from the snapshot of volume 1 but with a bigger size...'
+sp-stage 'Creating volume 3 from the snapshot of volume 1 but with a bigger size...'
 
 kubectl create -f - <<EOF
 apiVersion: v1
@@ -86,9 +86,9 @@ spec:
       storage: 128Mi
 EOF
 
-__wait_for_pvc_to_be_bound 300 test-pvc-3
+sp-wait-for-pvc-to-be-bound 300 test-pvc-3
 
-__stage 'Validating volume data and independence between volumes 2 and 3...'
+sp-stage 'Validating volume data and independence between volumes 2 and 3...'
 
 mib64="$(( 64 * 1024 * 1024 ))"
 
@@ -121,13 +121,13 @@ spec:
     - { name: test-pvc-3, persistentVolumeClaim: { claimName: test-pvc-3 } }
 EOF
 
-__wait_for_pod_to_succeed 60 test-pod
+sp-wait-for-pod-to-succeed 60 test-pod
 kubectl delete pod test-pod --timeout=60s
 
-__stage 'Deleting snapshot of volume 1...'
+sp-stage 'Deleting snapshot of volume 1...'
 
 kubectl delete vs test-vs-1 --timeout=60s
 
-__stage 'Deleting volumes 2 and 3...'
+sp-stage 'Deleting volumes 2 and 3...'
 
 kubectl delete pvc test-pvc-2 test-pvc-3 --timeout=60s

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
-__stage 'Creating second shared VG'
+sp-stage 'Creating second shared VG'
 
 __minikube_ssh "${NODES[0]}" "
     sudo lvm vgcreate --shared second-vg /dev/subprovisioner-drive-1
 "
 
-__stage 'Creating second StorageClass'
+sp-stage 'Creating second StorageClass'
 
 kubectl create -f - <<EOF
 apiVersion: storage.k8s.io/v1
@@ -20,7 +20,7 @@ parameters:
   backingVolumeGroup: second-vg
 EOF
 
-__stage 'Provisioning volumes in each StorageClass...'
+sp-stage 'Provisioning volumes in each StorageClass...'
 
 # make_pvc sc_name
 make_pvc()
@@ -46,10 +46,10 @@ EOF
 make_pvc subprovisioner
 make_pvc second
 
-__wait_for_pvc_to_be_bound 300 "test-pvc-subprovisioner"
-__wait_for_pvc_to_be_bound 300 "test-pvc-second"
+sp-wait-for-pvc-to-be-bound 300 "test-pvc-subprovisioner"
+sp-wait-for-pvc-to-be-bound 300 "test-pvc-second"
 
-__stage 'Mounting both volumes read-write...'
+sp-stage 'Mounting both volumes read-write...'
 
 kubectl create -f - <<EOF
 apiVersion: v1
@@ -82,13 +82,13 @@ spec:
         claimName: test-pvc-second
 EOF
 
-__wait_for_pod_to_start_running 60 "test-pod"
-__pod_is_running "test-pod"
+sp-wait-for-pod-to-start-running 60 "test-pod"
+sp-pod-is-running "test-pod"
 
-__stage 'Unmounting volumes...'
+sp-stage 'Unmounting volumes...'
 
 kubectl delete pod "test-pod" --timeout=30s
 
-__stage 'Deleting volumes...'
+sp-stage 'Deleting volumes...'
 
 kubectl delete pvc "test-pvc-subprovisioner" "test-pvc-second" --timeout=30s

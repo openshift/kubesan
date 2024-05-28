@@ -62,6 +62,7 @@ if (( "${#tests_arg[@]}" == 0 )); then
 Usage: $0 [<options...>] <tests...>
        $0 [<options...>] all
        $0 [<options...>] sandbox
+       $0 [<options...>] sandbox-no-install
 
 Run each given test against a temporary minikube cluster.
 
@@ -90,8 +91,16 @@ fi
 
 if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox ]]; then
     sandbox=1
+    install_subprovisioner=1
+    uninstall_subprovisioner=0
+elif (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox-no-install ]]; then
+    sandbox=1
+    install_subprovisioner=0
+    uninstall_subprovisioner=0
 else
     sandbox=0
+    install_subprovisioner=1
+    uninstall_subprovisioner=1
 
     if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = all ]]; then
         tests_arg=()
@@ -165,13 +174,18 @@ __shell() {
     __log "$1" 'Starting interactive shell.'
     __log "$1" 'Inspect the cluster with:'
     __log "$1" '  $ kubectl [...]'
-    __log "$1" '  $ __controller_plugin describe|exec|logs [<args...>]'
-    __log "$1" '  $ __node_plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
-    __log "$1" '  $ __ssh_into_node <node_name>|<node_index> [<command...>]'
+    __log "$1" '  $ sp-csi-controller-plugin describe|exec|logs [<args...>]'
+    __log "$1" '  $ sp-csi-node-plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
+    __log "$1" '  $ sp-ssh-into-node <node_name>|<node_index> [<command...>]'
 
-    if [[ "$2" != true ]]; then
+    if [[ "$2" == true ]]; then
+        __log "$1" 'To reset the sandbox:'
+        __log "$1" '  $ sp-retry'
+    else
         __log "$1" 'To retry the current test:'
-        __log "$1" '  $ retry'
+        __log "$1" '  $ sp-retry'
+        __log "$1" 'To cancel this and all remaining tests:'
+        __log "$1" '  $ sp-cancel'
     fi
 
     IFS='/' read -r -a script_path <<< "$0"
@@ -191,6 +205,7 @@ __shell() {
     (
         export subprovisioner_tests_run_sh_path
         export subprovisioner_retry_path="${temp_dir}/retry"
+        export subprovisioner_cancel_path="${temp_dir}/cancel"
         cd "${initial_working_dir}"
         # shellcheck disable=SC2016,SC2028
         "$BASH" --init-file <( echo "
@@ -226,9 +241,9 @@ __canceled() {
 export REPO_ROOT=${repo_root}
 export TEST_IMAGE=docker.io/localhost/subprovisioner/test:test
 
-for f in debug-utils.sh test-utils.sh; do
+for f in cluster-helpers.sh lib/debug-utils.sh lib/test-utils.sh; do
     # shellcheck disable=SC1090
-    source "${script_dir}/lib/$f"
+    source "${script_dir}/$f"
 done
 
 # build images
@@ -291,7 +306,7 @@ __minikube_cluster_exists() {
 # Usage: __restart_minikube_cluster <profile> [<extra_minikube_opts...>]
 __restart_minikube_cluster() {
     minikube start \
-        --iso-url=https://gitlab.com/subprovisioner/minikube/-/package_files/123597630/download \
+        --iso-url=https://gitlab.com/subprovisioner/minikube/-/package_files/124271634/download \
         --profile="$1" \
         --driver=kvm2 \
         --cpus=2 \
@@ -308,9 +323,11 @@ __start_minikube_cluster() {
 
 # Usage: __create_minikube_cluster_async <profile> [<extra_minikube_opts...>]
 __create_minikube_cluster_async() {
-    __log_cyan "Creating minikube cluster '%s' in the background to use later..." "$1"
-    creating_cluster_in_background=1
-    __start_minikube_cluster "$@" &>/dev/null &
+    if ! (( sandbox )); then
+        __log_cyan "Creating minikube cluster '%s' in the background to use later..." "$1"
+        creating_cluster_in_background=1
+        __start_minikube_cluster "$@" &>/dev/null &
+    fi
 }
 
 __wait_until_background_cluster_is_ready() {
@@ -520,13 +537,15 @@ __run() {
     (
         set -o errexit -o pipefail -o nounset +o xtrace
 
-        __log_cyan "Installing Subprovisioner..."
-        for file in "${repo_root}/deploy/kubernetes/0"*; do
-            sed \
-                -E 's|quay.io/subprovisioner/([a-z-]+):v[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
-                "$file" \
-                | kubectl create -f -
-        done
+        if (( install_subprovisioner )); then
+            __log_cyan "Installing Subprovisioner..."
+            for file in "${repo_root}/deploy/kubernetes/0"*; do
+                sed \
+                    -E 's|quay.io/subprovisioner/([a-z-]+):v[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
+                    "$file" \
+                    | kubectl create -f -
+            done
+        fi
 
         __log_cyan "Enabling volume snapshot support in the cluster..."
         base_url=https://github.com/kubernetes-csi/external-snapshotter
@@ -536,7 +555,10 @@ __run() {
 
         __log_cyan "Creating common objects..."
         kubectl delete sc standard
-        kubectl create -f "${script_dir}/lib/common-objects.yaml"
+        kubectl create -f "${script_dir}/lib/volume-snapshot-class.yaml"
+        if (( install_subprovisioner )); then
+            kubectl create -f "${script_dir}/lib/storage-class.yaml"
+        fi
 
         if (( sandbox )); then
             __shell 32 true
@@ -550,9 +572,14 @@ __run() {
     exit_code="$?"
     set -o errexit
 
-    if (( exit_code == 0 )); then
+    if [[ -e "${temp_dir}/retry" || -e "${temp_dir}/cancel" ]]; then
 
-        if ! (( sandbox )); then
+        # sp-retry/sp-cancel was run from a --pause-on-stage debug shell
+        true
+
+    elif (( exit_code == 0 )); then
+
+        if (( uninstall_subprovisioner )); then
             __log_cyan "Uninstalling Subprovisioner..."
             kubectl delete --ignore-not-found --timeout=60s \
                 -k "${repo_root}/deploy/kubernetes" \
@@ -604,7 +631,7 @@ else
         if [[ -e "${temp_dir}/retry" ]]; then
             canceled=0
             : $(( --test_i ))
-        elif (( canceled )); then
+        elif (( canceled )) || [[ -e "${temp_dir}/cancel" ]]; then
             break
         elif (( exit_code == 0 )); then
             : $(( num_succeeded++ ))
@@ -636,7 +663,7 @@ fi
 trap 'rm -fr "${temp_dir}"' EXIT
 __wait_until_background_cluster_is_ready
 
-if [[ -n "${background_cluster:-}" ]]; then
+if (( "${creating_cluster_in_background:-0}" == 1 )); then
     minikube stop \
         --profile="${background_cluster}" \
         --keep-context-active \
