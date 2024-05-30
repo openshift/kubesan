@@ -109,7 +109,7 @@ best when all io is ultimately directed to the same physical location.
 If you are using OpenShift:
 
 ```console
-$ kubectl create -f https://gitlab.com/subprovisioner/subprovisioner/deploy/openshift?ref=v0.2.0
+$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy/openshift?ref=v0.2.0
 ```
 
 Otherwise use the vanilla Kubernetes kustomization:
