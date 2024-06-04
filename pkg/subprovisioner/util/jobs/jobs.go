@@ -29,6 +29,7 @@ type Job struct {
 	NodeName    string
 	Command     []string
 	HostNetwork bool
+	HostPID     bool
 }
 
 func CreateAndRunAndDelete(ctx context.Context, clientset kubernetes.Interface, job *Job) error {
@@ -129,6 +130,7 @@ func (job *Job) instantiateTemplate() (*batchv1.Job, error) {
 		"Image":       template.HTML(config.Image),
 		"CommandJson": template.HTML(commandJson),
 		"HostNetwork": template.HTML(strconv.FormatBool(job.HostNetwork)),
+		"HostPID":     template.HTML(strconv.FormatBool(job.HostPID)),
 	}
 
 	var jobYaml bytes.Buffer
