@@ -8,6 +8,7 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: {{.ServiceAccountName}}
       hostPID: {{.HostPID}}
       restartPolicy: Never
       nodeName: {{.NodeName}}

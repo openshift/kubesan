@@ -228,6 +228,7 @@ func (s *ControllerServer) populateVolume(ctx context.Context, sourceBlob *blobs
 			"bs=1M",
 			"conv=fsync,nocreat,sparse",
 		},
+		ServiceAccountName: "csi-controller-plugin",
 	}
 
 	err = jobs.CreateAndRun(ctx, s.BlobManager.Clientset(), job)

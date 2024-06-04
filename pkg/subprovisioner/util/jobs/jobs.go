@@ -25,11 +25,12 @@ import (
 )
 
 type Job struct {
-	Name        string
-	NodeName    string
-	Command     []string
-	HostNetwork bool
-	HostPID     bool
+	Name               string
+	NodeName           string
+	Command            []string
+	HostNetwork        bool
+	HostPID            bool
+	ServiceAccountName string
 }
 
 func CreateAndRunAndDelete(ctx context.Context, clientset kubernetes.Interface, job *Job) error {
@@ -125,12 +126,13 @@ func (job *Job) instantiateTemplate() (*batchv1.Job, error) {
 	}
 
 	args := map[string]template.HTML{
-		"Name":        template.HTML(job.Name),
-		"NodeName":    template.HTML(job.NodeName),
-		"Image":       template.HTML(config.Image),
-		"CommandJson": template.HTML(commandJson),
-		"HostNetwork": template.HTML(strconv.FormatBool(job.HostNetwork)),
-		"HostPID":     template.HTML(strconv.FormatBool(job.HostPID)),
+		"Name":               template.HTML(job.Name),
+		"NodeName":           template.HTML(job.NodeName),
+		"Image":              template.HTML(config.Image),
+		"CommandJson":        template.HTML(commandJson),
+		"HostNetwork":        template.HTML(strconv.FormatBool(job.HostNetwork)),
+		"HostPID":            template.HTML(strconv.FormatBool(job.HostPID)),
+		"ServiceAccountName": template.HTML(job.ServiceAccountName),
 	}
 
 	var jobYaml bytes.Buffer
