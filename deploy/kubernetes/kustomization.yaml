@@ -8,3 +8,4 @@ resources:
   - 02-csi-node-plugin.yaml
   - 03-rbac.yaml
   - 04-nbd.yaml
+  - 05-blobs.yaml
