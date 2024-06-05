@@ -28,10 +28,11 @@ func ConnectClient(ctx context.Context, clientset kubernetes.Interface, clientNo
 	}
 
 	job := &jobs.Job{
-		Name:        fmt.Sprintf("nbd-connect-%s", util.Hash(clientNode, serverId.hash())),
-		NodeName:    clientNode,
-		Command:     []string{"scripts/nbd.sh", "client-connect", deviceSymlinkPath, serverIp.String()},
-		HostNetwork: true, // for netlink to work
+		Name:               fmt.Sprintf("nbd-connect-%s", util.Hash(clientNode, serverId.hash())),
+		NodeName:           clientNode,
+		Command:            []string{"scripts/nbd.sh", "client-connect", deviceSymlinkPath, serverIp.String()},
+		HostNetwork:        true, // for netlink to work
+		ServiceAccountName: "nbd-client",
 	}
 
 	err = jobs.CreateAndRunAndDelete(ctx, clientset, job)
@@ -52,10 +53,11 @@ func DisconnectClient(ctx context.Context, clientset kubernetes.Interface, clien
 	deviceSymlinkPath := fmt.Sprintf("/run/subprovisioner/nbd/%s", serverId.Hostname())
 
 	job := &jobs.Job{
-		Name:        fmt.Sprintf("nbd-disconnect-%s", util.Hash(clientNode, serverId.hash())),
-		NodeName:    clientNode,
-		Command:     []string{"scripts/nbd.sh", "client-disconnect", deviceSymlinkPath},
-		HostNetwork: true, // for netlink to work
+		Name:               fmt.Sprintf("nbd-disconnect-%s", util.Hash(clientNode, serverId.hash())),
+		NodeName:           clientNode,
+		Command:            []string{"scripts/nbd.sh", "client-disconnect", deviceSymlinkPath},
+		HostNetwork:        true, // for netlink to work
+		ServiceAccountName: "nbd-client",
 	}
 
 	err := jobs.CreateAndRunAndDelete(ctx, clientset, job)

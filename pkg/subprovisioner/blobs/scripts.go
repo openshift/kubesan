@@ -25,6 +25,8 @@ func (bm *BlobManager) runLvmScriptForThinPoolLv(
 			},
 			extraArgs...,
 		),
+		ServiceAccountName: "blobs",
+		HostPID:            true,
 	}
 
 	err := jobs.CreateAndRunAndDelete(ctx, bm.clientset, job)
@@ -49,6 +51,8 @@ func (bm *BlobManager) runLvmScriptForThinLv(
 			},
 			extraArgs...,
 		),
+		ServiceAccountName: "blobs",
+		HostPID:            true,
 	}
 
 	err := jobs.CreateAndRunAndDelete(ctx, bm.clientset, job)
@@ -76,6 +80,8 @@ func (bm *BlobManager) runDmMultipathScript(
 				blob.dmMultipathVolumeName(), strconv.FormatInt(size, 10)},
 			extraArgs...,
 		),
+		ServiceAccountName: "blobs",
+		HostPID:            true,
 	}
 
 	err = jobs.CreateAndRunAndDelete(ctx, bm.clientset, job)
