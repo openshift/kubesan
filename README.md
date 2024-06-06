@@ -22,11 +22,12 @@ Features:
 - Snapshots
 - Cloning
 - `ReadWriteMany` (RWX) support
+- Thin provisioning
 
 Roadmap:
 - [ ] Volume expansion
 - [ ] `Filesystem` volumes (without `ReadWriteMany`)
-- [ ] Thin provisioning
+- [ ] Instant volume cloning via background copy
 
 ### Documentation
 
