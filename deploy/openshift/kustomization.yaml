@@ -5,5 +5,5 @@ kind: Kustomization
 resources:
   - 00-scc.yaml
   - 01-nbd-scc.yaml
-  - 02-blobs.yaml
+  - 02-blobs-scc.yaml
   - ../kubernetes
