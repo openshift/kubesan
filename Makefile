@@ -2,7 +2,7 @@
 
 .PHONY: build
 build:
-	podman image build -t quay.io/subprovisioner/subprovisioner:v0.2.0 .
+	podman image build --tag subprovisioner:latest .
 
 .PHONY: fmt
 fmt:
