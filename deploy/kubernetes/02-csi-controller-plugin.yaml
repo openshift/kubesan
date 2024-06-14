@@ -61,7 +61,9 @@ spec:
               mountPath: /run/csi
       volumes:
         - name: socket-dir
-          emptyDir:
+          hostPath:
+            path: /var/lib/kubelet/plugins/kubesan-controller
+            type: DirectoryOrCreate
         - name: dev
           hostPath:
             path: /dev
