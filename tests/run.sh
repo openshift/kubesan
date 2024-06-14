@@ -541,7 +541,7 @@ __run() {
             __log_cyan "Installing Subprovisioner..."
             for file in "${repo_root}/deploy/kubernetes/0"*; do
                 sed \
-                    -E 's|quay.io/subprovisioner/([a-z-]+):v[0-9+\.]+|docker.io/localhost/subprovisioner/\1:test|g' \
+                    -E 's;quay.io/subprovisioner/([a-z-]+):(latest|v[0-9+\.]+);docker.io/localhost/subprovisioner/\1:test;g' \
                     "$file" \
                     | kubectl create -f -
             done
