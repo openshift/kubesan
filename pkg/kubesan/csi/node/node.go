@@ -8,11 +8,26 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/blobs"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/config"
+	"k8s.io/mount-utils"
+	"k8s.io/utils/exec"
 )
 
 type NodeServer struct {
 	csi.UnimplementedNodeServer
 	BlobManager *blobs.BlobManager
+
+	// Keep around instances to avoid the cost of probing in mount.New("")
+	// each time an instance is required.
+	mounter mount.Interface
+	exec    exec.Interface
+}
+
+func NewNodeServer(blobManager *blobs.BlobManager) *NodeServer {
+	return &NodeServer{
+		BlobManager: blobManager,
+		mounter:     mount.New(""),
+		exec:        exec.New(),
+	}
 }
 
 func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {

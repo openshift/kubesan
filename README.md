@@ -1,8 +1,8 @@
 # The KubeSAN CSI Plugin
 
 KubeSAN is a [CSI] plugin for [Kubernetes] that enables you to provision
-`Block` volumes backed by a single, cluster-wide, shared block device (*e.g.*, a
-single big LUN on a SAN), exposed as a shared Volume Group under lvm2.
+volumes backed by a single, cluster-wide, shared block device (*e.g.*, a single
+big LUN on a SAN), exposed as a shared Volume Group under lvm2.
 
 Whilst SANs often come with vendor CSI plugins, they cannot always be used.
 KubeSAN is intended for cases where:
@@ -18,15 +18,14 @@ vendor CSI plugin.
 ![Diagram showing KubeSAN volumes backed by a SAN LUN](img/overview.png)
 
 Features:
-- Dynamic provisioning of `Block` volumes
+- Dynamic provisioning of `Block` and `Filesystem` volumes
 - Snapshots
 - Cloning
-- `ReadWriteMany` (RWX) support
+- `ReadWriteMany` (RWX) support for `Block` volumes
 - Thin provisioning
 
 Roadmap:
 - [ ] Volume expansion
-- [ ] `Filesystem` volumes (without `ReadWriteMany`)
 - [ ] Instant volume cloning via background copy
 
 ### Documentation

@@ -10,6 +10,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/blobs"
+	"gitlab.com/kubesan/kubesan/pkg/kubesan/csi/validate"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/jobs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -70,10 +71,33 @@ func (s *ControllerServer) createVolume(ctx context.Context, req *csi.CreateVolu
 
 	// validate request
 
-	for _, cap := range req.VolumeCapabilities {
-		if cap.GetBlock() == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "only block volumes are supported")
+	hasAccessTypeBlock := false
+	hasAccessTypeMount := false
+	for _, capability := range req.VolumeCapabilities {
+		if capability.GetBlock() != nil {
+			hasAccessTypeBlock = true
+		} else if capability.GetMount() != nil {
+			hasAccessTypeMount = true
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "only block and mount volumes are supported")
 		}
+
+		if err := validate.ValidateVolumeCapability(capability); err != nil {
+			return nil, err
+		}
+	}
+
+	if hasAccessTypeBlock && hasAccessTypeMount {
+		return nil, status.Errorf(codes.InvalidArgument, "cannot create volume with both block and mount access types")
+	}
+
+	// TODO: Cloning is currently not supported for Filesystem volumes
+	// because mounting untrusted block devices is insecure on Linux. A
+	// malicious file system image could trigger security bugs in the
+	// kernel. This limitation can be removed once a way to verify that the
+	// source volume is a Filesystem volume has been implemented.
+	if hasAccessTypeMount && req.VolumeContentSource != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "cloning is not yet support for Filesystem volumes")
 	}
 
 	capacity, _, _, err := validateCapacity(req.CapacityRange)
