@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
-sp-stage 'Creating second shared VG'
+ksan-stage 'Creating second shared VG'
 
 __minikube_ssh "${NODES[0]}" "
-    sudo lvm vgcreate --shared second-vg /dev/subprovisioner-drive-1
+    sudo lvm vgcreate --shared second-vg /dev/kubesan-drive-1
 "
 
-sp-stage 'Creating second StorageClass'
+ksan-stage 'Creating second StorageClass'
 
 kubectl create -f - <<EOF
 apiVersion: storage.k8s.io/v1
@@ -15,12 +15,12 @@ metadata:
   name: second
   annotations:
     storageclass.kubernetes.io/is-default-class: "false"
-provisioner: subprovisioner.gitlab.io
+provisioner: kubesan.gitlab.io
 parameters:
   backingVolumeGroup: second-vg
 EOF
 
-sp-stage 'Provisioning volumes in each StorageClass...'
+ksan-stage 'Provisioning volumes in each StorageClass...'
 
 # make_pvc sc_name
 make_pvc()
@@ -43,13 +43,13 @@ make_pvc()
 EOF
 }
 
-make_pvc subprovisioner
+make_pvc kubesan
 make_pvc second
 
-sp-wait-for-pvc-to-be-bound 300 "test-pvc-subprovisioner"
-sp-wait-for-pvc-to-be-bound 300 "test-pvc-second"
+ksan-wait-for-pvc-to-be-bound 300 "test-pvc-kubesan"
+ksan-wait-for-pvc-to-be-bound 300 "test-pvc-second"
 
-sp-stage 'Mounting both volumes read-write...'
+ksan-stage 'Mounting both volumes read-write...'
 
 kubectl create -f - <<EOF
 apiVersion: v1
@@ -76,19 +76,19 @@ spec:
   volumes:
     - name: pvc1
       persistentVolumeClaim:
-        claimName: test-pvc-subprovisioner
+        claimName: test-pvc-kubesan
     - name: pvc2
       persistentVolumeClaim:
         claimName: test-pvc-second
 EOF
 
-sp-wait-for-pod-to-start-running 60 "test-pod"
-sp-pod-is-running "test-pod"
+ksan-wait-for-pod-to-start-running 60 "test-pod"
+ksan-pod-is-running "test-pod"
 
-sp-stage 'Unmounting volumes...'
+ksan-stage 'Unmounting volumes...'
 
 kubectl delete pod "test-pod" --timeout=30s
 
-sp-stage 'Deleting volumes...'
+ksan-stage 'Deleting volumes...'
 
-kubectl delete pvc "test-pvc-subprovisioner" "test-pvc-second" --timeout=30s
+kubectl delete pvc "test-pvc-kubesan" "test-pvc-second" --timeout=30s

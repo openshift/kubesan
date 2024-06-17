@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-sp-stage 'Provisioning volumes...'
+ksan-stage 'Provisioning volumes...'
 
 # Two distinct volumes, to ensure parallel cross-node NBD devices work
 
@@ -20,10 +20,10 @@ for i in 1 2; do
 EOF
 done
 
-sp-wait-for-pvc-to-be-bound 300 test-pvc-1
-sp-wait-for-pvc-to-be-bound 300 test-pvc-2
+ksan-wait-for-pvc-to-be-bound 300 test-pvc-1
+ksan-wait-for-pvc-to-be-bound 300 test-pvc-2
 
-sp-stage 'Mounting volumes read-write on all nodes...'
+ksan-stage 'Mounting volumes read-write on all nodes...'
 
 for i in "${!NODES[@]}"; do
     kubectl create -f - <<EOF
@@ -61,19 +61,19 @@ EOF
 done
 
 for i in "${!NODES[@]}"; do
-    sp-wait-for-pod-to-start-running 60 "test-pod-$i"
+    ksan-wait-for-pod-to-start-running 60 "test-pod-$i"
 done
 
 sleep 10
 
 for i in "${!NODES[@]}"; do
-    sp-pod-is-running "test-pod-$i"
+    ksan-pod-is-running "test-pod-$i"
 done
 
-sp-stage 'Unmounting volumes from all nodes...'
+ksan-stage 'Unmounting volumes from all nodes...'
 
 kubectl delete pod "${NODE_INDICES[@]/#/test-pod-}" --timeout=30s
 
-sp-stage 'Deleting volumes...'
+ksan-stage 'Deleting volumes...'
 
 kubectl delete pvc test-pvc-1 test-pvc-2 --timeout=30s

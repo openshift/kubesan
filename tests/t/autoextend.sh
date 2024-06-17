@@ -5,21 +5,21 @@
 # consumption occurs when a snapshot is created and the volume is subsequently
 # completely overwritten.
 
-sp-create-volume test-pvc-1 64Mi
+ksan-create-volume test-pvc-1 64Mi
 
-sp-fill-volume test-pvc-1 64
-sp-create-snapshot test-pvc-1 test-vs-1
+ksan-fill-volume test-pvc-1 64
+ksan-create-snapshot test-pvc-1 test-vs-1
 
-sp-fill-volume test-pvc-1 64
-sp-create-snapshot test-pvc-1 test-vs-2
+ksan-fill-volume test-pvc-1 64
+ksan-create-snapshot test-pvc-1 test-vs-2
 
-sp-fill-volume test-pvc-1 64
+ksan-fill-volume test-pvc-1 64
 
-sp-stage 'Deleting volume 1...'
+ksan-stage 'Deleting volume 1...'
 kubectl delete pvc test-pvc-1 --timeout=60s
 
-sp-stage 'Deleting first snapshot of volume 1...'
+ksan-stage 'Deleting first snapshot of volume 1...'
 kubectl delete vs test-vs-1 --timeout=60s
 
-sp-stage 'Deleting second snapshot of volume 1...'
+ksan-stage 'Deleting second snapshot of volume 1...'
 kubectl delete vs test-vs-2 --timeout=60s

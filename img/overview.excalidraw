@@ -268,14 +268,14 @@
       "updated": 1709657260891,
       "link": null,
       "locked": false,
-      "text": "Subprovisioner",
+      "text": "KubeSAN",
       "fontSize": 28,
       "fontFamily": 1,
       "textAlign": "left",
       "verticalAlign": "top",
       "baseline": 25,
       "containerId": null,
-      "originalText": "Subprovisioner",
+      "originalText": "KubeSAN",
       "lineHeight": 1.25
     },
     {

@@ -3,7 +3,7 @@
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: subprovisioner
+  name: kubesan
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
 priority:
@@ -24,8 +24,8 @@ fsGroup:
 supplementalGroups:
   type: RunAsAny
 users:
-  - system:serviceaccount:subprovisioner:csi-controller-plugin
-  - system:serviceaccount:subprovisioner:csi-node-plugin
+  - system:serviceaccount:kubesan:csi-controller-plugin
+  - system:serviceaccount:kubesan:csi-node-plugin
 volumes:
   - configMap
   - emptyDir

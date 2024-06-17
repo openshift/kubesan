@@ -23,16 +23,16 @@ Install the packages OpenShift RHCOS nodes with:
 $ sudo rpm-ostree install lvm2-lockd sanlock && sudo systemctl reboot
 ```
 
-Additionally, before you deploy Subprovisioner, you need to make sure
+Additionally, before you deploy KubeSAN, you need to make sure
 every node in your cluster provides the global resources that
-Subprovisioner will be using.
+KubeSAN will be using.
 
-Subprovisioner depends on kernel modules for nbd and dm-thin-pool
+KubeSAN depends on kernel modules for nbd and dm-thin-pool
 being loaded on all nodes.  If your kernel does not already have these
 built in, you may need to run this on each node:
 
 ```console
-$ sudo cat <<EOF | sudo tee /etc/modules-load.d/subprovisioner.conf
+$ sudo cat <<EOF | sudo tee /etc/modules-load.d/kubesan.conf
 nbd
 dm-thin-pool
 EOF
@@ -40,12 +40,12 @@ $ systemctl restart systemd-modules-load.service
 ```
 
 Generally you should enable as many NBD devices on each node as the
-maximum number of Subprovisioner volumes you may need to have mounted
+maximum number of KubeSAN volumes you may need to have mounted
 on a single node at once.
 
 ## LVM configuration
 
-Before installing Subprovisioner, each node in the cluster must have LVM and
+Before installing KubeSAN, each node in the cluster must have LVM and
 sanlock configured.  Use the following settings in /etc/lvm/lvm.conf:
 
 ```
@@ -80,7 +80,7 @@ Enable and restart associated services as follows:
 
 ## Shared VG configuration
 
-Finally, subprovisioner assumes that you have shared storage visible
+Finally, KubeSAN assumes that you have shared storage visible
 as a shared LVM Volume Group accessible via one or more block devices
 shared to each node of the cluster, such as atop a LUN from a SAN.
 This shared VG and lockspace can be created on any node with access to
@@ -91,8 +91,8 @@ node; here is how to create a VG named `my-vg`:
 $ sudo vgcreate --shared my-vg /dev/my-san-lun
 ```
 
-Subprovisioner will then ensure that all cluster nodes use `vgchange
---lock-start` as needed to access the VG.  Subprovisioner assumes that
+KubeSAN will then ensure that all cluster nodes use `vgchange
+--lock-start` as needed to access the VG.  KubeSAN assumes that
 it will be the sole owner of the shared volume group; you should not
 assume that any pre-existing data will be preserved.
 
@@ -104,18 +104,18 @@ is not likely to work correctly, since lvm documents that when
 lvmlockd uses sanlock for maintaining shared VG consistency, it works
 best when all io is ultimately directed to the same physical location.
 
-## Installing Subprovisioner
+## Installing KubeSAN
 
 If you are using OpenShift:
 
 ```console
-$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy/openshift?ref=v0.2.0
+$ kubectl create -k https://gitlab.com/kubesan/kubesan/deploy/openshift?ref=v0.2.0
 ```
 
 Otherwise use the vanilla Kubernetes kustomization:
 
 ```console
-$ kubectl create -k https://gitlab.com/subprovisioner/subprovisioner/deploy/kubernetes?ref=v0.2.0
+$ kubectl create -k https://gitlab.com/kubesan/kubesan/deploy/kubernetes?ref=v0.2.0
 ```
 
 If you wish to create snapshots of volumes, your Kubernetes cluster must have
@@ -130,20 +130,20 @@ $ kubectl create -k "https://github.com/kubernetes-csi/external-snapshotter/clie
 $ kubectl create -k "https://github.com/kubernetes-csi/external-snapshotter/deploy/kubernetes/snapshot-controller?ref=v7.0.1"
 ```
 
-Then create a `VolumeSnapshotClass` that uses the Subprovisioner CSI plugin:
+Then create a `VolumeSnapshotClass` that uses the KubeSAN CSI plugin:
 
 ```yaml
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
-  name: subprovisioner
+  name: kubesan
   annotations:
     snapshot.storage.kubernetes.io/is-default-class: "true"
-driver: subprovisioner.gitlab.io
+driver: kubesan.gitlab.io
 deletionPolicy: Delete
 ```
 
-Create a `StorageClass` that uses the Subprovisioner CSI plugin and
+Create a `StorageClass` that uses the KubeSAN CSI plugin and
 specifies the name of the shared volume group that you previously
 created (here, `my-vg`):
 
@@ -152,7 +152,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: my-san
-provisioner: subprovisioner.gitlab.io
+provisioner: kubesan.gitlab.io
 parameters:
   backingVolumeGroup: my-vg
 ```
@@ -174,5 +174,5 @@ spec:
     - ReadWriteOnce
 ```
 
-You can have several Subprovisioner `StorageClass`es on the same cluster that
+You can have several KubeSAN `StorageClass`es on the same cluster that
 are backed by different shared volume groups.

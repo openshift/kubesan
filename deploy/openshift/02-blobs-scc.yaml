@@ -3,7 +3,7 @@
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: subprovisioner-blobs
+  name: kubesan-blobs
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
 priority:
@@ -24,7 +24,7 @@ fsGroup:
 supplementalGroups:
   type: RunAsAny
 users:
-  - system:serviceaccount:subprovisioner:blobs
+  - system:serviceaccount:kubesan:blobs
 volumes:
   - configMap
   - hostPath

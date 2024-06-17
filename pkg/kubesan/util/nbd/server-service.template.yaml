@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: &name {{.Name}}
+  namespace: kubesan
+spec:
+  clusterIP: None
+  selector:
+    kubesan.gitlab.io/name: *name
+  ports:
+    - port: 10809

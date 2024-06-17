@@ -3,7 +3,7 @@
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: subprovisioner-nbd-client
+  name: kubesan-nbd-client
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
 priority:
@@ -24,7 +24,7 @@ fsGroup:
 supplementalGroups:
   type: RunAsAny
 users:
-  - system:serviceaccount:subprovisioner:nbd-client
+  - system:serviceaccount:kubesan:nbd-client
 volumes:
   - configMap
   - hostPath
@@ -35,7 +35,7 @@ volumes:
 apiVersion: security.openshift.io/v1
 kind: SecurityContextConstraints
 metadata:
-  name: subprovisioner-nbd-server
+  name: kubesan-nbd-server
 allowPrivilegedContainer: true
 allowHostDirVolumePlugin: true
 priority:
@@ -56,7 +56,7 @@ fsGroup:
 supplementalGroups:
   type: RunAsAny
 users:
-  - system:serviceaccount:subprovisioner:nbd-server
+  - system:serviceaccount:kubesan:nbd-server
 volumes:
   - configMap
   - hostPath

@@ -1,6 +1,6 @@
 # Development
 
-Information relevant for Subprovisioner developers.
+Information relevant for KubeSAN developers.
 
 ## Code design
 
@@ -29,7 +29,7 @@ a mix of device mapper, LVM, and NBD.
 the concept of Kubernetes volumes, as blobs are used to store the contents of
 both Kubernetes volumes and volume snapshots.
 
-This layer fully resides in the `pkg/subprovisioner/blobs` package and provides
+This layer fully resides in the `pkg/kubesan/blobs` package and provides
 a couple types:
 
 - `Blob`: An opaque blob identifier. Create one with `NewBlob(blobName string,
@@ -56,7 +56,7 @@ supposed to operate on other nodes.
 #### How blobs are stored
 
 An LVM shared Volume Group (VG) must be pre-created on a shared
-backing device; subprovisioner assumes that the LVM global lock will
+backing device; KubeSAN assumes that the LVM global lock will
 already be accessible to each node in the cluster (things should work
 whether the global lock shares the same VG as passed to the
 StorageClass, or is stored in a separate VG to make external
@@ -231,6 +231,6 @@ tasks like retrieving CSI component logs and ssh'ing into cluster nodes.
 ## Sandbox mode for `tests/run.sh`
 
 The test harness also provides a sandbox mode that simply sets up a test cluster
-with Subprovisioner installed and a corresponding `StorageClass` configured and
+with KubeSAN installed and a corresponding `StorageClass` configured and
 gives you a shell to interact with it, providing the same helpers as the
 `--pause-on-failure` option. This is useful for experimentation and to do demos.

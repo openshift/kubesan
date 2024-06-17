@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
-# used by package pkg/subprovisioner/blobs
+# used by package pkg/kubesan/blobs
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: subprovisioner-blobs
+  name: kubesan-blobs
 rules:
   - apiGroups: [""]
     resources: [persistentvolumes]
@@ -21,7 +21,7 @@ rules:
   - apiGroups: [storage.k8s.io]
     resources: [storageclasses]
     verbs: [get, update]
-  - apiGroups: [subprovisioner.gitlab.io]
+  - apiGroups: [kubesan.gitlab.io]
     resources: [blobpools]
     verbs: [create, delete, get, update]
 
@@ -30,26 +30,26 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: subprovisioner-blobs
+  name: kubesan-blobs
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: subprovisioner-blobs
+  name: kubesan-blobs
 subjects:
   - kind: ServiceAccount
     name: csi-controller-plugin
-    namespace: subprovisioner
+    namespace: kubesan
   - kind: ServiceAccount
     name: csi-node-plugin
-    namespace: subprovisioner
+    namespace: kubesan
 
 ---
 
-# used by package pkg/subprovisioner/csi/controller
+# used by package pkg/kubesan/csi/controller
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: subprovisioner-csi-controller
+  name: kubesan-csi-controller
 rules:
   - apiGroups: [""]
     resources: [persistentvolumeclaims]
@@ -63,15 +63,15 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: subprovisioner-csi-controller
+  name: kubesan-csi-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: subprovisioner-csi-controller
+  name: kubesan-csi-controller
 subjects:
   - kind: ServiceAccount
     name: csi-controller-plugin
-    namespace: subprovisioner
+    namespace: kubesan
 
 ---
 
@@ -79,7 +79,7 @@ subjects:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: subprovisioner-csi-provisioner
+  name: kubesan-csi-provisioner
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -111,15 +111,15 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: subprovisioner-csi-provisioner
+  name: kubesan-csi-provisioner
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: subprovisioner-csi-provisioner
+  name: kubesan-csi-provisioner
 subjects:
   - kind: ServiceAccount
     name: csi-controller-plugin
-    namespace: subprovisioner
+    namespace: kubesan
 
 ---
 
@@ -127,7 +127,7 @@ subjects:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: subprovisioner-csi-snapshotter
+  name: kubesan-csi-snapshotter
 rules:
   - apiGroups: [""]
     resources: [events]
@@ -147,12 +147,12 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: subprovisioner-csi-snapshotter
+  name: kubesan-csi-snapshotter
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: subprovisioner-csi-snapshotter
+  name: kubesan-csi-snapshotter
 subjects:
   - kind: ServiceAccount
     name: csi-controller-plugin
-    namespace: subprovisioner
+    namespace: kubesan

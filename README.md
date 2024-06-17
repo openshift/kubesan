@@ -1,21 +1,21 @@
-# The Subprovisioner CSI Plugin
+# The KubeSAN CSI Plugin
 
-Subprovisioner is a [CSI] plugin for [Kubernetes] that enables you to provision
+KubeSAN is a [CSI] plugin for [Kubernetes] that enables you to provision
 `Block` volumes backed by a single, cluster-wide, shared block device (*e.g.*, a
 single big LUN on a SAN), exposed as a shared Volume Group under lvm2.
 
 Whilst SANs often come with vendor CSI plugins, they cannot always be used.
-Subprovisioner is intended for cases where:
+KubeSAN is intended for cases where:
 - No vendor CSI plugin is available, the vendor plugin is broken, or lacks features.
 - The vendor CSI plugin cannot be used due to organizational reasons (storage
   team does not want to give Kubernetes team access).
 - 1 SAN LUN per `PersistentVolume` is undesirable for scalability or
   organizational reasons.
 
-In these cases Subprovisioner steps in to provide storage without help from a
+In these cases KubeSAN steps in to provide storage without help from a
 vendor CSI plugin.
 
-![Diagram showing Subprovisioner volumes backed by a SAN LUN](img/overview.png)
+![Diagram showing KubeSAN volumes backed by a SAN LUN](img/overview.png)
 
 Features:
 - Dynamic provisioning of `Block` volumes
@@ -43,6 +43,6 @@ Roadmap:
 
 This project is released under the Apache 2.0 license. See [LICENSE](LICENSE).
 
-[Create an issue]: https://gitlab.com/subprovisioner/subprovisioner/-/issues
+[Create an issue]: https://gitlab.com/kubesan/kubesan/-/issues
 [CSI]: https://github.com/container-storage-interface/spec
 [Kubernetes]: https://kubernetes.io/

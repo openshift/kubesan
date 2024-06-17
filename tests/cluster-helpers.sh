@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
-# Usage: __sp-get-node-name <node_name>|<node_index>
-__sp-get-node-name() {
+# Usage: __ksan-get-node-name <node_name>|<node_index>
+__ksan-get-node-name() {
     if [[ ! "$1" =~ ^[0-9]+$ ]]; then
         echo "$1"
     elif [[ -z "${REPO_ROOT:-}" ]]; then
-        # not being run under subprovisioner test script
+        # not being run under kubesan test script
         local __nodes
         # shellcheck disable=SC2207
         __nodes=( $( kubectl get nodes --output=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' ) ) &&
@@ -18,20 +18,20 @@ __sp-get-node-name() {
         printf '%s-m%02d\n' "${current_cluster}" "$(( $1 + 1 ))"
     fi
 }
-export -f __sp-get-node-name
+export -f __ksan-get-node-name
 
-# Usage: __sp-get-pod-name <component> [<node>]
-__sp-get-pod-name() {
+# Usage: __ksan-get-pod-name <component> [<node>]
+__ksan-get-pod-name() {
     kubectl get pod \
-        --namespace subprovisioner \
-        --selector "subprovisioner.gitlab.io/component==$1" \
-        ${2+"--field-selector=spec.nodeName==$( __sp-get-node-name "$2" )"} \
+        --namespace kubesan \
+        --selector "kubesan.gitlab.io/component==$1" \
+        ${2+"--field-selector=spec.nodeName==$( __ksan-get-node-name "$2" )"} \
         --output jsonpath="{.items[0].metadata.name}"
 }
-export -f __sp-get-pod-name
+export -f __ksan-get-pod-name
 
-# Usage: __sp-per-node-component <caller> <component> <node_name>|<node_index> describe|exec|logs [<args...>]
-__sp-per-node-component() {
+# Usage: __ksan-per-node-component <caller> <component> <node_name>|<node_index> describe|exec|logs [<args...>]
+__ksan-per-node-component() {
     if (( $# < 4 )); then
         >&2 echo "Usage: $1 <node_name>|<node_index> describe|exec|logs [<args...>]"
         return 2
@@ -59,17 +59,17 @@ __sp-per-node-component() {
     esac
 
     kubectl \
-        --namespace subprovisioner \
+        --namespace kubesan \
         "${__kubectl_cmd[@]}" \
-        "$( __sp-get-pod-name "$2" "$3" )" \
+        "$( __ksan-get-pod-name "$2" "$3" )" \
         "${__kubectl_args[@]}"
 }
-export -f __sp-per-node-component
+export -f __ksan-per-node-component
 
-# Usage: sp-csi-controller-plugin describe|exec|logs [<args...>]
-sp-csi-controller-plugin() {
+# Usage: ksan-csi-controller-plugin describe|exec|logs [<args...>]
+ksan-csi-controller-plugin() {
     if (( $# < 1 )); then
-        >&2 echo "Usage: sp-csi-controller-plugin describe|exec|logs [<args...>]"
+        >&2 echo "Usage: ksan-csi-controller-plugin describe|exec|logs [<args...>]"
         return 2
     fi
 
@@ -89,27 +89,27 @@ sp-csi-controller-plugin() {
     logs)
         ;;
     *)
-        >&2 echo "Usage: sp-csi-controller-plugin describe|exec|logs [<args...>]"
+        >&2 echo "Usage: ksan-csi-controller-plugin describe|exec|logs [<args...>]"
         return 2
         ;;
     esac
 
     kubectl \
-        --namespace subprovisioner \
+        --namespace kubesan \
         "${__kubectl_cmd[@]}" \
-        "$( __sp-get-pod-name csi-controller-plugin )" \
+        "$( __ksan-get-pod-name csi-controller-plugin )" \
         "${__kubectl_args[@]}"
 }
-export -f sp-csi-controller-plugin
+export -f ksan-csi-controller-plugin
 
-# Usage: sp-csi-node-plugin <node_name>|<node_index> describe|exec|logs [<args...>]
-sp-csi-node-plugin() {
-    __sp-per-node-component sp-csi-node-plugin csi-node-plugin "$@"
+# Usage: ksan-csi-node-plugin <node_name>|<node_index> describe|exec|logs [<args...>]
+ksan-csi-node-plugin() {
+    __ksan-per-node-component ksan-csi-node-plugin csi-node-plugin "$@"
 }
-export -f sp-csi-node-plugin
+export -f ksan-csi-node-plugin
 
-# Usage: sp-poll <retry_delay> <max_tries> <command>
-sp-poll() {
+# Usage: ksan-poll <retry_delay> <max_tries> <command>
+ksan-poll() {
     (
         set -o errexit -o pipefail -o nounset +o xtrace
 
@@ -123,50 +123,50 @@ sp-poll() {
         return 1
     )
 }
-export -f sp-poll
+export -f ksan-poll
 
-# Usage: sp-pod-is-running [-n=<pod_namespace>] <pod_name>
-sp-pod-is-running() {
+# Usage: ksan-pod-is-running [-n=<pod_namespace>] <pod_name>
+ksan-pod-is-running() {
     [[ "$( kubectl get pod "$@" -o=jsonpath='{.status.phase}' )" = Running ]]
 }
-export -f sp-pod-is-running
+export -f ksan-pod-is-running
 
-# Usage: sp-wait-for-pod-to-succeed <timeout_seconds> [-n=<pod_namespace>] <pod_name>
-sp-wait-for-pod-to-succeed() {
-    sp-poll 1 "$1" "[[ \"\$( kubectl get pod ${*:2} -o=jsonpath='{.status.phase}' )\" =~ ^Succeeded|Failed$ ]]"
+# Usage: ksan-wait-for-pod-to-succeed <timeout_seconds> [-n=<pod_namespace>] <pod_name>
+ksan-wait-for-pod-to-succeed() {
+    ksan-poll 1 "$1" "[[ \"\$( kubectl get pod ${*:2} -o=jsonpath='{.status.phase}' )\" =~ ^Succeeded|Failed$ ]]"
     # shellcheck disable=SC2048,SC2086
     [[ "$( kubectl get pod ${*:2} -o=jsonpath='{.status.phase}' )" = Succeeded ]]
 }
-export -f sp-wait-for-pod-to-succeed
+export -f ksan-wait-for-pod-to-succeed
 
-# Usage: sp-wait-for-pod-to-start-running <timeout_seconds> [-n=<pod_namespace>] <pod_name>
-sp-wait-for-pod-to-start-running() {
-    sp-poll 1 "$1" "[[ \"\$( kubectl get pod ${*:2} -o=jsonpath='{.status.phase}' )\" =~ ^Running|Succeeded|Failed$ ]]"
+# Usage: ksan-wait-for-pod-to-start-running <timeout_seconds> [-n=<pod_namespace>] <pod_name>
+ksan-wait-for-pod-to-start-running() {
+    ksan-poll 1 "$1" "[[ \"\$( kubectl get pod ${*:2} -o=jsonpath='{.status.phase}' )\" =~ ^Running|Succeeded|Failed$ ]]"
 }
-export -f sp-wait-for-pod-to-start-running
+export -f ksan-wait-for-pod-to-start-running
 
-# Usage: sp-wait-for-pvc-to-be-bound <timeout_seconds> [-n=<pvc_namespace>] <pvc_name>
-sp-wait-for-pvc-to-be-bound() {
-    sp-poll 1 "$1" "[[ \"\$( kubectl get pvc ${*:2} -o=jsonpath='{.status.phase}' )\" = Bound ]]"
+# Usage: ksan-wait-for-pvc-to-be-bound <timeout_seconds> [-n=<pvc_namespace>] <pvc_name>
+ksan-wait-for-pvc-to-be-bound() {
+    ksan-poll 1 "$1" "[[ \"\$( kubectl get pvc ${*:2} -o=jsonpath='{.status.phase}' )\" = Bound ]]"
 }
-export -f sp-wait-for-pvc-to-be-bound
+export -f ksan-wait-for-pvc-to-be-bound
 
-# Usage: sp-wait-for-vs-to-be-bound <timeout_seconds> [-n=<vs_namespace>] <vs_name>
-sp-wait-for-vs-to-be-bound() {
-    sp-poll 1 "$1" "[[ \"\$( kubectl get vs ${*:2} -o=jsonpath='{.status.readyToUse}' )\" = true ]]"
+# Usage: ksan-wait-for-vs-to-be-bound <timeout_seconds> [-n=<vs_namespace>] <vs_name>
+ksan-wait-for-vs-to-be-bound() {
+    ksan-poll 1 "$1" "[[ \"\$( kubectl get vs ${*:2} -o=jsonpath='{.status.readyToUse}' )\" = true ]]"
 }
-export -f sp-wait-for-vs-to-be-bound
+export -f ksan-wait-for-vs-to-be-bound
 
 if (( ${sandbox:-1} )); then
 
-    # Usage: sp-pull <images...>
-    sp-pull() {
+    # Usage: ksan-pull <images...>
+    ksan-pull() {
         if (( $# == 0 )); then
-            >&2 echo "Usage: sp-pull <images...>"
+            >&2 echo "Usage: ksan-pull <images...>"
             return 2
         fi
 
-        local __containers="" __i __name="subprovisioner-pre-pull-images" __desired
+        local __containers="" __i __name="kubesan-pre-pull-images" __desired
 
         for (( __i = 1; __i <= $#; ++__i )); do
             __containers+=", { name: c$__i, image: \"${!__i}\", command: [ \"true\" ] }"
@@ -180,7 +180,7 @@ if (( ${sandbox:-1} )); then
         spec:
           selector:
             matchLabels: &labels
-              subprovisioner.gitlab.io/component: $__name
+              kubesan.gitlab.io/component: $__name
           template:
             metadata:
               labels: *labels
@@ -195,7 +195,7 @@ EOF
 
         echo "Waiting for image(s) to be pulled in $__desired nodes..."
 
-        sp-poll 1 0 \
+        ksan-poll 1 0 \
             "(( \$( kubectl get daemonset \"$__name\" -o=jsonpath='{.status.numberReady}' )
             == $__desired )) " \
         || {
@@ -207,6 +207,6 @@ EOF
 
         kubectl delete daemonset "$__name"
     }
-    export -f sp-pull
+    export -f ksan-pull
 
 fi

@@ -2,7 +2,7 @@
 
 .PHONY: build
 build:
-	podman image build --tag subprovisioner:latest .
+	podman image build --tag kubesan:latest .
 
 .PHONY: fmt
 fmt:

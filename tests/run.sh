@@ -5,7 +5,7 @@ export LC_ALL=C
 
 set -o errexit -o pipefail -o nounset
 
-if [[ -n "${subprovisioner_tests_run_sh_path:-}" ]]; then
+if [[ -n "${kubesan_tests_run_sh_path:-}" ]]; then
     >&2 echo "You're already running $0"
     exit 1
 fi
@@ -93,16 +93,16 @@ fi
 
 if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox ]]; then
     sandbox=1
-    install_subprovisioner=1
-    uninstall_subprovisioner=0
+    install_kubesan=1
+    uninstall_kubesan=0
 elif (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox-no-install ]]; then
     sandbox=1
-    install_subprovisioner=0
-    uninstall_subprovisioner=0
+    install_kubesan=0
+    uninstall_kubesan=0
 else
     sandbox=0
-    install_subprovisioner=1
-    uninstall_subprovisioner=1
+    install_kubesan=1
+    uninstall_kubesan=1
 
     if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = all ]]; then
         tests_arg=()
@@ -176,18 +176,18 @@ __shell() {
     __log "$1" 'Starting interactive shell.'
     __log "$1" 'Inspect the cluster with:'
     __log "$1" '  $ kubectl [...]'
-    __log "$1" '  $ sp-csi-controller-plugin describe|exec|logs [<args...>]'
-    __log "$1" '  $ sp-csi-node-plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
-    __log "$1" '  $ sp-ssh-into-node <node_name>|<node_index> [<command...>]'
+    __log "$1" '  $ ksan-csi-controller-plugin describe|exec|logs [<args...>]'
+    __log "$1" '  $ ksan-csi-node-plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
+    __log "$1" '  $ ksan-ssh-into-node <node_name>|<node_index> [<command...>]'
 
     if [[ "$2" == true ]]; then
         __log "$1" 'To reset the sandbox:'
-        __log "$1" '  $ sp-retry'
+        __log "$1" '  $ ksan-retry'
     else
         __log "$1" 'To retry the current test:'
-        __log "$1" '  $ sp-retry'
+        __log "$1" '  $ ksan-retry'
         __log "$1" 'To cancel this and all remaining tests:'
-        __log "$1" '  $ sp-cancel'
+        __log "$1" '  $ ksan-cancel'
     fi
 
     IFS='/' read -r -a script_path <<< "$0"
@@ -201,19 +201,19 @@ __shell() {
         script_path=( ... "${script_path[@]: -2}" )
     fi
 
-    subprovisioner_tests_run_sh_path=$( printf '/%s' "${script_path[@]}" )
-    subprovisioner_tests_run_sh_path=${subprovisioner_tests_run_sh_path:1}
+    kubesan_tests_run_sh_path=$( printf '/%s' "${script_path[@]}" )
+    kubesan_tests_run_sh_path=${kubesan_tests_run_sh_path:1}
 
     (
-        export subprovisioner_tests_run_sh_path
-        export subprovisioner_retry_path="${temp_dir}/retry"
-        export subprovisioner_cancel_path="${temp_dir}/cancel"
+        export kubesan_tests_run_sh_path
+        export kubesan_retry_path="${temp_dir}/retry"
+        export kubesan_cancel_path="${temp_dir}/cancel"
         cd "${initial_working_dir}"
         # shellcheck disable=SC2016,SC2028
         "$BASH" --init-file <( echo "
             . \"\$HOME/.bashrc\"
             PROMPT_COMMAND=(
-                \"echo -en '\\001\\033[1m\\002(\$subprovisioner_tests_run_sh_path)\\001\\033[0m\\002 '\"
+                \"echo -en '\\001\\033[1m\\002(\$kubesan_tests_run_sh_path)\\001\\033[0m\\002 '\"
                 \"\${PROMPT_COMMAND[@]}\"
                 )
             " )
@@ -241,7 +241,7 @@ __canceled() {
 # definitions shared with test scripts
 
 export REPO_ROOT=${repo_root}
-export TEST_IMAGE=docker.io/localhost/subprovisioner/test:test
+export TEST_IMAGE=docker.io/localhost/kubesan/test:test
 
 for f in cluster-helpers.sh lib/debug-utils.sh lib/test-utils.sh; do
     # shellcheck disable=SC1090
@@ -251,11 +251,11 @@ done
 # build images
 
 __build_images() {
-    __log_cyan "Building Subprovisioner image (localhost/subprovisioner/subprovisioner:test)..."
-    podman image build -t localhost/subprovisioner/subprovisioner:test "${repo_root}"
+    __log_cyan "Building KubeSAN image (localhost/kubesan/kubesan:test)..."
+    podman image build -t localhost/kubesan/kubesan:test "${repo_root}"
 
-    __log_cyan "Building test image (localhost/subprovisioner/test:test)..."
-    podman image build -t localhost/subprovisioner/test:test "${script_dir}/lib/test-image"
+    __log_cyan "Building test image (localhost/kubesan/test:test)..."
+    podman image build -t localhost/kubesan/test:test "${script_dir}/lib/test-image"
 }
 
 __build_images
@@ -308,7 +308,7 @@ __minikube_cluster_exists() {
 # Usage: __restart_minikube_cluster <profile> [<extra_minikube_opts...>]
 __restart_minikube_cluster() {
     minikube start \
-        --iso-url=https://gitlab.com/subprovisioner/minikube/-/package_files/124271634/download \
+        --iso-url=https://gitlab.com/kubesan/minikube/-/package_files/124271634/download \
         --profile="$1" \
         --driver=kvm2 \
         --cpus=2 \
@@ -343,14 +343,14 @@ __wait_until_background_cluster_is_ready() {
     fi
 }
 
-cluster_base_name=$( printf 'subprovisioner-test-%dn' "${num_nodes}" )
+cluster_base_name=$( printf 'kubesan-test-%dn' "${num_nodes}" )
 
 __next_cluster() {
     case "$1" in
-    subprovisioner-test-*n-a)
+    kubesan-test-*n-a)
         echo "${cluster_base_name}-b"
         ;;
-    subprovisioner-test-*n-b)
+    kubesan-test-*n-b)
         echo "${cluster_base_name}-a"
         ;;
     *)
@@ -461,12 +461,12 @@ __run() {
         NODE_IPS+=( "$( __minikube ip --node="${node}" )" )
     done
 
-    __log_cyan "Importing Subprovisioner images into minikube cluster '%s'..." "${current_cluster}"
-    for image in subprovisioner test; do
+    __log_cyan "Importing KubeSAN images into minikube cluster '%s'..." "${current_cluster}"
+    for image in kubesan test; do
         # Streaming the image over a pipe would be nicer but `minikube image
         # load -` writes the image to /tmp and does not clean it up.
         image_file="${temp_dir}/${image}.tar"
-        podman save --quiet --output "${image_file}" "subprovisioner/${image}:test"
+        podman save --quiet --output "${image_file}" "kubesan/${image}:test"
         __minikube image load "${image_file}"
         rm -f "${image_file}" # also deleted by temp_dir trap handler on failure
     done
@@ -502,16 +502,16 @@ __run() {
 
     for node in "${NODES[@]}"; do
         __minikube_ssh "${node}" "
-            sudo modprobe nbd nbds_max=16  # for Subprovisioner to use as well
+            sudo modprobe nbd nbds_max=16  # for KubeSAN to use as well
 
             __run_in_test_container --net host -- \
                 nbd-client ${NODE_IPS[0]} 10809 /dev/nbd0
-            sudo ln -s /dev/nbd0 /dev/subprovisioner-drive-0
+            sudo ln -s /dev/nbd0 /dev/kubesan-drive-0
             sudo cp -r /dev/nbd0 /dev/my-san-lun  # good for demos
 
             __run_in_test_container --net host -- \
                 nbd-client ${NODE_IPS[0]} 10810 /dev/nbd1
-            sudo ln -s /dev/nbd1 /dev/subprovisioner-drive-1
+            sudo ln -s /dev/nbd1 /dev/kubesan-drive-1
             "
     done
 
@@ -532,18 +532,18 @@ __run() {
     __log_cyan "Creating shared VG on controller node..."
 
     __minikube_ssh "${NODES[0]}" "
-        sudo lvm vgcreate --shared subprovisioner-vg /dev/my-san-lun
+        sudo lvm vgcreate --shared kubesan-vg /dev/my-san-lun
         "
 
     set +o errexit
     (
         set -o errexit -o pipefail -o nounset +o xtrace
 
-        if (( install_subprovisioner )); then
-            __log_cyan "Installing Subprovisioner..."
+        if (( install_kubesan )); then
+            __log_cyan "Installing KubeSAN..."
             for file in "${repo_root}/deploy/kubernetes/0"*; do
                 sed \
-                    -E 's;quay.io/subprovisioner/([a-z-]+):(latest|v[0-9+\.]+);docker.io/localhost/subprovisioner/\1:test;g' \
+                    -E 's;quay.io/kubesan/([a-z-]+):(latest|v[0-9+\.]+);docker.io/localhost/kubesan/\1:test;g' \
                     "$file" \
                     | kubectl create -f -
             done
@@ -558,7 +558,7 @@ __run() {
         __log_cyan "Creating common objects..."
         kubectl delete sc standard
         kubectl create -f "${script_dir}/lib/volume-snapshot-class.yaml"
-        if (( install_subprovisioner )); then
+        if (( install_kubesan )); then
             kubectl create -f "${script_dir}/lib/storage-class.yaml"
         fi
 
@@ -576,19 +576,19 @@ __run() {
 
     if [[ -e "${temp_dir}/retry" || -e "${temp_dir}/cancel" ]]; then
 
-        # sp-retry/sp-cancel was run from a --pause-on-stage debug shell
+        # ksan-retry/ksan-cancel was run from a --pause-on-stage debug shell
         true
 
     elif (( exit_code == 0 )); then
 
-        if (( uninstall_subprovisioner )); then
-            __log_cyan "Uninstalling Subprovisioner..."
+        if (( uninstall_kubesan )); then
+            __log_cyan "Uninstalling KubeSAN..."
             kubectl delete --ignore-not-found --timeout=60s \
                 -k "${repo_root}/deploy/kubernetes" \
                 || exit_code="$?"
 
             if (( exit_code != 0 )); then
-                __failure 'Failed to uninstall Subprovisioner.'
+                __failure 'Failed to uninstall KubeSAN.'
             fi
         fi
 

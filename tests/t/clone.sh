@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
-sp-create-volume test-pvc-1 64Mi
-sp-fill-volume test-pvc-1 64
+ksan-create-volume test-pvc-1 64Mi
+ksan-fill-volume test-pvc-1 64
 
-sp-stage 'Creating volume 2 by cloning volume 1...'
+ksan-stage 'Creating volume 2 by cloning volume 1...'
 
 kubectl create -f - <<EOF
 apiVersion: v1
@@ -22,9 +22,9 @@ spec:
     name: test-pvc-1
 EOF
 
-sp-wait-for-pvc-to-be-bound 300 test-pvc-2
+ksan-wait-for-pvc-to-be-bound 300 test-pvc-2
 
-sp-stage 'Validating volume data and independence between volumes 1 and 2...'
+ksan-stage 'Validating volume data and independence between volumes 1 and 2...'
 
 kubectl create -f - <<EOF
 apiVersion: v1
@@ -52,14 +52,14 @@ spec:
     - { name: test-pvc-2, persistentVolumeClaim: { claimName: test-pvc-2 } }
 EOF
 
-sp-wait-for-pod-to-succeed 60 test-pod
+ksan-wait-for-pod-to-succeed 60 test-pod
 kubectl delete pod test-pod --timeout=30s
 
-sp-stage 'Deleting volume 1...'
+ksan-stage 'Deleting volume 1...'
 
 kubectl delete pvc test-pvc-1 --timeout=30s
 
-sp-stage 'Creating volume 3 by cloning volume 2 but with a bigger size...'
+ksan-stage 'Creating volume 3 by cloning volume 2 but with a bigger size...'
 
 kubectl create -f - <<EOF
 apiVersion: v1
@@ -78,9 +78,9 @@ spec:
     name: test-pvc-2
 EOF
 
-sp-wait-for-pvc-to-be-bound 300 test-pvc-3
+ksan-wait-for-pvc-to-be-bound 300 test-pvc-3
 
-sp-stage 'Validating volume data and independence between volumes 2 and 3...'
+ksan-stage 'Validating volume data and independence between volumes 2 and 3...'
 
 mib64="$(( 64 * 1024 * 1024 ))"
 
@@ -111,9 +111,9 @@ spec:
     - { name: test-pvc-3, persistentVolumeClaim: { claimName: test-pvc-3 } }
 EOF
 
-sp-wait-for-pod-to-succeed 60 test-pod
+ksan-wait-for-pod-to-succeed 60 test-pod
 kubectl delete pod test-pod --timeout=30s
 
-sp-stage 'Deleting volumes 2 and 3...'
+ksan-stage 'Deleting volumes 2 and 3...'
 
 kubectl delete pvc test-pvc-2 test-pvc-3 --timeout=30s
