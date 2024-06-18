@@ -1,6 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 
+export LC_ALL=C
+
 set -o errexit -o pipefail -o nounset
 
 if [[ -n "${subprovisioner_tests_run_sh_path:-}" ]]; then
