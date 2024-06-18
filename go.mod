@@ -1,4 +1,4 @@
-module gitlab.com/subprovisioner/subprovisioner
+module gitlab.com/kubesan/kubesan
 
 go 1.21
 

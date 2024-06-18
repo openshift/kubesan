@@ -1,33 +1,33 @@
 # SPDX-License-Identifier: Apache-2.0
 
-sp-retry() {
+ksan-retry() {
     # shellcheck disable=SC2154
-    touch "${subprovisioner_retry_path}"
+    touch "${kubesan_retry_path}"
     exit 0
 }
-export -f sp-retry
+export -f ksan-retry
 
 # shellcheck disable=SC2154
 if (( ! sandbox )); then
-    sp-cancel() {
+    ksan-cancel() {
         # shellcheck disable=SC2154
-        touch "${subprovisioner_cancel_path}"
+        touch "${kubesan_cancel_path}"
         exit 0
     }
-    export -f sp-cancel
+    export -f ksan-cancel
 fi
 
-# Usage: sp-ssh-into-node <node_name>|<node_index> [<command...>]
-sp-ssh-into-node() {
+# Usage: ksan-ssh-into-node <node_name>|<node_index> [<command...>]
+ksan-ssh-into-node() {
     if (( $# < 1 )); then
-        >&2 echo "Usage: sp-ssh-into-node <node_name>|<node_index> [<args...>]"
+        >&2 echo "Usage: ksan-ssh-into-node <node_name>|<node_index> [<args...>]"
         return 2
     elif (( $# == 1 )); then
         # shellcheck disable=SC2154
         minikube \
             --profile "${current_cluster}" \
             ssh \
-            --node "$( __sp-get-node-name "$1" )" \
+            --node "$( __ksan-get-node-name "$1" )" \
             -- \
             bash -i
     else
@@ -35,9 +35,9 @@ sp-ssh-into-node() {
         minikube \
             --profile "${current_cluster}" \
             ssh \
-            --node "$( __sp-get-node-name "$1" )" \
+            --node "$( __ksan-get-node-name "$1" )" \
             -- \
             bash -ic "${__args@Q}" bash
     fi
 }
-export -f sp-ssh-into-node
+export -f ksan-ssh-into-node

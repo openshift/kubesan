@@ -53,7 +53,7 @@ case "${command}" in
             __lvm lvcreate \
             --activate n \
             --type thin-pool \
-            --metadataprofile subprovisioner \
+            --metadataprofile kubesan \
             --name "$lvm_thin_pool_lv_name" \
             --size "${thin_pool_size}b" \
             "$lvm_vg_name"

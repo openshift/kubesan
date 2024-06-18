@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
-# Usage: sp-stage <format> <args...>
-sp-stage() {
+# Usage: ksan-stage <format> <args...>
+ksan-stage() {
     (
         set -o errexit -o pipefail -o nounset +o xtrace
 
@@ -22,12 +22,12 @@ sp-stage() {
     )
 }
 
-# Usage: sp-create-volume <name> <size>
-sp-create-volume() {
+# Usage: ksan-create-volume <name> <size>
+ksan-create-volume() {
     name=$1
     size=$2
 
-    sp-stage "Creating volume \"$name\"..."
+    ksan-stage "Creating volume \"$name\"..."
 
     kubectl create -f - <<EOF
 apiVersion: v1
@@ -43,15 +43,15 @@ spec:
   volumeMode: Block
 EOF
 
-    sp-wait-for-pvc-to-be-bound 300 "$name"
+    ksan-wait-for-pvc-to-be-bound 300 "$name"
 }
 
-# Usage: sp-fill-volume <name> <size_mb>
-sp-fill-volume() {
+# Usage: ksan-fill-volume <name> <size_mb>
+ksan-fill-volume() {
     name=$1
     size_mb=$2
 
-    sp-stage "Writing random data to volume \"$name\"..."
+    ksan-stage "Writing random data to volume \"$name\"..."
 
     kubectl create -f - <<EOF
 apiVersion: v1
@@ -75,16 +75,16 @@ spec:
     - { name: $name, persistentVolumeClaim: { claimName: $name } }
 EOF
 
-    sp-wait-for-pod-to-succeed 60 test-pod
+    ksan-wait-for-pod-to-succeed 60 test-pod
     kubectl delete pod test-pod --timeout=60s
 }
 
-# Usage: sp-create-snapshot <volume> <snapshot>
-sp-create-snapshot() {
+# Usage: ksan-create-snapshot <volume> <snapshot>
+ksan-create-snapshot() {
     volume=$1
     snapshot=$2
 
-    sp-stage "Snapshotting \"$volume\"..."
+    ksan-stage "Snapshotting \"$volume\"..."
 
     kubectl create -f - <<EOF
 apiVersion: snapshot.storage.k8s.io/v1
@@ -92,10 +92,10 @@ kind: VolumeSnapshot
 metadata:
   name: $snapshot
 spec:
-  volumeSnapshotClassName: subprovisioner
+  volumeSnapshotClassName: kubesan
   source:
     persistentVolumeClaimName: $volume
 EOF
 
-    sp-wait-for-vs-to-be-bound 60 "$snapshot"
+    ksan-wait-for-vs-to-be-bound 60 "$snapshot"
 }

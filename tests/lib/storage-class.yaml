@@ -3,9 +3,9 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: subprovisioner
+  name: kubesan
   annotations:
     storageclass.kubernetes.io/is-default-class: "true"
-provisioner: subprovisioner.gitlab.io
+provisioner: kubesan.gitlab.io
 parameters:
-  backingVolumeGroup: subprovisioner-vg
+  backingVolumeGroup: kubesan-vg

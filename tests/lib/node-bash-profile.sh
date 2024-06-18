@@ -16,7 +16,7 @@ ____run_in_test_container_aux() {
     done
 
     docker run --privileged -t -v /dev:/dev "${__opts[@]}" \
-        docker.io/localhost/subprovisioner/test:test "$@"
+        docker.io/localhost/kubesan/test:test "$@"
 }
 
 __run_in_test_container() {
