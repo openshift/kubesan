@@ -5,6 +5,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -130,7 +131,27 @@ func (s *ControllerServer) createVolume(ctx context.Context, req *csi.CreateVolu
 		var sourceBlob *blobs.Blob
 
 		if source := req.VolumeContentSource.GetVolume(); source != nil {
-			sourceBlob, err = blobs.BlobFromString(source.VolumeId)
+			volumeSourceBlob, err := blobs.BlobFromString(source.VolumeId)
+			if err != nil {
+				return nil, err
+			}
+
+			// Create a temporary snapshot as the source blob so
+			// future writes to the source volume do not interfere
+			// with populating the blob.
+			sourceBlobName := pvName + "-createVolume-source"
+			sourceBlob, err = s.BlobManager.CreateBlobCopy(ctx, sourceBlobName, volumeSourceBlob)
+			if err != nil {
+				return nil, err
+			}
+
+			defer func() {
+				tmpErr := s.BlobManager.DeleteBlob(ctx, sourceBlob)
+				// Failure does not affect the outcome of the request, but log the error
+				if tmpErr != nil {
+					log.Printf("failed to delete temporary snapshot blob %v: %v", sourceBlob, tmpErr)
+				}
+			}()
 		} else if source := req.VolumeContentSource.GetSnapshot(); source != nil {
 			sourceBlob, err = blobs.BlobFromString(source.SnapshotId)
 		} else {
