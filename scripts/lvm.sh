@@ -21,6 +21,7 @@ __lvm() {
 
 __lockstart() {
     __lvm vgchange \
+        --devicesfile "$lvm_vg_name" \
         --lock-start \
         "$lvm_vg_name"
 }
@@ -49,6 +50,7 @@ case "${command}" in
 
         __run_ignoring_error "already exists in volume group" \
             __lvm lvcreate \
+            --devicesfile "$lvm_vg_name" \
             --activate n \
             --type thin-pool \
             --metadataprofile kubesan \
@@ -60,6 +62,7 @@ case "${command}" in
 
         __run_ignoring_error "already exists in volume group" \
             __lvm lvcreate \
+            --devicesfile "$lvm_vg_name" \
             --type thin \
             --name "$lvm_thin_lv_name" \
             --thinpool "$lvm_thin_pool_lv_name" \
@@ -70,6 +73,7 @@ case "${command}" in
         # --type thin`)
 
         __lvm lvchange \
+            --devicesfile "$lvm_vg_name" \
             --activate n \
             "$lvm_vg_name/$lvm_thin_lv_name"
         ;;
@@ -82,6 +86,7 @@ case "${command}" in
 
         __run_ignoring_error "already exists in volume group" \
             __lvm lvcreate \
+            --devicesfile "$lvm_vg_name" \
             --name "$lvm_thin_lv_name" \
             --snapshot \
             --setactivationskip n \
@@ -91,6 +96,7 @@ case "${command}" in
         # --type thin`)
 
         __lvm lvchange \
+            --devicesfile "$lvm_vg_name" \
             --activate n \
             "$lvm_vg_name/$lvm_thin_lv_name"
         ;;
@@ -102,12 +108,14 @@ case "${command}" in
 
         __run_ignoring_error "failed to find logical volume" \
             __lvm lvremove \
+            --devicesfile "$lvm_vg_name" \
             "$lvm_vg_name/$lvm_thin_lv_name"
 
 	    # remove LVM thin *pool* LV if there are no more thin LVs
 
         __run_ignoring_error "failed to find logical volume|removing pool \S+ will remove" \
             __lvm lvremove \
+            --devicesfile "$lvm_vg_name" \
             "$lvm_vg_name/$lvm_thin_pool_lv_name"
         ;;
 
@@ -115,6 +123,7 @@ case "${command}" in
         # activate LVM thin *pool* LV
 
         __lvm lvchange \
+            --devicesfile "$lvm_vg_name" \
             --activate ey \
             "$lvm_vg_name/$lvm_thin_pool_lv_name"
         ;;
@@ -123,6 +132,7 @@ case "${command}" in
         # deactivate LVM thin *pool* LV
 
         __lvm lvchange \
+            --devicesfile "$lvm_vg_name" \
             --activate n \
             "$lvm_vg_name/$lvm_thin_pool_lv_name"
         ;;
@@ -133,6 +143,7 @@ case "${command}" in
         # activate LVM thin LV
 
         __lvm lvchange \
+            --devicesfile "$lvm_vg_name" \
             --activate ey \
             --monitor y \
             "$lvm_vg_name/$lvm_thin_lv_name"
@@ -144,6 +155,7 @@ case "${command}" in
         # deactivate LVM thin LV
 
         __lvm lvchange \
+            --devicesfile "$lvm_vg_name" \
             --activate n \
             "$lvm_vg_name/$lvm_thin_lv_name"
         ;;

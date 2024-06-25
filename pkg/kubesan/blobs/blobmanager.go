@@ -85,6 +85,7 @@ func (bm *BlobManager) GetBlobSize(ctx context.Context, blob *Blob) (int64, erro
 	output, err := lvm.Command(
 		ctx,
 		"lvs",
+		"--devicesfile", blob.pool.backingVolumeGroup,
 		"--options", "lv_size",
 		"--units", "b",
 		"--nosuffix",
