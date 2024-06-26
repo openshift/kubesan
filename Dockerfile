@@ -16,7 +16,9 @@ RUN go build -o bin/kubesan ./cmd/kubesan
 # FROM quay.io/centos/centos:stream9
 FROM quay.io/fedora/fedora:40
 
-RUN dnf install -qy nbd qemu-img && dnf clean all
+# util-linux-core, e2fsprogs, and xfsprogs are for Filesystem volume support where
+# blkid(8) and mkfs are required by k8s.io/mount-utils.
+RUN dnf install -qy nbd qemu-img util-linux-core e2fsprogs xfsprogs && dnf clean all
 
 WORKDIR /kubesan
 

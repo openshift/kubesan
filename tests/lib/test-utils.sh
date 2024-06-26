@@ -46,6 +46,30 @@ EOF
     ksan-wait-for-pvc-to-be-bound 300 "$name"
 }
 
+# Usage: ksan-create-fs-volume <name> <size>
+ksan-create-fs-volume() {
+    name=$1
+    size=$2
+
+    ksan-stage "Creating Filesystem volume \"$name\"..."
+
+    kubectl create -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: $name
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: $size
+  volumeMode: Filesystem
+EOF
+
+    ksan-wait-for-pvc-to-be-bound 300 "$name"
+}
+
 # Usage: ksan-fill-volume <name> <size_mb>
 ksan-fill-volume() {
     name=$1

@@ -51,7 +51,7 @@ func RunNodePlugin(csiSocketPath string) error {
 	// run gRPC server
 
 	csi.RegisterIdentityServer(server, &identity.IdentityServer{})
-	csi.RegisterNodeServer(server, &node.NodeServer{BlobManager: blobManager})
+	csi.RegisterNodeServer(server, node.NewNodeServer(blobManager))
 	return server.Serve(listener)
 
 	// TODO: Handle SIGTERM gracefully.

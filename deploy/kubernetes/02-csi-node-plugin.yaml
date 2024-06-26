@@ -38,6 +38,7 @@ spec:
                   fieldPath: spec.nodeName
           volumeMounts:
             - name: kubelet-dir
+              mountPropagation: Bidirectional # for Filesystem volume mounting
               mountPath: /var/lib/kubelet
             - name: socket-dir
               mountPath: /run/csi
