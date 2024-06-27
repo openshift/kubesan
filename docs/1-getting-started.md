@@ -104,6 +104,17 @@ is not likely to work correctly, since lvm documents that when
 lvmlockd uses sanlock for maintaining shared VG consistency, it works
 best when all io is ultimately directed to the same physical location.
 
+Finally, create a devices file with the same name as the LVM Volume Group on
+every node in the cluster:
+
+```console
+$ sudo vgimportdevices --devicesfile my-vg my-vg
+```
+
+Each node must have a devices file because KubeSAN restricts its LVM commands
+to access only devices listed in this file, reducing the chance of interference
+with other users of LVM.
+
 ## Installing KubeSAN
 
 If you are using OpenShift:

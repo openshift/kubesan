@@ -535,6 +535,15 @@ __run() {
         sudo lvm vgcreate --shared kubesan-vg /dev/my-san-lun
         "
 
+    __log_cyan "Creating LVM devices files on nodes..."
+
+    for node in "${NODES[@]}"; do
+        __minikube_ssh "${node}" "
+        sudo vgchange --lockstart kubesan-vg
+        sudo vgimportdevices kubesan-vg --devicesfile kubesan-vg
+        "
+    done
+
     set +o errexit
     (
         set -o errexit -o pipefail -o nounset +o xtrace
