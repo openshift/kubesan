@@ -6,7 +6,7 @@ import "os"
 
 const (
 	Domain  = "kubesan.gitlab.io"
-	Version = "v0.3.0"
+	Version = "v0.4.0"
 
 	K8sNamespace = "kubesan"
 )
