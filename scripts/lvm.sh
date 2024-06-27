@@ -7,8 +7,6 @@ command=$1
 lvm_vg_name=$2
 lvm_thin_pool_lv_name=$3
 
-export DM_DISABLE_UDEV=
-
 # Usage: __run_ignoring_error <error_regex> <cmd...>
 __run_ignoring_error() {
     local output
