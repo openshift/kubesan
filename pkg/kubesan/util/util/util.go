@@ -3,9 +3,9 @@
 package util
 
 import (
-	"crypto/sha1"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,7 +15,7 @@ import (
 )
 
 func Hash(strings ...string) string {
-	hash := sha1.New()
+	hash := fnv.New128a()
 	for _, s := range strings {
 		hash.Write([]byte(s))
 	}
