@@ -70,7 +70,8 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 
 	blob, err := blobs.BlobFromString(req.SnapshotId)
 	if err != nil {
-		return nil, err
+		// No such blob means nothing to do, not an error
+		return &csi.DeleteSnapshotResponse{}, nil
 	}
 
 	// delete blob

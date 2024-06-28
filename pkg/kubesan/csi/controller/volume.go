@@ -293,7 +293,8 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	blob, err := blobs.BlobFromString(req.VolumeId)
 	if err != nil {
-		return nil, err
+		// No such blob means nothing to do, not an error
+		return &csi.DeleteVolumeResponse{}, nil
 	}
 
 	// delete population job (if any)

@@ -5,6 +5,9 @@ package blobs
 import (
 	"fmt"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Some info describing a particular blob.
@@ -28,7 +31,10 @@ func NewBlob(blobName string, backingVolumeGroup string) *Blob {
 }
 
 func BlobFromString(s string) (*Blob, error) {
-	split := strings.SplitN(s, ":", 3)
+	split := strings.Split(s, ":")
+	if len(split) != 3 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid blob name")
+	}
 	blob := &Blob{
 		name: split[0],
 		pool: &blobPool{
