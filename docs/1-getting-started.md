@@ -108,7 +108,13 @@ Finally, create a devices file with the same name as the LVM Volume Group on
 every node in the cluster:
 
 ```console
-$ sudo vgimportdevices --devicesfile my-vg my-vg
+$ sudo lvmdevices --devicesfile my-vg --adddev /dev/my-san-lun
+
+# check if sanlock and lvmlockd are configured correctly
+$ sudo vgchange --devicesfile my-vg --lock-start
+
+# make sure the vg is visible
+$ sudo vgs --devicesfile my-vg my-vg
 ```
 
 Each node must have a devices file because KubeSAN restricts its LVM commands
