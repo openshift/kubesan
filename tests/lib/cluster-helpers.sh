@@ -1,25 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-# Usage: __ksan-get-node-name <node_name>|<node_index>
-__ksan-get-node-name() {
-    if [[ ! "$1" =~ ^[0-9]+$ ]]; then
-        echo "$1"
-    elif [[ -z "${REPO_ROOT:-}" ]]; then
-        # not being run under kubesan test script
-        local __nodes
-        # shellcheck disable=SC2207
-        __nodes=( $( kubectl get nodes --output=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' ) ) &&
-        (( $1 < ${#__nodes[@]} )) &&
-        echo "${__nodes[$1]}"
-    elif (( "$1" == 0 )); then
-        # shellcheck disable=SC2154
-        echo "${current_cluster}"
-    else
-        printf '%s-m%02d\n' "${current_cluster}" "$(( $1 + 1 ))"
-    fi
-}
-export -f __ksan-get-node-name
-
 # Usage: __ksan-get-pod-name <component> [<node>]
 __ksan-get-pod-name() {
     kubectl get pod \
@@ -29,6 +9,20 @@ __ksan-get-pod-name() {
         --output jsonpath="{.items[0].metadata.name}"
 }
 export -f __ksan-get-pod-name
+
+# Usage: __ksan-get-node-name <node_name>|<node_index>
+__ksan-get-node-name() {
+    if [[ ! "$1" =~ ^[0-9]+$ ]]; then
+        echo "$1"
+    else
+        local __nodes
+        # shellcheck disable=SC2207
+        __nodes=( $( kubectl get nodes --output=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' ) ) &&
+        (( $1 < ${#__nodes[@]} )) &&
+        echo "${__nodes[$1]}"
+    fi
+}
+export -f __ksan-get-node-name
 
 # Usage: __ksan-per-node-component <caller> <component> <node_name>|<node_index> describe|exec|logs [<args...>]
 __ksan-per-node-component() {
