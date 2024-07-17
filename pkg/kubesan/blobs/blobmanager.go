@@ -8,11 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"gitlab.com/kubesan/kubesan/pkg/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/config"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/k8s"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/lvm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
@@ -106,15 +108,64 @@ func (bm *BlobManager) GetBlobSize(ctx context.Context, blob *Blob) (int64, erro
 	return size, nil
 }
 
-func (bm *BlobManager) atomicUpdateBlobPoolCrd(ctx context.Context, poolName string, f func(*blobPoolCrdSpec) error) error {
-	crd := blobPoolCrd{ObjectMeta: metav1.ObjectMeta{Name: poolName}}
+func (bm *BlobManager) atomicUpdateBlobPoolCrd(ctx context.Context, poolName string, f func(*v1alpha1.BlobPoolSpec) error) error {
+	crd := v1alpha1.BlobPool{ObjectMeta: metav1.ObjectMeta{Name: poolName}}
 
 	err := k8s.AtomicUpdate(
 		ctx, bm.crdRest, "blobpools", &crd,
-		func(crd *blobPoolCrd) error { return f(&crd.Spec) },
+		func(crd *v1alpha1.BlobPool) error { return f(&crd.Spec) },
 	)
 	if err != nil {
 		return status.Errorf(codes.Internal, "failed to update BlobPool: %s", err)
+	}
+
+	return nil
+}
+
+func (bm *BlobManager) createBlobPoolCrd(ctx context.Context, poolName string, poolSpec *v1alpha1.BlobPoolSpec) error {
+	crd := v1alpha1.BlobPool{
+		ObjectMeta: metav1.ObjectMeta{Name: poolName},
+		Spec:       *poolSpec,
+	}
+	if crd.Spec.Blobs == nil {
+		crd.Spec.Blobs = []string{}
+	}
+
+	if crd.Spec.Holders == nil {
+		crd.Spec.Holders = []v1alpha1.BlobPoolHolder{}
+	}
+
+	req := bm.crdRest.Post().Resource("blobpools").Body(&crd).
+		VersionedParams(&metav1.CreateOptions{}, scheme.ParameterCodec)
+
+	err := req.Do(ctx).Error()
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		return err
+	}
+
+	return nil
+}
+
+func (bm *BlobManager) getBlobPoolCrd(ctx context.Context, poolName string) (*v1alpha1.BlobPoolSpec, error) {
+	req := bm.crdRest.Get().Resource("blobpools").Name(poolName).
+		VersionedParams(&metav1.GetOptions{}, scheme.ParameterCodec)
+
+	crd := v1alpha1.BlobPool{}
+	err := req.Do(ctx).Into(&crd)
+	if err != nil {
+		return nil, err
+	}
+
+	return &crd.Spec, nil
+}
+
+func (bm *BlobManager) deleteBlobPoolCrd(ctx context.Context, poolName string) error {
+	req := bm.crdRest.Delete().Resource("blobpools").Name(poolName).
+		VersionedParams(&metav1.DeleteOptions{}, scheme.ParameterCodec)
+
+	err := req.Do(ctx).Error()
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
 	}
 
 	return nil

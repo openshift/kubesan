@@ -5,6 +5,7 @@ package blobs
 import (
 	"context"
 
+	"gitlab.com/kubesan/kubesan/pkg/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/nbd"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/slices"
 	"google.golang.org/grpc/codes"
@@ -33,7 +34,7 @@ func (bm *BlobManager) OptimizeBlobAttachmentForNode(ctx context.Context, blob *
 // Works even if the pool has no holders on `toNode`.
 //
 // Does nothing if the pool has no holders at all.
-func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolSpec *blobPoolCrdSpec, toNode string) error {
+func (bm *BlobManager) migratePool(ctx context.Context, pool *internalBlobPool, poolSpec *v1alpha1.BlobPoolSpec, toNode string) error {
 	if poolSpec.ActiveOnNode == nil || *poolSpec.ActiveOnNode == toNode {
 		// nothing to do
 		return nil
@@ -55,7 +56,7 @@ func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolSpec
 		return err
 	}
 
-	err = bm.atomicUpdateBlobPoolCrd(ctx, pool.name, func(poolSpec *blobPoolCrdSpec) error {
+	err = bm.atomicUpdateBlobPoolCrd(ctx, pool.name, func(poolSpec *v1alpha1.BlobPoolSpec) error {
 		poolSpec.ActiveOnNode = &toNode
 		return nil
 	})
@@ -66,10 +67,10 @@ func (bm *BlobManager) migratePool(ctx context.Context, pool *blobPool, poolSpec
 	return nil
 }
 
-func (bm *BlobManager) migratePoolDown(ctx context.Context, pool *blobPool, poolSpec *blobPoolCrdSpec) error {
+func (bm *BlobManager) migratePoolDown(ctx context.Context, pool *internalBlobPool, poolSpec *v1alpha1.BlobPoolSpec) error {
 	nodeWithActiveLvmThinPoolLv := *poolSpec.ActiveOnNode
 
-	for _, blobName := range poolSpec.blobsWithHolders() {
+	for _, blobName := range poolSpec.BlobsWithHolders() {
 		blob := &Blob{
 			name: blobName,
 			pool: pool,
@@ -80,7 +81,7 @@ func (bm *BlobManager) migratePoolDown(ctx context.Context, pool *blobPool, pool
 			BlobName: blobName,
 		}
 
-		for _, node := range poolSpec.nodesWithHoldersForBlob(blobName) {
+		for _, node := range poolSpec.NodesWithHoldersForBlob(blobName) {
 			err := bm.runDmMultipathScript(ctx, blob, node, "disconnect")
 			if err != nil {
 				return err
@@ -118,7 +119,7 @@ func (bm *BlobManager) migratePoolDown(ctx context.Context, pool *blobPool, pool
 
 // Assumes that there are holders for the pool.
 func (bm *BlobManager) migratePoolUp(
-	ctx context.Context, pool *blobPool, poolSpec *blobPoolCrdSpec, newNodeWithActiveLvmThinPoolLv string,
+	ctx context.Context, pool *internalBlobPool, poolSpec *v1alpha1.BlobPoolSpec, newNodeWithActiveLvmThinPoolLv string,
 ) error {
 	// activate LVM thin *pool* LV
 
@@ -127,7 +128,7 @@ func (bm *BlobManager) migratePoolUp(
 		return status.Errorf(codes.Internal, "failed to activate LVM thin pool LV: %s", err)
 	}
 
-	for _, blobName := range poolSpec.blobsWithHolders() {
+	for _, blobName := range poolSpec.BlobsWithHolders() {
 		blob := &Blob{
 			name: blobName,
 			pool: pool,
@@ -138,14 +139,14 @@ func (bm *BlobManager) migratePoolUp(
 			return status.Errorf(codes.Internal, "failed to activate LVM thin LV: %s", err)
 		}
 
-		if poolSpec.hasHolderForBlobOnNode(blobName, newNodeWithActiveLvmThinPoolLv) {
+		if poolSpec.HasHolderForBlobOnNode(blobName, newNodeWithActiveLvmThinPoolLv) {
 			err = bm.runDmMultipathScript(ctx, blob, newNodeWithActiveLvmThinPoolLv, "connect", blob.lvmThinLvPath())
 			if err != nil {
 				return err
 			}
 		}
 
-		otherNodesHoldingBlob := poolSpec.nodesWithHoldersForBlob(blobName)
+		otherNodesHoldingBlob := poolSpec.NodesWithHoldersForBlob(blobName)
 		slices.Remove(otherNodesHoldingBlob, newNodeWithActiveLvmThinPoolLv)
 
 		if len(otherNodesHoldingBlob) > 0 {

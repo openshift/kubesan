@@ -10,6 +10,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type internalBlobPool struct {
+	// Matches the name of the pool's Kubernetes BlobPool CRD object.
+	name string
+
+	// Name of the shared VG used as storage for this blob.
+	backingVolumeGroup string
+}
+
 // Some info describing a particular blob.
 type Blob struct {
 	// The blob's globally-unique name.
@@ -17,13 +25,13 @@ type Blob struct {
 	// No two blobs may have the same name.
 	name string
 
-	pool *blobPool
+	pool *internalBlobPool
 }
 
 func NewBlob(blobName string, backingVolumeGroup string) *Blob {
 	return &Blob{
 		name: blobName,
-		pool: &blobPool{
+		pool: &internalBlobPool{
 			name:               blobName,
 			backingVolumeGroup: backingVolumeGroup,
 		},
@@ -37,7 +45,7 @@ func BlobFromString(s string) (*Blob, error) {
 	}
 	blob := &Blob{
 		name: split[0],
-		pool: &blobPool{
+		pool: &internalBlobPool{
 			name:               split[1],
 			backingVolumeGroup: split[2],
 		},
@@ -70,6 +78,6 @@ func (b *Blob) dmMultipathVolumePath() string {
 	return fmt.Sprintf("/dev/mapper/%s", b.dmMultipathVolumeName())
 }
 
-func (bp *blobPool) lvmThinPoolLvName() string {
+func (bp *internalBlobPool) lvmThinPoolLvName() string {
 	return bp.name
 }
