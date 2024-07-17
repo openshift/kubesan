@@ -164,6 +164,7 @@ func instantiateTemplate(
 ) error {
 	args := map[string]template.HTML{
 		"Name":             template.HTML(id.Hostname()),
+		"Namespace":        template.HTML(config.K8sNamespace),
 		"NodeName":         template.HTML(id.NodeName),
 		"Image":            template.HTML(config.Image),
 		"DevicePathOnHost": template.HTML(devicePathOnHost),

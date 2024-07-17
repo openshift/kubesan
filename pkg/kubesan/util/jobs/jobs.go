@@ -26,6 +26,7 @@ import (
 
 type Job struct {
 	Name               string
+	Namespace          string
 	NodeName           string
 	Command            []string
 	HostNetwork        bool
@@ -127,6 +128,7 @@ func (job *Job) instantiateTemplate() (*batchv1.Job, error) {
 
 	args := map[string]template.HTML{
 		"Name":               template.HTML(job.Name),
+		"Namespace":          template.HTML(job.Namespace),
 		"NodeName":           template.HTML(job.NodeName),
 		"Image":              template.HTML(config.Image),
 		"CommandJson":        template.HTML(commandJson),

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/config"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/jobs"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/util"
 )
@@ -15,8 +16,9 @@ func (bm *BlobManager) runLvmScriptForThinPoolLv(
 	ctx context.Context, blobPool *blobPool, node string, command string, extraArgs ...string,
 ) error {
 	job := &jobs.Job{
-		Name:     fmt.Sprintf("%s-lv-%s", command, util.Hash(node, blobPool.lvmThinPoolLvName())),
-		NodeName: node,
+		Name:      fmt.Sprintf("%s-lv-%s", command, util.Hash(node, blobPool.lvmThinPoolLvName())),
+		Namespace: config.K8sNamespace,
+		NodeName:  node,
 		Command: append(
 			[]string{
 				"scripts/lvm.sh", command,
@@ -41,8 +43,9 @@ func (bm *BlobManager) runLvmScriptForThinLv(
 	ctx context.Context, blob *Blob, node string, command string, extraArgs ...string,
 ) error {
 	job := &jobs.Job{
-		Name:     fmt.Sprintf("%s-lv-%s", command, util.Hash(node, blob.lvmThinLvName())),
-		NodeName: node,
+		Name:      fmt.Sprintf("%s-lv-%s", command, util.Hash(node, blob.lvmThinLvName())),
+		Namespace: config.K8sNamespace,
+		NodeName:  node,
 		Command: append(
 			[]string{
 				"scripts/lvm.sh", command,
@@ -72,8 +75,9 @@ func (bm *BlobManager) runDmMultipathScript(
 	}
 
 	job := &jobs.Job{
-		Name:     fmt.Sprintf("%s-dm-mp-%s", command, util.Hash(node, blob.lvmThinLvName())),
-		NodeName: node,
+		Name:      fmt.Sprintf("%s-dm-mp-%s", command, util.Hash(node, blob.lvmThinLvName())),
+		Namespace: config.K8sNamespace,
+		NodeName:  node,
 		Command: append(
 			[]string{
 				"scripts/dm-multipath.sh", command,

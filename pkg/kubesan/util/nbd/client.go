@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/config"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/jobs"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/util"
 	"google.golang.org/grpc/codes"
@@ -29,6 +30,7 @@ func ConnectClient(ctx context.Context, clientset kubernetes.Interface, clientNo
 
 	job := &jobs.Job{
 		Name:               fmt.Sprintf("nbd-connect-%s", util.Hash(clientNode, serverId.hash())),
+		Namespace:          config.K8sNamespace,
 		NodeName:           clientNode,
 		Command:            []string{"scripts/nbd.sh", "client-connect", deviceSymlinkPath, serverIp.String()},
 		HostNetwork:        true, // for netlink to work
@@ -54,6 +56,7 @@ func DisconnectClient(ctx context.Context, clientset kubernetes.Interface, clien
 
 	job := &jobs.Job{
 		Name:               fmt.Sprintf("nbd-disconnect-%s", util.Hash(clientNode, serverId.hash())),
+		Namespace:          config.K8sNamespace,
 		NodeName:           clientNode,
 		Command:            []string{"scripts/nbd.sh", "client-disconnect", deviceSymlinkPath},
 		HostNetwork:        true, // for netlink to work
