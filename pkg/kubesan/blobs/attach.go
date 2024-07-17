@@ -4,6 +4,8 @@ package blobs
 
 import (
 	"context"
+	"fmt"
+	"log"
 
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/config"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/nbd"
@@ -11,13 +13,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Ensure that the given blob is attached on the given node (or any node if `node` is nil).
-//
-// If `node` is nil, this will select a node where the blob gets a "fast" attachment.
-//
-// Cookies are "namespaced" to the (blob, node) pair.
-//
-// This method is idempotent and may be called from any node.
 func (bm *BlobManager) AttachBlob(
 	ctx context.Context, blob *Blob, node *string, cookie string,
 ) (actualNode string, path string, err error) {
@@ -34,6 +29,28 @@ func (bm *BlobManager) AttachBlob(
 		actualNode = config.LocalNodeName
 	}
 
+	log.Println(fmt.Sprintf("Attaching blob %s on current node %s", blob, actualNode))
+	path, err = bm.attachBlob(ctx, blob, poolSpec, actualNode, cookie)
+	if err != nil {
+		log.Println(fmt.Sprintf("Failed to attach blob %s on current node %s: %v", blob, actualNode, err))
+	}
+	return
+}
+
+// Ensure that the given blob is attached on the given node (or any node if `node` is nil).
+//
+// If `node` is nil, this will select a node where the blob gets a "fast" attachment.
+//
+// Cookies are "namespaced" to the (blob, node) pair.
+//
+// This method is idempotent and may be called from any node.
+func (bm *BlobManager) attachBlob(
+	ctx context.Context,
+	blob *Blob,
+	poolSpec *blobPoolCrdSpec,
+	actualNode string,
+	cookie string,
+) (path string, err error) {
 	var activeOnNode string
 
 	if poolSpec.ActiveOnNode == nil {

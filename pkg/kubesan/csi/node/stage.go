@@ -4,8 +4,6 @@ package node
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/blobs"
@@ -66,11 +64,8 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	// attach blob on current node
 
-	log.Println(fmt.Sprintf("Attaching blob %s on current node %s", blob, config.LocalNodeName))
-
 	_, path, err := s.BlobManager.AttachBlob(ctx, blob, &config.LocalNodeName, "staged")
 	if err != nil {
-		log.Println(fmt.Sprintf("Failed to attach blob %s on current node %s: %v", blob, config.LocalNodeName, err))
 		return nil, err
 	}
 
