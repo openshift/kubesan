@@ -39,12 +39,9 @@ for i in "${!NODES[@]}"; do
         - name: container
           image: $TEST_IMAGE
           command:
-            - bash
-            - -c
-            - |
-              dd if=/dev/zero of=/var/pvc1 bs=1M count=64 oflag=direct &&
-              dd if=/dev/zero of=/var/pvc2 bs=1M count=128 oflag=direct &&
-              sleep infinity
+            - ./mount-rwx-helper.sh
+            - "${i}"
+            - "${#NODES[@]}"
           volumeDevices:
             - name: pvc-1
               devicePath: /var/pvc1
@@ -60,14 +57,14 @@ for i in "${!NODES[@]}"; do
 EOF
 done
 
+# Make sure all pods have had a chance to start...
 for i in "${!NODES[@]}"; do
     ksan-wait-for-pod-to-start-running 60 "test-pod-$i"
 done
 
-sleep 10
-
+# ...at which point, all pods should complete within a few seconds
 for i in "${!NODES[@]}"; do
-    ksan-pod-is-running "test-pod-$i"
+    ksan-wait-for-pod-to-succeed 10 "test-pod-$i"
 done
 
 ksan-stage 'Unmounting volumes from all nodes...'
