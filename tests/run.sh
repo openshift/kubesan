@@ -243,7 +243,7 @@ __canceled() {
 export REPO_ROOT=${repo_root}
 export TEST_IMAGE=docker.io/localhost/kubesan/test:test
 
-for f in cluster-helpers.sh lib/debug-utils.sh lib/test-utils.sh; do
+for f in lib/cluster-helpers.sh lib/debug-utils.sh lib/test-utils.sh; do
     # shellcheck disable=SC1090
     source "${script_dir}/$f"
 done
@@ -255,7 +255,7 @@ __build_images() {
     podman image build -t localhost/kubesan/kubesan:test "${repo_root}"
 
     __log_cyan "Building test image (localhost/kubesan/test:test)..."
-    podman image build -t localhost/kubesan/test:test "${script_dir}/lib/test-image"
+    podman image build -t localhost/kubesan/test:test "${script_dir}/t-data/test-image"
 }
 
 __build_images
@@ -473,7 +473,7 @@ __run() {
 
     for node in "${NODES[@]}"; do
         __minikube cp \
-            "${script_dir}/lib/node-bash-profile.sh" \
+            "${script_dir}/t-data/node-bash-profile.sh" \
             "${node}:/home/docker/.bashrc"
     done
 
@@ -566,9 +566,9 @@ __run() {
 
         __log_cyan "Creating common objects..."
         kubectl delete sc standard
-        kubectl create -f "${script_dir}/lib/volume-snapshot-class.yaml"
+        kubectl create -f "${script_dir}/t-data/volume-snapshot-class.yaml"
         if (( install_kubesan )); then
-            kubectl create -f "${script_dir}/lib/storage-class.yaml"
+            kubectl create -f "${script_dir}/t-data/storage-class.yaml"
         fi
 
         if (( sandbox )); then
