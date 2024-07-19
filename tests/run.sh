@@ -243,9 +243,9 @@ __canceled() {
 export REPO_ROOT=${repo_root}
 export TEST_IMAGE=docker.io/localhost/kubesan/test:test
 
-for f in lib/cluster-helpers.sh lib/debug-utils.sh lib/test-utils.sh; do
+for f in ${script_dir}/lib/*.sh; do
     # shellcheck disable=SC1090
-    source "${script_dir}/$f"
+    source "$f"
 done
 
 # build images
