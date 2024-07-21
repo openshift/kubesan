@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"gitlab.com/kubesan/kubesan/pkg/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/config"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/slices"
 	"google.golang.org/grpc/codes"
@@ -21,7 +22,7 @@ func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStora
 
 	// create CRD
 
-	err := bm.createBlobPoolCrd(ctx, blob.pool.name, &blobPoolCrdSpec{Blobs: []string{blob.name}})
+	err := bm.createBlobPoolCrd(ctx, blob.pool.name, &v1alpha1.BlobPoolSpec{Blobs: []string{blob.name}})
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func (bm *BlobManager) CreateBlobEmpty(ctx context.Context, blob *Blob, k8sStora
 // (Internal behavior note: The two blobs gain the restriction that they can only ever have a "fast" attachment
 // simultaneously on the same node.)
 func (bm *BlobManager) CreateBlobCopy(ctx context.Context, blobName string, sourceBlob *Blob) (*Blob, error) {
-	err := bm.atomicUpdateBlobPoolCrd(ctx, sourceBlob.pool.name, func(spec *blobPoolCrdSpec) error {
+	err := bm.atomicUpdateBlobPoolCrd(ctx, sourceBlob.pool.name, func(spec *v1alpha1.BlobPoolSpec) error {
 		spec.Blobs = slices.AppendUnique(spec.Blobs, blobName)
 		return nil
 	})
@@ -98,7 +99,7 @@ func (bm *BlobManager) DeleteBlob(ctx context.Context, blob *Blob) error {
 
 	var delete bool
 
-	err = bm.atomicUpdateBlobPoolCrd(ctx, blob.pool.name, func(spec *blobPoolCrdSpec) error {
+	err = bm.atomicUpdateBlobPoolCrd(ctx, blob.pool.name, func(spec *v1alpha1.BlobPoolSpec) error {
 		spec.Blobs = slices.Remove(spec.Blobs, blob.name)
 		delete = len(spec.Blobs) == 0
 		return nil

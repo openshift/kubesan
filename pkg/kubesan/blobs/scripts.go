@@ -12,7 +12,7 @@ import (
 )
 
 func (bm *BlobManager) runLvmScriptForThinPoolLv(
-	ctx context.Context, blobPool *blobPool, node string, command string, extraArgs ...string,
+	ctx context.Context, blobPool *internalBlobPool, node string, command string, extraArgs ...string,
 ) error {
 	job := &jobs.Job{
 		Name:     fmt.Sprintf("%s-lv-%s", command, util.Hash(node, blobPool.lvmThinPoolLvName())),

@@ -4,7 +4,10 @@ package blobs
 
 import (
 	"context"
+	"fmt"
+	"log"
 
+	"gitlab.com/kubesan/kubesan/pkg/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/config"
 	"gitlab.com/kubesan/kubesan/pkg/kubesan/util/nbd"
 	"google.golang.org/grpc/codes"
@@ -52,12 +55,12 @@ func (bm *BlobManager) AttachBlob(
 
 	path = blob.dmMultipathVolumePath()
 
-	if poolSpec.hasHolder(blob.name, actualNode, cookie) {
+	if poolSpec.HasHolder(blob.name, actualNode, cookie) {
 		// nothing to do
 		return
 	}
 
-	if !poolSpec.hasHolderForBlobOnNode(blob.name, actualNode) {
+	if !poolSpec.HasHolderForBlobOnNode(blob.name, actualNode) {
 		var lvmOrNbdPath string
 
 		if activeOnNode == actualNode {
@@ -71,6 +74,7 @@ func (bm *BlobManager) AttachBlob(
 
 			lvmOrNbdPath = blob.lvmThinLvPath()
 		} else {
+			log.Println(fmt.Sprintf("Blob %s is active on %s, connecting to it on %s by starting a NBD server", blob.name, activeOnNode, actualNode))
 			// start NBD server
 
 			nbdServerId := &nbd.ServerId{
@@ -80,30 +84,37 @@ func (bm *BlobManager) AttachBlob(
 
 			err = nbd.StartServer(ctx, bm.clientset, nbdServerId, blob.lvmThinLvPath())
 			if err != nil {
+				log.Println(fmt.Sprintf("Failed to start NBD server for %s on %s: %v", blob.name, activeOnNode, err))
 				return
 			}
 
 			// connect NBD client
+			log.Println(fmt.Sprintf("Connecting NBD client to %s on %s", nbdServerId.Hostname(), actualNode))
 
 			lvmOrNbdPath, err = nbd.ConnectClient(ctx, bm.clientset, actualNode, nbdServerId)
 			if err != nil {
+				log.Println(fmt.Sprintf("Failed to connect NBD client to %s on %s: %v", nbdServerId.Hostname(), actualNode, err))
 				return
 			}
+
+			log.Println(fmt.Sprintf("Connected NBD client to %s on %s and make path available at %s", nbdServerId.Hostname(), actualNode, lvmOrNbdPath))
 		}
 
 		// create dm-multipath volume
-
+		log.Println(fmt.Sprintf("Creating dm-multipath volume for %s on %s", blob.name, actualNode))
 		err = bm.runDmMultipathScript(ctx, blob, actualNode, "create", lvmOrNbdPath)
 		if err != nil {
+			log.Println(fmt.Sprintf("Failed to create dm-multipath volume for %s on %s: %v", blob.name, actualNode, err))
 			return
 		}
+		log.Println(fmt.Sprintf("Created dm-multipath volume for %s on %s", blob.name, actualNode))
 	}
 
 	// TODO: For now we assume that the state hasn't changed since we checked it at the beginning of this method.
 
-	err = bm.atomicUpdateBlobPoolCrd(ctx, blob.pool.name, func(poolSpec *blobPoolCrdSpec) error {
+	err = bm.atomicUpdateBlobPoolCrd(ctx, blob.pool.name, func(poolSpec *v1alpha1.BlobPoolSpec) error {
 		poolSpec.ActiveOnNode = &activeOnNode
-		poolSpec.addHolder(blob.name, actualNode, cookie)
+		poolSpec.AddHolder(blob.name, actualNode, cookie)
 		return nil
 	})
 	if err != nil {
@@ -124,14 +135,14 @@ func (bm *BlobManager) DetachBlob(ctx context.Context, blob *Blob, node string, 
 		return err
 	}
 
-	if !poolSpec.hasHolder(blob.name, node, cookie) {
+	if !poolSpec.HasHolder(blob.name, node, cookie) {
 		// nothing to do
 		return nil
 	}
 
-	poolSpec.removeHolder(blob.name, node, cookie)
+	poolSpec.RemoveHolder(blob.name, node, cookie)
 
-	if !poolSpec.hasHolderForBlobOnNode(blob.name, node) {
+	if !poolSpec.HasHolderForBlobOnNode(blob.name, node) {
 		// remove dm-multipath volume
 
 		err = bm.runDmMultipathScript(ctx, blob, node, "remove")
@@ -153,7 +164,7 @@ func (bm *BlobManager) DetachBlob(ctx context.Context, blob *Blob, node string, 
 			}
 		}
 
-		if !poolSpec.hasHolderForBlob(blob.name) {
+		if !poolSpec.HasHolderForBlob(blob.name) {
 			// no one else is using the NBD server (if any), stop it
 
 			err = nbd.StopServer(ctx, bm.clientset, nbdServerId)
@@ -169,7 +180,7 @@ func (bm *BlobManager) DetachBlob(ctx context.Context, blob *Blob, node string, 
 			}
 		}
 
-		if !poolSpec.hasHolderOnNode(*poolSpec.ActiveOnNode) {
+		if !poolSpec.HasHolderOnNode(*poolSpec.ActiveOnNode) {
 			// `node` where the LVM thin *pool* LV is active no longer needs access to the pool
 
 			if len(poolSpec.Holders) > 0 {
@@ -193,8 +204,8 @@ func (bm *BlobManager) DetachBlob(ctx context.Context, blob *Blob, node string, 
 
 	// TODO: For now we assume that the state hasn't changed since we checked it at the beginning of this method.
 
-	err = bm.atomicUpdateBlobPoolCrd(ctx, blob.pool.name, func(poolSpec *blobPoolCrdSpec) error {
-		poolSpec.removeHolder(blob.name, node, cookie)
+	err = bm.atomicUpdateBlobPoolCrd(ctx, blob.pool.name, func(poolSpec *v1alpha1.BlobPoolSpec) error {
+		poolSpec.RemoveHolder(blob.name, node, cookie)
 		if len(poolSpec.Holders) == 0 {
 			poolSpec.ActiveOnNode = nil
 		}
