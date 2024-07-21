@@ -174,6 +174,13 @@ parameters:
   backingVolumeGroup: my-vg
 ```
 
+If you are using OpenShift Virtualization, you must also patch the corresponding
+`StorageProfile` as follows:
+
+```console
+$ kubectl patch storageprofile my-san --type=merge -p '{"spec": {"claimPropertySets": [{"accessModes": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"], "volumeMode": "Block"}, {"accessModes": ["ReadWriteOnce"], "volumeMode": "Filesystem"}], "cloneStrategy": "csi-clone"}}'
+```
+
 Now you can create volumes like so:
 
 ```yaml
