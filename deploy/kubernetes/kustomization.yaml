@@ -4,8 +4,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - 00-kubesan.yaml
-  - 01-csi-controller-plugin.yaml
-  - 02-csi-node-plugin.yaml
-  - 03-rbac.yaml
-  - 04-nbd.yaml
-  - 05-blobs.yaml
+  - 01-crd.yaml
+  - 02-csi-controller-plugin.yaml
+  - 03-csi-node-plugin.yaml
+  - 04-rbac.yaml
+  - 05-nbd.yaml
+  - 06-blobs.yaml
