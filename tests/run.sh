@@ -136,16 +136,6 @@ done
 export REPO_ROOT=${repo_root}
 export TEST_IMAGE=docker.io/localhost/kubesan/test:test
 
-# build images
-
-__build_images() {
-    __log_cyan "Building KubeSAN image (localhost/kubesan/kubesan:test)..."
-    podman image build -t localhost/kubesan/kubesan:test "${repo_root}"
-
-    __log_cyan "Building test image (localhost/kubesan/test:test)..."
-    podman image build -t localhost/kubesan/test:test "${script_dir}/t-data/test-image"
-}
-
 __build_images
 
 # create temporary directory
