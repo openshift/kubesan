@@ -4,4 +4,6 @@ FROM quay.io/fedora/fedora:40
 
 RUN dnf install -qy fio strace nbd nmap-ncat qemu-img && dnf clean all
 
+COPY --chmod=744 scripts ./
+
 ENTRYPOINT []
