@@ -23,6 +23,7 @@ check:
 generate: controller-gen
 	$(CONTROLLER_GEN) crd object paths="./..."
 	rm deploy/kubernetes/01-crd.yaml
+	printf "# SPDX-License-Identifier: Apache-2.0\n\n" >> deploy/kubernetes/01-crd.yaml
 	cat $(PROJECT_DIR)/config/crd/kubesan.gitlab.io_blobpools.yaml >> deploy/kubernetes/01-crd.yaml
 	rm -r $(PROJECT_DIR)/config/crd
 
