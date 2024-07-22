@@ -6,6 +6,10 @@ set -o errexit -o pipefail -o nounset -o xtrace
 command=$1
 vol_name=$2
 
+__dmsetup() {
+    nsenter -m -u -i -n -p -t 1 dmsetup "$@"
+}
+
 # Usage: __run_ignoring_error <error_regex> <cmd...>
 __run_ignoring_error() {
     local output
@@ -32,14 +36,14 @@ case "${command}" in
         connect_to_path=$4
 
         __run_ignoring_error "device or resource busy" \
-            dmsetup create "$vol_name-lower" --table "$( __lower_table "$connect_to_path" )"
+            __dmsetup create "$vol_name-lower" --table "$( __lower_table "$connect_to_path" )"
 
-        dmsetup mknodes "$vol_name-lower"
+        __dmsetup mknodes "$vol_name-lower"
 
         __run_ignoring_error "device or resource busy" \
-            dmsetup create "$vol_name" --table "$( __upper_table )"
+            __dmsetup create "$vol_name" --table "$( __upper_table )"
 
-        dmsetup mknodes "$vol_name"
+        __dmsetup mknodes "$vol_name"
         ;;
 
     remove)
@@ -47,30 +51,30 @@ case "${command}" in
         # removing a disconnected volume
 
         __run_ignoring_error "no such device or address" \
-            dmsetup remove "$vol_name" --force
+            __dmsetup remove "$vol_name" --force
 
         __run_ignoring_error "no such device or address" \
-            dmsetup remove "$vol_name-lower" --force
+            __dmsetup remove "$vol_name-lower" --force
         ;;
 
     connect)
         vol_size=$3
         connect_to_path=$4
 
-        dmsetup suspend "$vol_name-lower"  # flush any in-flight I/O
-        dmsetup load "$vol_name-lower" --table "$( __lower_table "$connect_to_path" )"
-        dmsetup resume "$vol_name-lower"
+        __dmsetup suspend "$vol_name-lower"  # flush any in-flight I/O
+        __dmsetup load "$vol_name-lower" --table "$( __lower_table "$connect_to_path" )"
+        __dmsetup resume "$vol_name-lower"
 
-        dmsetup message "$vol_name" 0 "reinstate_path /dev/mapper/$vol_name-lower"
+        __dmsetup message "$vol_name" 0 "reinstate_path /dev/mapper/$vol_name-lower"
         ;;
 
     disconnect)
         vol_size=$3
 
-        dmsetup message "$vol_name" 0 "fail_path /dev/mapper/$vol_name-lower"
+        __dmsetup message "$vol_name" 0 "fail_path /dev/mapper/$vol_name-lower"
 
-        dmsetup suspend "$vol_name-lower"  # flush any in-flight I/O
-        dmsetup load "$vol_name-lower" --table "$( __lower_table )"
-        dmsetup resume "$vol_name-lower" --noudevsync  # this hangs without --noudevsync
+        __dmsetup suspend "$vol_name-lower"  # flush any in-flight I/O
+        __dmsetup load "$vol_name-lower" --table "$( __lower_table )"
+        __dmsetup resume "$vol_name-lower" --noudevsync  # this hangs without --noudevsync
         ;;
 esac
