@@ -7,7 +7,7 @@ command=$1
 vol_name=$2
 
 __dmsetup() {
-    nsenter -m -u -i -n -p -t 1 dmsetup "$@"
+    nsenter --target 1 --all dmsetup "$@"
 }
 
 # Usage: __run_ignoring_error <error_regex> <cmd...>
