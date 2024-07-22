@@ -31,7 +31,6 @@ func (s *NodeServer) formatAndMount(source string, target string, fstype string,
 		return status.Errorf(codes.Internal, "format and mount failed source=%s target=%s fstype=%s: %v", source, target, fstype, err)
 	}
 
-
 	// cloned volumes may be larger than the file system, so resize
 
 	resizeFs := mount.NewResizeFs(s.exec)
@@ -100,16 +99,9 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	// unmount file system, if necessary
 
 	targetPath := req.GetStagingTargetPath()
-	sure, err := s.mounter.IsMountPoint(targetPath)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to determine whether %s is a mount point for volume %s: %v", targetPath, req.VolumeId, err)
+	if err := mount.CleanupMountPoint(targetPath, s.mounter, true); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to clean up mount point %s for volume %s: %v", targetPath, req.VolumeId, err)
 	}
-	if sure {
-		if err := mount.CleanupMountPoint(targetPath, s.mounter, true); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to clean up mount point %s for volume %s: %v", targetPath, req.VolumeId, err)
-		}
-	}
-
 	// detach blob from current node
 
 	err = s.BlobManager.DetachBlob(ctx, blob, config.LocalNodeName, "staged")
