@@ -48,7 +48,7 @@ func (bm *BlobManager) AttachBlob(
 func (bm *BlobManager) attachBlob(
 	ctx context.Context,
 	blob *Blob,
-	poolSpec *blobPoolCrdSpec,
+	poolSpec *v1alpha1.BlobPoolSpec,
 	actualNode string,
 	cookie string,
 ) (path string, err error) {
