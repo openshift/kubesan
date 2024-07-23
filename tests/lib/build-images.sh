@@ -6,6 +6,7 @@ __build_images() {
     podman image build -t localhost/kubesan/kubesan:test "${repo_root}"
 
     __log_cyan "Building test image (localhost/kubesan/test:test)..."
-    podman image build -t localhost/kubesan/test:test "${script_dir}/t-data/test-image"
+    podman image build -t localhost/kubesan/test:test \
+        -f "${script_dir}/t-data/test-image/Containerfile" "${repo_root}"
 }
 export -f __build_images
