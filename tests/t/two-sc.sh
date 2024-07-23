@@ -6,6 +6,15 @@ __minikube_ssh "${NODES[0]}" "
     sudo lvm vgcreate --shared second-vg /dev/kubesan-drive-1
 "
 
+ksan-stage 'Creating second LVM devices files on nodes...'
+
+for node in "${NODES[@]}"; do
+    __minikube_ssh "${node}" "
+    sudo vgchange --lockstart second-vg
+    sudo vgimportdevices second-vg --devicesfile second-vg
+    "
+done
+
 ksan-stage 'Creating second StorageClass'
 
 kubectl create -f - <<EOF

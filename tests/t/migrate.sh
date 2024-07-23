@@ -68,7 +68,7 @@ ksan-stage 'Deleting the first pod...'
 kubectl delete pod test-pod-0 --timeout=30s
 
 ksan-stage 'Waiting until the blob pool has migrated...'
-ksan-poll 1 300 "ksan-ssh-into-node 1 ! find /dev/mapper -type b -name 'kubesan--vg-pvc--*--thin' -exec false {} + 2>/dev/null"
+ksan-poll 1 300 "ksan-ssh-into-node 1 ! find /dev/mapper -name 'kubesan--vg-pvc--*--thin' -exec false {} + 2>/dev/null"
 
 ksan-stage 'Ensuring that the second pod is still writing to the volume...'
 ensure_pod_is_writing 1

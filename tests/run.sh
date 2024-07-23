@@ -126,137 +126,15 @@ for test in "${tests_arg[@]}"; do
     done
 done
 
-# private definitions
-
-# Usage: __elapsed
-__elapsed() {
-    local delta
-    delta=$(( $( date +%s%N ) - start_time ))
-    printf '%d.%09d' $(( delta / 10**9 )) $(( delta % 10**9 ))
-}
-
-# Usage: __big_log <color> <format> <args...>
-__big_log() {
-    local text term_cols sep_len
-    text="$( printf "${@:2}" )"
-    term_cols="$( tput cols 2> /dev/null )" || term_cols=80
-    sep_len="$(( term_cols - ${#text} - 16 ))"
-    printf "\033[%sm--- [%6.1f] %s " "$1" "$( __elapsed )" "${text}"
-    printf '%*s\033[0m\n' "$(( sep_len < 0 ? 0 : sep_len ))" '' | tr ' ' -
-}
-
-# Usage: __log <color> <format> <args...>
-__log() {
-    # shellcheck disable=SC2059
-    printf "\033[%sm--- [%6.1f] %s\033[0m\n" \
-        "$1" "$( __elapsed )" "$( printf "${@:2}" )"
-}
-
-# Usage: __log_red <format> <args...>
-__log_red() {
-    __log 31 "$@"
-}
-
-# Usage: __log_green <format> <args...>
-__log_green() {
-    __log 32 "$@"
-}
-
-# Usage: __log_yellow <format> <args...>
-__log_yellow() {
-    __log 33 "$@"
-}
-
-# Usage: __log_cyan <format> <args...>
-__log_cyan() {
-    __log 36 "$@"
-}
-
-__shell() {
-    __log "$1" 'Starting interactive shell.'
-    __log "$1" 'Inspect the cluster with:'
-    __log "$1" '  $ kubectl [...]'
-    __log "$1" '  $ ksan-csi-controller-plugin describe|exec|logs [<args...>]'
-    __log "$1" '  $ ksan-csi-node-plugin <node_name>|<node_index> describe|exec|logs [<args...>]'
-    __log "$1" '  $ ksan-ssh-into-node <node_name>|<node_index> [<command...>]'
-
-    if [[ "$2" == true ]]; then
-        __log "$1" 'To reset the sandbox:'
-        __log "$1" '  $ ksan-retry'
-    else
-        __log "$1" 'To retry the current test:'
-        __log "$1" '  $ ksan-retry'
-        __log "$1" 'To cancel this and all remaining tests:'
-        __log "$1" '  $ ksan-cancel'
-    fi
-
-    IFS='/' read -r -a script_path <<< "$0"
-
-    if [[ "${script_path[0]}" == "" ]]; then
-        # absolute path
-        script_path=( "/${script_path[1]}" "${script_path[@]:2}" )
-    fi
-
-    if (( ${#script_path[@]} > 2 )); then
-        script_path=( ... "${script_path[@]: -2}" )
-    fi
-
-    kubesan_tests_run_sh_path=$( printf '/%s' "${script_path[@]}" )
-    kubesan_tests_run_sh_path=${kubesan_tests_run_sh_path:1}
-
-    (
-        export kubesan_tests_run_sh_path
-        export kubesan_retry_path="${temp_dir}/retry"
-        export kubesan_cancel_path="${temp_dir}/cancel"
-        cd "${initial_working_dir}"
-        # shellcheck disable=SC2016,SC2028
-        "$BASH" --init-file <( echo "
-            . \"\$HOME/.bashrc\"
-            PROMPT_COMMAND=(
-                \"echo -en '\\001\\033[1m\\002(\$kubesan_tests_run_sh_path)\\001\\033[0m\\002 '\"
-                \"\${PROMPT_COMMAND[@]}\"
-                )
-            " )
-    ) || true
-}
-
-# Usage: __failure <format> <args...>
-__failure() {
-    __log_red "$@"
-
-    if (( pause_on_failure )); then
-        __shell 31 false
-    fi
-}
-
-# Usage: __canceled <format> <args...>
-__canceled() {
-    __log_yellow "$@"
-
-    if (( pause_on_failure )); then
-        __shell 33 false
-    fi
-}
+for f in ${script_dir}/lib/*.sh; do
+    # shellcheck disable=SC1090
+    source "$f"
+done
 
 # definitions shared with test scripts
 
 export REPO_ROOT=${repo_root}
 export TEST_IMAGE=docker.io/localhost/kubesan/test:test
-
-for f in cluster-helpers.sh lib/debug-utils.sh lib/test-utils.sh; do
-    # shellcheck disable=SC1090
-    source "${script_dir}/$f"
-done
-
-# build images
-
-__build_images() {
-    __log_cyan "Building KubeSAN image (localhost/kubesan/kubesan:test)..."
-    podman image build -t localhost/kubesan/kubesan:test "${repo_root}"
-
-    __log_cyan "Building test image (localhost/kubesan/test:test)..."
-    podman image build -t localhost/kubesan/test:test "${script_dir}/lib/test-image"
-}
 
 __build_images
 
@@ -473,7 +351,7 @@ __run() {
 
     for node in "${NODES[@]}"; do
         __minikube cp \
-            "${script_dir}/lib/node-bash-profile.sh" \
+            "${script_dir}/t-data/node-bash-profile.sh" \
             "${node}:/home/docker/.bashrc"
     done
 
@@ -566,9 +444,9 @@ __run() {
 
         __log_cyan "Creating common objects..."
         kubectl delete sc standard
-        kubectl create -f "${script_dir}/lib/volume-snapshot-class.yaml"
+        kubectl create -f "${script_dir}/t-data/volume-snapshot-class.yaml"
         if (( install_kubesan )); then
-            kubectl create -f "${script_dir}/lib/storage-class.yaml"
+            kubectl create -f "${script_dir}/t-data/storage-class.yaml"
         fi
 
         if (( sandbox )); then
