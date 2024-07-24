@@ -408,19 +408,7 @@ __run() {
     done
 
     __log_cyan "Creating shared VG on controller node..."
-
-    __minikube_ssh "${NODES[0]}" "
-        sudo lvm vgcreate --shared kubesan-vg /dev/my-san-lun
-        "
-
-    __log_cyan "Creating LVM devices files on nodes..."
-
-    for node in "${NODES[@]}"; do
-        __minikube_ssh "${node}" "
-        sudo vgchange --lockstart kubesan-vg
-        sudo vgimportdevices kubesan-vg --devicesfile kubesan-vg
-        "
-    done
+    __create_ksan_shared_vg kubesan-vg /dev/my-san-lun
 
     set +o errexit
     (
