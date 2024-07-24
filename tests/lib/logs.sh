@@ -46,3 +46,21 @@ __log_yellow() {
 __log_cyan() {
     __log 36 "$@"
 }
+
+# Usage: __failure <format> <args...>
+__failure() {
+    __log_red "$@"
+
+    if (( pause_on_failure )); then
+        __shell 31 false
+    fi
+}
+
+# Usage: __canceled <format> <args...>
+__canceled() {
+    __log_yellow "$@"
+
+    if (( pause_on_failure )); then
+        __shell 33 false
+    fi
+}
