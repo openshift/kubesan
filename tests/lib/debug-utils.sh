@@ -18,6 +18,9 @@ if (( ! sandbox )); then
 fi
 
 # Usage: ksan-ssh-into-node <node_name>|<node_index> [<command...>]
+# Only use for interactive debugging, do not assume node ssh access is
+# available in tests because that would require the user to provide ssh
+# connection details and that is inconvenient.
 ksan-ssh-into-node() {
     if (( $# < 1 )); then
         >&2 echo "Usage: ksan-ssh-into-node <node_name>|<node_index> [<args...>]"

@@ -32,10 +32,19 @@ start_pod() {
           volumeDevices:
             - name: pvc
               devicePath: /var/pvc
+          volumeMounts:
+            - name: dev
+              mountPath: /var/hostDev
+          securityContext:
+            privileged: true
       volumes:
         - name: pvc
           persistentVolumeClaim:
             claimName: test-pvc
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
 EOF
 
     ksan-wait-for-pod-to-start-running 60 "$pod_name"
@@ -68,7 +77,7 @@ ksan-stage 'Deleting the first pod...'
 kubectl delete pod test-pod-0 --timeout=30s
 
 ksan-stage 'Waiting until the blob pool has migrated...'
-ksan-poll 1 300 "ksan-ssh-into-node 1 ! find /dev/mapper -name 'kubesan--vg-pvc--*--thin' -exec false {} + 2>/dev/null"
+ksan-poll 1 300 "kubectl exec test-pod-1 -- dmsetup status | grep -q 'kubesan--vg-pvc--.*--thin:'"
 
 ksan-stage 'Ensuring that the second pod is still writing to the volume...'
 ensure_pod_is_writing 1
