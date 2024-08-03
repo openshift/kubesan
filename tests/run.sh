@@ -214,7 +214,11 @@ __run() {
     # set KUBECONFIG=...
     __get_${deploy_tool}_kubeconf "${current_cluster}"
     # set NODES=()
-    __get_${deploy_tool}_nodes "${current_cluster}"
+    export NODES=()
+    for node in $(kubectl get node -l node-role.kubernetes.io/worker --output=name); do
+        NODES+=( "${node#node/}" )
+    done
+
     # set current_cluster registry required to install kubesan and test image
     __get_${deploy_tool}_registry "${current_cluster}"
 

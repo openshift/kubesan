@@ -46,18 +46,9 @@ __minikube_cluster_exists() {
 }
 export -f __minikube_cluster_exists
 
-# Usage: __get_minikube_nodes <profile>
-__get_minikube_nodes() {
-    NODES=( "${1}" )
-    for (( i = 2; i <= num_nodes; ++i )); do
-        NODES+=( "$( printf '%s-m%02d' "${current_cluster}" "$i" )" )
-    done
-}
-export -f __get_minikube_nodes
-
 # Usage: __get_minikube_kubeconf <profile>
 __get_minikube_kubeconf() {
-    kubectl config view > "${temp_dir}/kubeconfig"
+    kubectl config view --raw > "${temp_dir}/kubeconfig"
     KUBECONFIG="${temp_dir}/kubeconfig"
     kubectl config use-context "$1"
 }
@@ -82,8 +73,12 @@ __start_minikube_cluster() {
         --memory=2g \
         --disk-size=5g \
         --keep-context \
+        --wait="all" \
         --nodes="${num_nodes}" \
         "${@:2}"
+
+    __get_minikube_kubeconf "$1"
+    kubectl label nodes --all node-role.kubernetes.io/worker=
 }
 export -f __start_minikube_cluster
 

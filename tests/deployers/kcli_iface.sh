@@ -46,15 +46,6 @@ __kcli_cluster_exists() {
 }
 export -f __kcli_cluster_exists
 
-# Usage: __get_kcli_node_names <profile>
-__get_kcli_nodes() {
-    NODES=()
-    for node in $(kubectl get node --output=name); do
-        NODES+=( "${node#node/}" )
-    done
-}
-export -f __get_kcli_nodes
-
 # Usage: __get_kcli_kubeconf <profile>
 __get_kcli_kubeconf() {
     KUBECONFIG="$HOME/.kcli/clusters/${1}/auth/kubeconfig"
@@ -68,11 +59,14 @@ __is_kcli_cluster_running() {
 
     __get_kcli_kubeconf "$1"
     if [[ -f $KUBECONFIG ]]; then
-        __get_kcli_nodes "$1"
-        if [ "${#NODES[@]}" -lt "${num_nodes}" ]; then
+        ALLNODES=()
+        for node in $(kubectl get node --output=name); do
+            ALLNODES+=( "${node#node/}" )
+        done
+        if [ "${#ALLNODES[@]}" -lt "${num_nodes}" ]; then
             return 1
         fi
-        for node in "${NODES[@]}"; do
+        for node in "${ALLNODES[@]}"; do
             kstatus=$(kubectl get nodes/$node --output=jsonpath='{.status.conditions[?(@.reason == "KubeletReady")].type}')
             if [[ "${kstatus}" != "Ready" ]]; then
                 return 1
