@@ -147,6 +147,7 @@ trap 'rm -fr "${temp_dir}"' EXIT
 
 num_succeeded=0
 num_failed=0
+num_skipped=0
 
 canceled=0
 trap 'canceled=1' SIGINT
@@ -512,6 +513,8 @@ else
             break
         elif (( exit_code == 0 )); then
             : $(( num_succeeded++ ))
+        elif (( exit_code == 77 )); then
+            : $(( num_skipped++ ))
         else
             : $(( num_failed++ ))
             if (( fail_fast )); then
@@ -523,18 +526,20 @@ else
 
     # print summary
 
-    num_canceled="$(( ${#tests[@]} - num_succeeded - num_failed ))"
+    num_canceled="$(( ${#tests[@]} - num_succeeded - num_failed - num_skipped ))"
 
     if (( num_failed > 0 )); then
-        color=31
+        color=31 # red
     elif (( num_canceled > 0 )); then
-        color=33
+        color=33 # yellow
+    elif (( num_skipped > 0 )); then
+        color=34 # blue
     else
-        color=32
+        color=32 # green
     fi
 
-    __big_log "${color}" '%d succeeded, %d failed, %d canceled' \
-        "${num_succeeded}" "${num_failed}" "${num_canceled}"
+    __big_log "${color}" '%d succeeded, %d failed, %d skipped, %d canceled' \
+        "${num_succeeded}" "${num_failed}" "${num_skipped}" "${num_canceled}"
 fi
 
 trap 'rm -fr "${temp_dir}"' EXIT
@@ -547,4 +552,4 @@ if (( "${creating_cluster_in_background:-0}" == 1 )); then
         --schedule=30m
 fi
 
-(( sandbox || num_succeeded == ${#tests[@]} ))
+(( sandbox || ( num_succeeded + num_skipped ) == ${#tests[@]} ))

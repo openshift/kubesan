@@ -1,9 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
+FROM quay.io/projectquay/golang:1.22 AS builder
+
+WORKDIR /csi-sanity
+
+RUN curl -L https://github.com/kubernetes-csi/csi-test/archive/refs/tags/v5.2.0.tar.gz | tar xz
+RUN ln -s csi-test-5.2.0 csi-test && cd csi-test && make
+
 FROM quay.io/fedora/fedora:40
 
 RUN dnf install -qy fio strace nbd nmap-ncat qemu-img && dnf clean all
 
 COPY --chmod=744 scripts ./
+COPY --from=builder /csi-sanity/csi-test/cmd/csi-sanity/csi-sanity ./
 
 ENTRYPOINT []
