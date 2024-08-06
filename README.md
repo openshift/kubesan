@@ -25,6 +25,7 @@ Features:
 - Thin provisioning
 
 Roadmap:
+- [ ] Recovery after power failure. Currently requires manual intervention.
 - [ ] Volume expansion
 - [ ] Instant volume cloning via background copy
 
