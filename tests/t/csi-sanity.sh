@@ -10,7 +10,7 @@ spec:
   hostPID: true
   containers:
     - name: container
-      image: localhost/kubesan/test:test
+      image: $TEST_IMAGE
       command:
         - ./csi-sanity
         - --csi.controllerendpoint
