@@ -10,5 +10,8 @@ roleRef:
   name: manager-role
 subjects:
 - kind: ServiceAccount
-  name: controller-manager
+  name: cluster-controller-manager
+  namespace: kubesan-system
+- kind: ServiceAccount
+  name: node-controller-manager
   namespace: kubesan-system
