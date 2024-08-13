@@ -20,7 +20,7 @@ type Output struct {
 // If the command exits with a non-zero status, an error is returned alongside the output.
 func RunInContainer(command ...string) (Output, error) {
 	cmd := exec.Command(command[0], command[1:]...)
-	cmd.Env = append(cmd.Env, "LC_ALL=C")
+	cmd.Env = append(cmd.Environ(), "LC_ALL=C")
 	cmd.Stdin = nil
 
 	combined, err := cmd.CombinedOutput()
