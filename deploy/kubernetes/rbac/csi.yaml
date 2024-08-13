@@ -13,6 +13,9 @@ rules:
   - apiGroups: [batch]
     resources: [jobs]
     verbs: [create, delete, get]
+  - apiGroups: [kubesan.gitlab.io]
+    resources: [volumes]
+    verbs: [get, list, watch, create, delete]
 
 ---
 kind: ClusterRoleBinding
