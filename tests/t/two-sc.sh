@@ -15,7 +15,7 @@ metadata:
     storageclass.kubernetes.io/is-default-class: "false"
 provisioner: kubesan.gitlab.io
 parameters:
-  backingVolumeGroup: second-vg
+  lvmVolumeGroup: second-vg
 EOF
 
 ksan-stage 'Provisioning volumes in each StorageClass...'
