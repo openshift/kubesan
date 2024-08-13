@@ -2,7 +2,10 @@
 
 package slices
 
-import "slices"
+import (
+	"reflect"
+	"slices"
+)
 
 func Any[T any](list []T, predicate func(T) bool) bool {
 	for _, e := range list {
@@ -91,7 +94,8 @@ func Deduplicate[T comparable](list []T) []T {
 func CountNonNil(vs ...interface{}) int {
 	count := 0
 	for _, v := range vs {
-		if v != nil {
+		// Reflection is needed because https://go.dev/doc/faq#nil_error
+		if v != nil && !reflect.ValueOf(v).IsNil() {
 			count++
 		}
 	}
