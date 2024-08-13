@@ -89,7 +89,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 func getVolumeMode(req *csi.CreateVolumeRequest) (v1alpha1.VolumeMode, error) {
 	mode := req.Parameters["mode"]
 	if mode == "" {
-		return "", status.Error(codes.InvalidArgument, "missing/empty parameter \"mode\"")
+		return v1alpha1.VolumeModeFat, nil // TODO StorageClass should set the default volume mode
 	}
 
 	if mode != string(v1alpha1.VolumeModeThin) && mode != string(v1alpha1.VolumeModeFat) {
