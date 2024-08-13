@@ -243,6 +243,7 @@ __run() {
             __log_cyan "Installing KubeSAN..."
             pattern="s;quay.io/kubesan/([a-z-]+):(latest|v[0-9+\.]+);${ksanregistry}/kubesan/\1:test;g"
             kubectl kustomize "${repo_root}/deploy/kubernetes" | sed -E "$pattern" | kubectl create -f -
+            kubectl create -f "${script_dir}/t-data/storage-class.yaml"
         fi
 
         # an externally deployed cluster might already have a snapshot class
