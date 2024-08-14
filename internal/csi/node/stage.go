@@ -4,6 +4,7 @@ package node
 
 import (
 	"context"
+	"os"
 	"slices"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -52,6 +53,18 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, err
 	}
 
+	// create symlink to device for NodePublishVolume() (block volumes only)
+
+	err = os.Remove(req.StagingTargetPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	err = os.Symlink(volume.Status.GetPath(), req.StagingTargetPath)
+	if err != nil {
+		return nil, err
+	}
+
 	// success
 
 	return &csi.NodeStageVolumeResponse{}, nil
@@ -66,6 +79,12 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	if req.StagingTargetPath == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "must specify staging target path")
+	}
+
+	// remove symlink to device
+	err := os.Remove(req.StagingTargetPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	// detach volume from local node
@@ -85,7 +104,7 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	// wait until volume is detached from local node
 
-	err := s.client.WatchVolumeUntil(ctx, volume, func() bool {
+	err = s.client.WatchVolumeUntil(ctx, volume, func() bool {
 		return !slices.Contains(volume.Status.AttachedToNodes, config.LocalNodeName)
 	})
 	if err != nil {
