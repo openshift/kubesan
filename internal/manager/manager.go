@@ -90,7 +90,7 @@ func RunNodeControllers() error {
 func runManager(ctrlOpts ctrl.Options, controllerSetUpFuncs []func(ctrl.Manager) error) error {
 	// KubeSAN VGs use their own LVM profile to avoid interfering with the system-wide lvm.conf config. This profile
 	// is hardcoded here and is put in place before creating LVs that get their config from the profile.
-	err := commands.LvmCreateProfile(config.LvmProfile, config.LvmProfile)
+	err := commands.LvmCreateProfile(config.LvmProfileName, config.LvmProfile)
 	if err != nil {
 		return err
 	}
