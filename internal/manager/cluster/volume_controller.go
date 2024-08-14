@@ -29,6 +29,7 @@ func SetUpVolumeReconciler(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Volume{}).
+		Owns(&v1alpha1.FatBlob{}).
 		Complete(r)
 }
 
