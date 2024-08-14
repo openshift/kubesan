@@ -86,7 +86,7 @@ func (r *FatBlobReconciler) createLinearLv(ctx context.Context, fatBlob *v1alpha
 		},
 	}
 
-	if err := controllerutil.SetOwnerReference(fatBlob, linearLv, r.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(fatBlob, linearLv, r.Scheme); err != nil {
 		return err
 	}
 

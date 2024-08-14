@@ -139,7 +139,7 @@ func (r *VolumeReconciler) createFatBlob(ctx context.Context, volume *v1alpha1.V
 		},
 	}
 
-	if err := controllerutil.SetOwnerReference(volume, fatBlob, r.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(volume, fatBlob, r.Scheme); err != nil {
 		return err
 	}
 
