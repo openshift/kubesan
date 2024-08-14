@@ -3,6 +3,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -51,13 +52,17 @@ func RunOnHost(command ...string) (Output, error) {
 	return RunInContainer(append([]string{"nsenter", "--target", "1", "--all"}, command...)...)
 }
 
-func PathExistsOnHost(path string) (bool, error) {
-	output, err := RunOnHost("ls", path)
-	if err != nil {
+func PathExistsOnHost(hostPath string) (bool, error) {
+	// We run with hostPID: true so we can see the host's root file system
+	containerPath := path.Join("/proc/1/root", hostPath)
+	_, err := os.Stat(containerPath)
+	if err == nil {
+		return true, nil
+	} else if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	} else {
 		return false, err
 	}
-
-	return len(strings.TrimSpace(string(output.Combined))) > 0, nil
 }
 
 func Dmsetup(args ...string) (Output, error) {
