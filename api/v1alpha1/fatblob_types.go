@@ -37,7 +37,7 @@ type FatBlobStatus struct {
 	Path *string `json:"path,omitempty"`
 }
 
-func (f *FatBlobStatus) GetPath ()string {
+func (f *FatBlobStatus) GetPath() string {
 	if f.Path == nil {
 		return ""
 	} else {
