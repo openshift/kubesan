@@ -72,16 +72,7 @@ func (r *LinearLvNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-
-		// update status to reflect reality if necessary
-
-		if !isActiveInStatus {
-			linearLv.Status.ActiveOnNodes = append(linearLv.Status.ActiveOnNodes, config.LocalNodeName)
-
-			if err := r.Status().Update(ctx, linearLv); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
+		isActuallyActive = true
 	} else if !shouldBeActive && isActuallyActive {
 		// deactivate LVM LV from local node
 
@@ -94,17 +85,19 @@ func (r *LinearLvNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-
-		// update status to reflect reality if necessary
-
-		if isActiveInStatus {
-			linearLv.Status.ActiveOnNodes = kubesanslices.RemoveAll(linearLv.Status.ActiveOnNodes, config.LocalNodeName)
-
-			if err := r.Status().Update(ctx, linearLv); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
+		isActuallyActive = false
 	}
 
-	return ctrl.Result{}, nil
+	// update status to reflect reality if necessary
+
+	if !isActiveInStatus && isActuallyActive {
+		linearLv.Status.ActiveOnNodes = append(linearLv.Status.ActiveOnNodes, config.LocalNodeName)
+	} else if isActiveInStatus && !isActuallyActive {
+		linearLv.Status.ActiveOnNodes = kubesanslices.RemoveAll(linearLv.Status.ActiveOnNodes, config.LocalNodeName)
+	} else {
+		return ctrl.Result{}, nil // done, no need to update Status
+	}
+
+	err = r.Status().Update(ctx, linearLv)
+	return ctrl.Result{}, err
 }
