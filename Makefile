@@ -42,13 +42,18 @@ help: ## Display this help.
 ##@ Build
 
 .PHONY: build
-build: vet lint ## Build the KubeSAN image.
+build: .generate.timestamp vet lint ## Build the KubeSAN image.
 	$(CONTAINER_TOOL) build -t ${IMG} .
 
 ##@ Development
 
 .PHONY: generate
-generate: controller-gen ## Generate ClusterRole and CustomResourceDefinition YAML, and corresponding DeepCopy*() methods.
+generate: controller-gen .generate.timestamp
+
+GROUPVERSION_INFO=api/v1alpha1/groupversion_info.go
+CRD_TYPES:=$(wildcard api/v1alpha1/*_types.go)
+
+.generate.timestamp: $(CONTROLLER_GEN) $(GROUPVERSION_INFO) $(CRD_TYPES)  ## Generate ClusterRole and CustomResourceDefinition YAML, and corresponding DeepCopy*() methods.
 	$(CONTROLLER_GEN) \
 		object:headerFile="hack/header.go.txt" \
 		crd:headerFile="hack/header.yaml.txt" \
@@ -56,6 +61,7 @@ generate: controller-gen ## Generate ClusterRole and CustomResourceDefinition YA
 		output:crd:artifacts:config=deploy/kubernetes/crd \
 		output:rbac:artifacts:config=deploy/kubernetes/rbac \
 		paths="./..."
+	touch $@
 
 .PHONY: fmt
 fmt: ## Run go fmt.
