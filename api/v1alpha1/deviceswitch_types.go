@@ -10,16 +10,16 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 type DeviceSwitchSpec struct {
-	Node      string  `json:"node"`      // should never change
-	SizeBytes int64   `json:"sizeBytes"` // may change at will
-	InputUri  *string `json:"input"`     // may change at will; supports file:// and nbd://
+	Node      string  `json:"node"`               // should never change
+	SizeBytes int64   `json:"sizeBytes"`          // may change at will
+	InputURI  *string `json:"inputURI,omitempty"` // may change at will; supports file:// and nbd://
 }
 
 type DeviceSwitchStatus struct {
 	Node       *string `json:"node"`
 	OutputPath *string `json:"outputPath"`
 	SizeBytes  *int64  `json:"sizeBytes"`
-	InputUri   *string `json:"input"`
+	InputURI   *string `json:"inputURI"`
 
 	NbdDevice *string `json:"nbdDevice,omitempty"` // only relevant internally to the DeviceSwitch controller
 }

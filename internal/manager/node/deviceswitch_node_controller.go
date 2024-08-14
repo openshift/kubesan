@@ -115,13 +115,13 @@ func (r *DeviceSwitchNodeReconciler) reconcileNotDeleting(ctx context.Context, d
 
 	// reconfigure dm-multipath if input URI changed
 
-	newInputUri := deviceSwitch.Spec.InputUri
+	newInputURI := deviceSwitch.Spec.InputURI
 	newSizeBytes := deviceSwitch.Spec.SizeBytes
 
-	if deviceSwitch.Status.InputUri != newInputUri || *deviceSwitch.Status.SizeBytes != newSizeBytes {
+	if deviceSwitch.Status.InputURI != newInputURI || *deviceSwitch.Status.SizeBytes != newSizeBytes {
 		// disconnect (if necessary)
 
-		if deviceSwitch.Status.InputUri != nil {
+		if deviceSwitch.Status.InputURI != nil {
 			err := r.reconfigureDmMultipath(deviceSwitch.Name, *deviceSwitch.Status.SizeBytes, nil)
 			if err != nil {
 				return err
@@ -134,7 +134,7 @@ func (r *DeviceSwitchNodeReconciler) reconcileNotDeleting(ctx context.Context, d
 				}
 			}
 
-			deviceSwitch.Status.InputUri = nil
+			deviceSwitch.Status.InputURI = nil
 			deviceSwitch.Status.NbdDevice = nil
 
 			if err := r.Status().Update(ctx, deviceSwitch); err != nil {
@@ -146,8 +146,8 @@ func (r *DeviceSwitchNodeReconciler) reconcileNotDeleting(ctx context.Context, d
 
 		var newDevPath *string
 
-		if newInputUri != nil && strings.HasPrefix(*newInputUri, "nbd://") {
-			nbdDevPath, err := commands.NbdClientConnect(strings.TrimPrefix(*newInputUri, "nbd://"))
+		if newInputURI != nil && strings.HasPrefix(*newInputURI, "nbd://") {
+			nbdDevPath, err := commands.NbdClientConnect(strings.TrimPrefix(*newInputURI, "nbd://"))
 			if err != nil {
 				return err
 			}
@@ -160,8 +160,8 @@ func (r *DeviceSwitchNodeReconciler) reconcileNotDeleting(ctx context.Context, d
 			}
 
 			newDevPath = &nbdDevPath
-		} else if newInputUri != nil && strings.HasPrefix(*newInputUri, "file://") {
-			path := strings.TrimPrefix(*newInputUri, "file://")
+		} else if newInputURI != nil && strings.HasPrefix(*newInputURI, "file://") {
+			path := strings.TrimPrefix(*newInputURI, "file://")
 			newDevPath = &path
 		}
 
@@ -172,7 +172,7 @@ func (r *DeviceSwitchNodeReconciler) reconcileNotDeleting(ctx context.Context, d
 			}
 
 			deviceSwitch.Status.SizeBytes = &newSizeBytes
-			deviceSwitch.Status.InputUri = newInputUri
+			deviceSwitch.Status.InputURI = newInputURI
 
 			if err := r.Status().Update(ctx, deviceSwitch); err != nil {
 				return err
