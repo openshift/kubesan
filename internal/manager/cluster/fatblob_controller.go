@@ -137,7 +137,7 @@ func (r *FatBlobReconciler) updateFatBlobStatus(ctx context.Context, fatBlob *v1
 		updated = true
 	}
 
-	if fatBlob.Status.Path != linearLv.Status.Path {
+	if fatBlob.Status.GetPath() != linearLv.Status.GetPath() {
 		fatBlob.Status.Path = linearLv.Status.Path
 		updated = true
 	}

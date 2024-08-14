@@ -120,6 +120,14 @@ func (v *VolumeStatus) IsAttachedToNode(node string) bool {
 	return slices.Contains(v.AttachedToNodes, node)
 }
 
+func (v *VolumeStatus) GetPath() string {
+	if v.Path == nil {
+		return ""
+	} else {
+		return *v.Path
+	}
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status

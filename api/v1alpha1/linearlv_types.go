@@ -37,6 +37,14 @@ type LinearLvStatus struct {
 	Path *string `json:"path,omitempty"`
 }
 
+func (l *LinearLvStatus) GetPath() string {
+	if l.Path == nil {
+		return ""
+	} else {
+		return *l.Path
+	}
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status

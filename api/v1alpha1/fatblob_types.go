@@ -37,6 +37,14 @@ type FatBlobStatus struct {
 	Path *string `json:"path,omitempty"`
 }
 
+func (f *FatBlobStatus) GetPath ()string {
+	if f.Path == nil {
+		return ""
+	} else {
+		return *f.Path
+	}
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:scope=Cluster
 //+kubebuilder:subresource:status

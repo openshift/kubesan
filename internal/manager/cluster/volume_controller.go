@@ -190,7 +190,7 @@ func (r *VolumeReconciler) updateVolumeStatus(ctx context.Context, volume *v1alp
 		updated = true
 	}
 
-	if volume.Status.Path != fatBlob.Status.Path {
+	if volume.Status.GetPath() != fatBlob.Status.GetPath() {
 		volume.Status.Path = fatBlob.Status.Path
 		updated = true
 	}
