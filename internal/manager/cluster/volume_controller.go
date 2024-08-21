@@ -4,15 +4,17 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
+	"gitlab.com/kubesan/kubesan/internal/common/commands"
+	"gitlab.com/kubesan/kubesan/internal/common/config"
 	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
 )
 
@@ -29,7 +31,6 @@ func SetUpVolumeReconciler(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Volume{}).
-		Owns(&v1alpha1.FatBlob{}).
 		Complete(r)
 }
 
@@ -63,9 +64,91 @@ func (r *VolumeReconciler) reconcileThin(ctx context.Context, volume *v1alpha1.V
 	return errors.NewBadRequest("not implemented") // TODO
 }
 
+func (r *VolumeReconciler) reconcileFatNotDeleting(ctx context.Context, volume *v1alpha1.Volume) error {
+	// add finalizer
+
+	if !controllerutil.ContainsFinalizer(volume, config.Finalizer) {
+		controllerutil.AddFinalizer(volume, config.Finalizer)
+
+		if err := r.Status().Update(ctx, volume); err != nil {
+			return err
+		}
+	}
+
+	// create LVM LV if necessary
+
+	if !volume.Status.Created {
+		_, err := commands.LvmLvCreateIdempotent(
+			"--devicesfile", volume.Spec.VgName,
+			"--activate", "n",
+			"--type", "linear",
+			"--metadataprofile", "kubesan",
+			"--name", volume.Name,
+			"--size", fmt.Sprintf("%db", volume.Spec.SizeBytes),
+			volume.Spec.VgName,
+		)
+		if err != nil {
+			return err
+		}
+
+		volume.Status.Created = true
+		volume.Status.SizeBytes = volume.Spec.SizeBytes // TODO report actual size?
+
+		path := fmt.Sprintf("/dev/%s/%s", volume.Spec.VgName, volume.Name)
+		volume.Status.Path = &path
+
+		if err := r.Status().Update(ctx, volume); err != nil {
+			return err
+		}
+	}
+
+	// expand LVM LV if necessary
+
+	if volume.Status.SizeBytes < volume.Spec.SizeBytes {
+		// TODO: make sure this is idempotent
+		_, err := commands.Lvm(
+			"lvextend",
+			"--devicesfile", volume.Spec.VgName,
+			"--size", fmt.Sprintf("%db", volume.Spec.SizeBytes),
+			fmt.Sprintf("%s/%s", volume.Spec.VgName, volume.Name),
+		)
+		if err != nil {
+			return err
+		}
+
+		volume.Status.SizeBytes = volume.Spec.SizeBytes
+
+		if err := r.Status().Update(ctx, volume); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *VolumeReconciler) reconcileFatDeleting(ctx context.Context, volume *v1alpha1.Volume) error {
+	if len(volume.Status.AttachedToNodes) == 0 {
+		_, err := commands.LvmLvRemoveIdempotent(
+			"--devicesfile", volume.Spec.VgName,
+			fmt.Sprintf("%s/%s", volume.Spec.VgName, volume.Name),
+		)
+		if err != nil {
+			return err
+		}
+
+		controllerutil.RemoveFinalizer(volume, config.Finalizer)
+
+		if err := r.Status().Update(ctx, volume); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (r *VolumeReconciler) reconcileFat(ctx context.Context, volume *v1alpha1.Volume) error {
 	if volume.DeletionTimestamp != nil {
-		return nil
+		return r.reconcileFatDeleting(ctx, volume) // TODO
 	}
 
 	if kubesanslices.CountNonNil(
@@ -102,106 +185,7 @@ func (r *VolumeReconciler) reconcileFat(ctx context.Context, volume *v1alpha1.Vo
 		return errors.NewBadRequest("cloning snapshots is not supported for fat volumes")
 	}
 
-	// create FatBlob or update its spec
-
-	fatBlob := &v1alpha1.FatBlob{}
-	err := r.Get(ctx, client.ObjectKeyFromObject(volume), fatBlob)
-
-	if err == nil {
-		err = r.updateFatBlobSpec(ctx, volume, fatBlob)
-		if err != nil {
-			return err
-		}
-
-		err = r.updateVolumeStatus(ctx, volume, fatBlob)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	} else if errors.IsNotFound(err) {
-		return r.createFatBlob(ctx, volume)
-	} else {
-		return err
-	}
-}
-
-func (r *VolumeReconciler) createFatBlob(ctx context.Context, volume *v1alpha1.Volume) error {
-	fatBlob := &v1alpha1.FatBlob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: volume.Name,
-		},
-		Spec: v1alpha1.FatBlobSpec{
-			VgName:        volume.Spec.VgName,
-			ReadOnly:      volume.Spec.ReadOnly(),
-			SizeBytes:     volume.Spec.SizeBytes,
-			AttachToNodes: kubesanslices.Deduplicate(volume.Spec.AttachToNodes),
-		},
-	}
-
-	if err := controllerutil.SetControllerReference(volume, fatBlob, r.Scheme); err != nil {
-		return err
-	}
-
-	if err := r.Create(ctx, fatBlob); err != nil && !errors.IsAlreadyExists(err) {
-		return err
-	}
-
-	return nil
-}
-
-func (r *VolumeReconciler) updateFatBlobSpec(ctx context.Context, volume *v1alpha1.Volume, fatBlob *v1alpha1.FatBlob) error {
-	updated := false
-
-	if fatBlob.Spec.SizeBytes != volume.Spec.SizeBytes {
-		fatBlob.Spec.SizeBytes = volume.Spec.SizeBytes
-		updated = true
-	}
-
-	if !kubesanslices.SetsEqual(fatBlob.Spec.AttachToNodes, volume.Spec.AttachToNodes) {
-		fatBlob.Spec.AttachToNodes = kubesanslices.Deduplicate(volume.Spec.AttachToNodes)
-		updated = true
-	}
-
-	if updated {
-		if err := r.Update(ctx, fatBlob); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *VolumeReconciler) updateVolumeStatus(ctx context.Context, volume *v1alpha1.Volume, fatBlob *v1alpha1.FatBlob) error {
-	updated := false
-
-	if volume.Status.Created != fatBlob.Status.Created {
-		volume.Status.Created = true
-		updated = true
-	}
-
-	if volume.Status.SizeBytes != fatBlob.Status.SizeBytes {
-		volume.Status.SizeBytes = fatBlob.Status.SizeBytes
-		updated = true
-	}
-
-	if !kubesanslices.SetsEqual(volume.Status.AttachedToNodes, fatBlob.Status.AttachedToNodes) {
-		volume.Status.AttachedToNodes = kubesanslices.Deduplicate(fatBlob.Status.AttachedToNodes)
-		updated = true
-	}
-
-	if volume.Status.GetPath() != fatBlob.Status.GetPath() {
-		volume.Status.Path = fatBlob.Status.Path
-		updated = true
-	}
-
-	if updated {
-		if err := r.Client.Status().Update(ctx, volume); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return r.reconcileFatNotDeleting(ctx, volume)
 }
 
 // func createOrUpdate[T client.Object](ctx context.Context, c client.Client, emptyObj T, update func(obj T) error) (T, error) {

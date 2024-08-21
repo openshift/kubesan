@@ -2,8 +2,6 @@
 
 resources:
 - kubesan.gitlab.io_deviceswitches.yaml
-- kubesan.gitlab.io_fatblobs.yaml
-- kubesan.gitlab.io_linearlvs.yaml
 - kubesan.gitlab.io_nbdservers.yaml
 - kubesan.gitlab.io_snapshots.yaml
 - kubesan.gitlab.io_thinblobs.yaml
