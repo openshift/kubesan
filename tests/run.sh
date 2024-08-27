@@ -25,6 +25,8 @@ repeat=1
 set_kubectl_context=0
 pause_on_failure=0
 pause_on_stage=0
+use_cache=0
+refresh_cache=0
 tests_arg=()
 
 while (( $# > 0 )); do
@@ -54,6 +56,13 @@ while (( $# > 0 )); do
             shift
             deploy_tool=$1
             ;;
+        --use-cache)
+            use_cache=1
+            ;;
+        --refresh-cache)
+            refresh_cache=1
+            use_cache=1
+            ;;
         *)
             tests_arg+=( "$1" )
             ;;
@@ -77,6 +86,8 @@ if (( "${#tests_arg[@]}" == 0 )); then
     >&2 echo -n "\
 Usage: $0 [<options...>] <tests...>
        $0 [<options...>] all
+       $0 [<options...>] create-cache
+       $0 [<options...>] delete-cache
        $0 [<options...>] sandbox
        $0 [<options...>] sandbox-no-install
 
@@ -97,6 +108,8 @@ Options:
    --pause-on-failure      Launch an interactive shell after a test fails.
    --pause-on-stage        Launch an interactive shell before each stage in a test.
    --use <x>               Backend provider for k8s/openshift deployment (kcli|minikube|..., default: kcli).
+   --use-cache             Use local cache when available (only supported for kcli).
+   --refresh-cache         Refresh/create local cache when running tests directly (only supported for kcli).
 
 NOTE: not all options are supported for kcli or minikube.
 
@@ -110,16 +123,23 @@ for 30 minutes.
     exit 2
 fi
 
-if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox ]]; then
+create_cache=0
+delete_cache=0
+sandbox=0
+install_kubesan=0
+uninstall_kubesan=0
+
+if (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = create-cache ]]; then
+    create_cache=1
+elif (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = delete-cache ]]; then
+    create_cache=1
+    delete_cache=1
+elif (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox ]]; then
     sandbox=1
     install_kubesan=1
-    uninstall_kubesan=0
 elif (( "${#tests_arg[@]}" == 1 )) && [[ "${tests_arg[0]}" = sandbox-no-install ]]; then
     sandbox=1
-    install_kubesan=0
-    uninstall_kubesan=0
 else
-    sandbox=0
     install_kubesan=1
     uninstall_kubesan=1
 
@@ -163,6 +183,26 @@ for f in ${script_dir}/lib/*.sh; do
 done
 
 __build_images
+
+# this is only really required by CI to separate
+# creation time vs testing time. does not support
+# multiple clusters yet and pretty much works only
+# with kcli
+
+if (( requires_local_deploy )) && (( support_snapshots )); then
+    if (( create_cache )) || (( delete_cache )) || (( refresh_cache )); then
+        __log_cyan "Deleting ${deploy_tool} cluster '%s'..." "${cluster_base_name}"
+        __delete_${deploy_tool}_cluster "${cluster_base_name}"
+        if (( delete_cache )); then
+            exit 0
+        fi
+        __get_a_current_cluster
+        __snapshot_${deploy_tool}_cluster "${cluster_base_name}"
+        if ! (( refresh_cache )); then
+            exit 0
+        fi
+    fi
+fi
 
 # create temporary directory
 
@@ -298,9 +338,14 @@ __run() {
     fi
 
     if (( requires_local_deploy )); then
-        __log_cyan "Deleting ${deploy_tool} cluster '%s'..." "${current_cluster}"
-        __delete_${deploy_tool}_cluster "${current_cluster}"
-        __clean_background_clusters
+        if (( use_cache )); then
+            __log_cyan "Stopping ${deploy_tool} cluster '%s'..." "${current_cluster}"
+            __stop_${deploy_tool}_cluster "${current_cluster}"
+        else
+            __log_cyan "Deleting ${deploy_tool} cluster '%s'..." "${current_cluster}"
+            __delete_${deploy_tool}_cluster "${current_cluster}"
+            __clean_background_clusters
+        fi
     fi
 }
 
