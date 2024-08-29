@@ -220,6 +220,7 @@ ksan-kcli-ssh-into-node() {
         # shellcheck disable=SC2154
         __kcli \
             ssh \
+	    -t \
             "$( __ksan-get-node-name "$1" )" \
             -- \
             bash -i
@@ -227,6 +228,7 @@ ksan-kcli-ssh-into-node() {
         local __args="${*:2}"
         __kcli \
             ssh \
+	    -t \
             "$( __ksan-get-node-name "$1" )" \
             -- \
             bash -ic "${__args@Q}" bash
