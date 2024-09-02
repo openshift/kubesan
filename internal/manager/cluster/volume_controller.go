@@ -16,7 +16,6 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/commands"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
 	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
 )
@@ -41,33 +40,35 @@ func SetUpVolumeReconciler(mgr ctrl.Manager) error {
 //+kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/finalizers,verbs=update
 
-func (r *VolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	// log := log.FromContext(ctx)
-
-	volume := &v1alpha1.Volume{}
-	if err := r.Get(ctx, req.NamespacedName, volume); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	var err error
-
+func newBlobManager(volume *v1alpha1.Volume) (BlobManager, error) {
 	switch volume.Spec.Mode {
 	case v1alpha1.VolumeModeThin:
-		err = r.reconcileThin(ctx, volume)
+		return nil, errors.NewBadRequest("thin blobs not yet implemented")
 	case v1alpha1.VolumeModeFat:
-		err = r.reconcileFat(ctx, volume)
+		return NewFatBlobManager(volume.Spec.VgName), nil
 	default:
-		err = errors.NewBadRequest("invalid volume mode")
+		return nil, errors.NewBadRequest("invalid volume mode")
+	}
+}
+
+func (r *VolumeReconciler) reconcileDeleting(ctx context.Context, blobMgr BlobManager, volume *v1alpha1.Volume) error {
+	if len(volume.Status.AttachedToNodes) > 0 {
+		return nil // wait until no longer attached
 	}
 
-	return ctrl.Result{}, err
+	if err := blobMgr.RemoveBlob(volume.Name); err != nil {
+		return err
+	}
+
+	controllerutil.RemoveFinalizer(volume, config.Finalizer)
+
+	if err := r.Status().Update(ctx, volume); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (r *VolumeReconciler) reconcileThin(ctx context.Context, volume *v1alpha1.Volume) error {
-	return errors.NewBadRequest("not implemented") // TODO
-}
-
-func (r *VolumeReconciler) reconcileFatNotDeleting(ctx context.Context, volume *v1alpha1.Volume) error {
+func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr BlobManager, volume *v1alpha1.Volume) error {
 	// add finalizer
 
 	if !controllerutil.ContainsFinalizer(volume, config.Finalizer) {
@@ -81,15 +82,7 @@ func (r *VolumeReconciler) reconcileFatNotDeleting(ctx context.Context, volume *
 	// create LVM LV if necessary
 
 	if !conditionsv1.IsStatusConditionTrue(volume.Status.Conditions, conditionsv1.ConditionAvailable) {
-		_, err := commands.LvmLvCreateIdempotent(
-			"--devicesfile", volume.Spec.VgName,
-			"--activate", "n",
-			"--type", "linear",
-			"--metadataprofile", "kubesan",
-			"--name", volume.Name,
-			"--size", fmt.Sprintf("%db", volume.Spec.SizeBytes),
-			volume.Spec.VgName,
-		)
+		err := blobMgr.CreateBlob(volume.Name, volume.Spec.SizeBytes)
 		if err != nil {
 			return err
 		}
@@ -113,36 +106,29 @@ func (r *VolumeReconciler) reconcileFatNotDeleting(ctx context.Context, volume *
 	return nil
 }
 
-func (r *VolumeReconciler) reconcileFatDeleting(ctx context.Context, volume *v1alpha1.Volume) error {
-	if len(volume.Status.AttachedToNodes) == 0 {
-		_, err := commands.LvmLvRemoveIdempotent(
-			"--devicesfile", volume.Spec.VgName,
-			fmt.Sprintf("%s/%s", volume.Spec.VgName, volume.Name),
-		)
-		if err != nil {
-			return err
-		}
+func (r *VolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// log := log.FromContext(ctx)
 
-		controllerutil.RemoveFinalizer(volume, config.Finalizer)
-
-		if err := r.Status().Update(ctx, volume); err != nil {
-			return err
-		}
+	volume := &v1alpha1.Volume{}
+	if err := r.Get(ctx, req.NamespacedName, volume); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	return nil
-}
+	blobMgr, err := newBlobManager(volume)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-func (r *VolumeReconciler) reconcileFat(ctx context.Context, volume *v1alpha1.Volume) error {
 	if volume.DeletionTimestamp != nil {
-		return r.reconcileFatDeleting(ctx, volume) // TODO
+		err := r.reconcileDeleting(ctx, blobMgr, volume)
+		return ctrl.Result{}, err
 	}
 
 	if kubesanslices.CountNonNil(
 		volume.Spec.Type.Block,
 		volume.Spec.Type.Filesystem,
 	) != 1 {
-		return errors.NewBadRequest("invalid volume type")
+		return ctrl.Result{}, errors.NewBadRequest("invalid volume type")
 	}
 
 	switch {
@@ -150,7 +136,7 @@ func (r *VolumeReconciler) reconcileFat(ctx context.Context, volume *v1alpha1.Vo
 		// nothing to do
 
 	case volume.Spec.Type.Filesystem != nil:
-		return errors.NewBadRequest("not implemented") // TODO
+		return ctrl.Result{}, errors.NewBadRequest("not implemented") // TODO
 	}
 
 	if kubesanslices.CountNonNil(
@@ -158,7 +144,7 @@ func (r *VolumeReconciler) reconcileFat(ctx context.Context, volume *v1alpha1.Vo
 		volume.Spec.Contents.CloneVolume,
 		volume.Spec.Contents.CloneSnapshot,
 	) != 1 {
-		return errors.NewBadRequest("invalid volume contents")
+		return ctrl.Result{}, errors.NewBadRequest("invalid volume contents")
 	}
 
 	switch {
@@ -166,44 +152,11 @@ func (r *VolumeReconciler) reconcileFat(ctx context.Context, volume *v1alpha1.Vo
 		// nothing to do
 
 	case volume.Spec.Contents.CloneVolume != nil:
-		return errors.NewBadRequest("cloning volumes is not supported for fat volumes")
+		return ctrl.Result{}, errors.NewBadRequest("cloning volumes is not yet supported")
 
 	case volume.Spec.Contents.CloneSnapshot != nil:
-		return errors.NewBadRequest("cloning snapshots is not supported for fat volumes")
+		return ctrl.Result{}, errors.NewBadRequest("cloning snapshots is not yet supported")
 	}
 
-	return r.reconcileFatNotDeleting(ctx, volume)
+	return ctrl.Result{}, r.reconcileNotDeleting(ctx, blobMgr, volume)
 }
-
-// func createOrUpdate[T client.Object](ctx context.Context, c client.Client, emptyObj T, update func(obj T) error) (T, error) {
-// 	// try creating object
-
-// 	obj := emptyObj.DeepCopyObject().(T)
-// 	if err := update(obj); err != nil {
-// 		return emptyObj, err
-// 	}
-
-// 	if err := c.Create(ctx, obj); err == nil {
-// 		return obj, nil
-// 	} else if !errors.IsAlreadyExists(err) {
-// 		return emptyObj, err
-// 	}
-
-// 	// object already exists, update it
-
-// 	obj = emptyObj.DeepCopyObject().(T)
-
-// 	if err := c.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
-// 		return emptyObj, err
-// 	}
-
-// 	if err := update(obj); err != nil {
-// 		return emptyObj, err
-// 	}
-
-// 	if err := c.Update(ctx, obj); err != nil {
-// 		return emptyObj, err
-// 	}
-
-// 	return obj, nil
-// }
