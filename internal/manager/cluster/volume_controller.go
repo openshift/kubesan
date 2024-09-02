@@ -110,27 +110,6 @@ func (r *VolumeReconciler) reconcileFatNotDeleting(ctx context.Context, volume *
 		}
 	}
 
-	// expand LVM LV if necessary
-
-	if volume.Status.SizeBytes < volume.Spec.SizeBytes {
-		// TODO: make sure this is idempotent
-		_, err := commands.Lvm(
-			"lvextend",
-			"--devicesfile", volume.Spec.VgName,
-			"--size", fmt.Sprintf("%db", volume.Spec.SizeBytes),
-			fmt.Sprintf("%s/%s", volume.Spec.VgName, volume.Name),
-		)
-		if err != nil {
-			return err
-		}
-
-		volume.Status.SizeBytes = volume.Spec.SizeBytes
-
-		if err := r.Status().Update(ctx, volume); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
