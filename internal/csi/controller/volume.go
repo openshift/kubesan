@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -70,7 +71,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
-	err = s.client.WatchVolumeUntil(ctx, volume, func() bool { return volume.Status.Created })
+	err = s.client.WatchVolumeUntil(ctx, volume, func() bool {
+		return conditionsv1.IsStatusConditionTrue(volume.Status.Conditions, conditionsv1.ConditionAvailable)
+	})
 	if err != nil {
 		return nil, err
 	}

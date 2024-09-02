@@ -6,6 +6,8 @@ import (
 	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 
 // Important: Run "make generate" to regenerate code after modifying this file
@@ -99,8 +101,12 @@ const (
 )
 
 type VolumeStatus struct {
-	// Whether the volume has been created.
-	Created bool `json:"created"`
+	// Conditions
+	// Available: The volume can be attached to nodes and used by Pods.
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +optional
+	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// Reflects the current size of the volume.
 	SizeBytes int64 `json:"sizeBytes"`

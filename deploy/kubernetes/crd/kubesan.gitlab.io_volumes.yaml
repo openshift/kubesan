@@ -115,9 +115,36 @@ spec:
                 items:
                   type: string
                 type: array
-              created:
-                description: Whether the volume has been created.
-                type: boolean
+              conditions:
+                description: |-
+                  Conditions
+                  Available: The volume can be attached to nodes and used by Pods.
+                items:
+                  description: |-
+                    Condition represents the state of the operator's
+                    reconciliation functionality.
+                  properties:
+                    lastHeartbeatTime:
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      description: ConditionType is the state of the operator's reconciliation
+                        functionality.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
               dataCopyInProgress:
                 type: boolean
               fsType:
@@ -131,7 +158,6 @@ spec:
                 format: int64
                 type: integer
             required:
-            - created
             - sizeBytes
             type: object
         type: object

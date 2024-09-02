@@ -12,6 +12,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/commands"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
@@ -40,7 +42,7 @@ func SetUpVolumeNodeReconciler(mgr ctrl.Manager) error {
 func (r *VolumeNodeReconciler) reconcileFat(ctx context.Context, volume *v1alpha1.Volume) error {
 	// check if already created
 
-	if !volume.Status.Created {
+	if !conditionsv1.IsStatusConditionTrue(volume.Status.Conditions, conditionsv1.ConditionAvailable) {
 		return nil
 	}
 

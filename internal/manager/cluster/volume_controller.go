@@ -6,11 +6,14 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/commands"
@@ -77,7 +80,7 @@ func (r *VolumeReconciler) reconcileFatNotDeleting(ctx context.Context, volume *
 
 	// create LVM LV if necessary
 
-	if !volume.Status.Created {
+	if !conditionsv1.IsStatusConditionTrue(volume.Status.Conditions, conditionsv1.ConditionAvailable) {
 		_, err := commands.LvmLvCreateIdempotent(
 			"--devicesfile", volume.Spec.VgName,
 			"--activate", "n",
@@ -91,7 +94,12 @@ func (r *VolumeReconciler) reconcileFatNotDeleting(ctx context.Context, volume *
 			return err
 		}
 
-		volume.Status.Created = true
+		condition := conditionsv1.Condition{
+			Type:   conditionsv1.ConditionAvailable,
+			Status: corev1.ConditionTrue,
+		}
+		conditionsv1.SetStatusCondition(&volume.Status.Conditions, condition)
+
 		volume.Status.SizeBytes = volume.Spec.SizeBytes // TODO report actual size?
 
 		path := fmt.Sprintf("/dev/%s/%s", volume.Spec.VgName, volume.Name)
