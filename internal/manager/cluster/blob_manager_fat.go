@@ -33,6 +33,11 @@ func (m *FatBlobManager) CreateBlob(name string, sizeBytes int64) error {
 		"--size", fmt.Sprintf("%db", sizeBytes),
 		m.vgName,
 	)
+
+	// TODO recreate if size does not match. This handles the case where a
+	// blob was partially created and then reconciled again with a
+	// different size. A blob must never be recreated after volume creation
+	// has completed since that could lose data!
 	return err
 }
 
