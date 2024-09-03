@@ -38,6 +38,9 @@ func (m *FatBlobManager) CreateBlob(name string, sizeBytes int64) error {
 	// blob was partially created and then reconciled again with a
 	// different size. A blob must never be recreated after volume creation
 	// has completed since that could lose data!
+
+	// TODO zero the LV (linear LVs are not automatically zero-initialized)
+	// https://gitlab.com/kubesan/kubesan/-/issues/63
 	return err
 }
 
