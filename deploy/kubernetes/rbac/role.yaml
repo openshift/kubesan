@@ -89,6 +89,32 @@ rules:
 - apiGroups:
   - kubesan.gitlab.io
   resources:
+  - thinpools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kubesan.gitlab.io
+  resources:
+  - thinpools/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kubesan.gitlab.io
+  resources:
+  - thinpools/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - kubesan.gitlab.io
+  resources:
   - thinblobs
   verbs:
   - create

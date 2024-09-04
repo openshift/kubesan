@@ -56,6 +56,7 @@ func RunClusterControllers() error {
 		clustercontrollers.SetUpNbdServerReconciler,
 		clustercontrollers.SetUpSnapshotReconciler,
 		clustercontrollers.SetUpThinBlobReconciler,
+		clustercontrollers.SetUpThinPoolReconciler,
 		clustercontrollers.SetUpThinPoolLvReconciler,
 		clustercontrollers.SetUpVolumeReconciler,
 	})
