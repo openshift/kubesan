@@ -31,7 +31,8 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	snapshot := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: req.Name,
+			Name:      req.Name,
+			Namespace: "kubesan-system",
 		},
 		Spec: v1alpha1.SnapshotSpec{
 			SourceVolume: req.SourceVolumeId,

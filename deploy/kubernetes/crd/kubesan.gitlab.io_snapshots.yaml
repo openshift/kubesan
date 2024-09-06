@@ -16,7 +16,7 @@ spec:
     listKind: SnapshotList
     plural: snapshots
     singular: snapshot
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1alpha1
     schema:

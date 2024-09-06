@@ -55,7 +55,8 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	volume := &v1alpha1.Volume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: req.Name,
+			Name:      req.Name,
+			Namespace: "kubesan-system",
 		},
 		Spec: v1alpha1.VolumeSpec{
 			VgName:      lvmVolumeGroup,

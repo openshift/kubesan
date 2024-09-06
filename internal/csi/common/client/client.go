@@ -11,7 +11,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/watch"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	apimachinerywatch "k8s.io/apimachinery/pkg/watch"
@@ -88,7 +87,7 @@ func (c *CsiK8sClient) TryWatchVolumeUntil(ctx context.Context, volume *v1alpha1
 	lw := cache.NewListWatchFromClient(
 		c.volumeRestClient,
 		"volumes",
-		metav1.NamespaceNone,
+		"kubesan-system",
 		fields.OneTermEqualSelector("metadata.name", volume.Name),
 	)
 
@@ -117,7 +116,7 @@ func (c *CsiK8sClient) TryWatchSnapshotUntil(ctx context.Context, snapshot *v1al
 	lw := cache.NewListWatchFromClient(
 		c.snapshotRestClient,
 		"snapshots",
-		metav1.NamespaceNone,
+		"kubesan-system",
 		fields.OneTermEqualSelector("metadata.name", snapshot.Name),
 	)
 

@@ -33,9 +33,9 @@ func SetUpThinPoolLvReconciler(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs/status,verbs=get;update;patch,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs/finalizers,verbs=update,namespace=kubesan-system
 
 func (r *ThinPoolLvReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	thinPoolLv := &v1alpha1.ThinPoolLv{}

@@ -6,6 +6,7 @@ import (
 	"flag"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -35,7 +36,12 @@ func RunClusterControllers() error {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	ctrlOpts := ctrl.Options{
-		Scheme:                 config.Scheme,
+		Scheme: config.Scheme,
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				"kubesan-system": {},
+			},
+		},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "dbe08e41.kubesan.gitlab.io",
@@ -74,7 +80,12 @@ func RunNodeControllers() error {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	ctrlOpts := ctrl.Options{
-		Scheme:                 config.Scheme,
+		Scheme: config.Scheme,
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				"kubesan-system": {},
+			},
+		},
 		HealthProbeBindAddress: probeAddr,
 	}
 

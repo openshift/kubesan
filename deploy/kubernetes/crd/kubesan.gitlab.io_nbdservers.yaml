@@ -16,7 +16,7 @@ spec:
     listKind: NbdServerList
     plural: nbdservers
     singular: nbdserver
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1alpha1
     schema:

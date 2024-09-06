@@ -4,9 +4,10 @@
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: manager-role
+  namespace: kubesan-system
 rules:
 - apiGroups:
   - kubesan.gitlab.io
@@ -89,32 +90,6 @@ rules:
 - apiGroups:
   - kubesan.gitlab.io
   resources:
-  - thinpools
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - kubesan.gitlab.io
-  resources:
-  - thinpools/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - kubesan.gitlab.io
-  resources:
-  - thinpools/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - kubesan.gitlab.io
-  resources:
   - thinblobs
   verbs:
   - create
@@ -160,6 +135,32 @@ rules:
   - kubesan.gitlab.io
   resources:
   - thinpoollvs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - kubesan.gitlab.io
+  resources:
+  - thinpools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kubesan.gitlab.io
+  resources:
+  - thinpools/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - kubesan.gitlab.io
+  resources:
+  - thinpools/status
   verbs:
   - get
   - patch

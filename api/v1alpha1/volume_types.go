@@ -135,7 +135,7 @@ func (v *VolumeStatus) GetPath() string {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
 
 // Volume is the Schema for the volumes API

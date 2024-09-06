@@ -16,7 +16,7 @@ spec:
     listKind: ThinPoolLvList
     plural: thinpoollvs
     singular: thinpoollv
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1alpha1
     schema:

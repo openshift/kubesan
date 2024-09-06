@@ -16,7 +16,7 @@ spec:
     listKind: ThinBlobList
     plural: thinblobs
     singular: thinblob
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1alpha1
     schema:

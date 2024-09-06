@@ -54,6 +54,7 @@ type ThinPoolStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
 
 // ThinPool is the Schema for the thinpools API

@@ -16,7 +16,7 @@ spec:
     listKind: ThinPoolList
     plural: thinpools
     singular: thinpool
-  scope: Cluster
+  scope: Namespaced
   versions:
   - name: v1alpha1
     schema:

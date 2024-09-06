@@ -53,9 +53,9 @@ func (r *ThinPoolReconciler) reconcileFinalizing(ctx context.Context, thinPool *
 	return r.Update(ctx, thinPool)
 }
 
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinPools,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinPools/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinPools/finalizers,verbs=update
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpools,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpools/status,verbs=get;update;patch,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpools/finalizers,verbs=update,namespace=kubesan-system
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

@@ -32,7 +32,7 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	// attach volume to local node
 
 	volume := &v1alpha1.Volume{}
-	if err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId}, volume); err != nil {
+	if err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId, Namespace: "kubesan-system"}, volume); err != nil {
 		return nil, err
 	}
 
@@ -90,7 +90,7 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	// detach volume from local node
 
 	volume := &v1alpha1.Volume{}
-	if err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId}, volume); err != nil {
+	if err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId, Namespace: "kubesan-system"}, volume); err != nil {
 		return nil, err
 	}
 

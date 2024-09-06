@@ -29,8 +29,8 @@ func SetUpNbdServerNodeReconciler(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdservers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdservers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdservers,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdservers/status,verbs=get;update;patch,namespace=kubesan-system
 
 func (r *NbdServerNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, errors.NewBadRequest("not implemented") // TODO

@@ -25,7 +25,7 @@ type DeviceSwitchStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
 
 type DeviceSwitch struct {
