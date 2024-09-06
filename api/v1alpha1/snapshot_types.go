@@ -28,9 +28,9 @@ type SnapshotStatus struct {
 	FsType *string `json:"fsType,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
 
 type Snapshot struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -40,7 +40,7 @@ type Snapshot struct {
 	Status SnapshotStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 type SnapshotList struct {
 	metav1.TypeMeta `json:",inline"`

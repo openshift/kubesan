@@ -24,9 +24,9 @@ type DeviceSwitchStatus struct {
 	NbdDevice *string `json:"nbdDevice,omitempty"` // only relevant internally to the DeviceSwitch controller
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
 
 type DeviceSwitch struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -36,7 +36,7 @@ type DeviceSwitch struct {
 	Status DeviceSwitchStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 type DeviceSwitchList struct {
 	metav1.TypeMeta `json:",inline"`

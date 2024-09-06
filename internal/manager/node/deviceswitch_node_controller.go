@@ -33,9 +33,9 @@ func SetUpDeviceSwitchNodeReconciler(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-//+kubebuilder:rbac:groups=kubesan.gitlab.io,resources=deviceswitches,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=kubesan.gitlab.io,resources=deviceswitches/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=kubesan.gitlab.io,resources=deviceswitches/finalizers,verbs=update
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=deviceswitches,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=deviceswitches/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=deviceswitches/finalizers,verbs=update
 
 func (r *DeviceSwitchNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	deviceSwitch := &v1alpha1.DeviceSwitch{}

@@ -134,9 +134,9 @@ func (v *VolumeStatus) GetPath() string {
 	}
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
 
 // Volume is the Schema for the volumes API
 type Volume struct {
@@ -147,7 +147,7 @@ type Volume struct {
 	Status VolumeStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // VolumeList contains a list of Volume
 type VolumeList struct {

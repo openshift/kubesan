@@ -15,9 +15,9 @@ type NbdServerSpec struct {
 type NbdServerStatus struct {
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
 
 type NbdServer struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -27,7 +27,7 @@ type NbdServer struct {
 	Status NbdServerStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 type NbdServerList struct {
 	metav1.TypeMeta `json:",inline"`

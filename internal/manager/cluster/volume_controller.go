@@ -36,9 +36,9 @@ func SetUpVolumeReconciler(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-//+kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/finalizers,verbs=update
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/finalizers,verbs=update
 
 func newBlobManager(volume *v1alpha1.Volume) (BlobManager, error) {
 	switch volume.Spec.Mode {

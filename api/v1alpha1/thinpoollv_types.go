@@ -125,9 +125,9 @@ type ThinLvStateActive struct {
 	Path string `json:"path"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
 
 type ThinPoolLv struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -171,7 +171,7 @@ func (s *ThinPoolLv) ThinLvs() []ThinLv {
 	return thinLvs
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 type ThinPoolLvList struct {
 	metav1.TypeMeta `json:",inline"`

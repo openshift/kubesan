@@ -99,9 +99,9 @@ type ThinBlobAttachmentStateSuspended struct {
 type ThinBlobAttachmentStateResuming struct {
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
 
 type ThinBlob struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -111,7 +111,7 @@ type ThinBlob struct {
 	Status ThinBlobStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 type ThinBlobList struct {
 	metav1.TypeMeta `json:",inline"`
