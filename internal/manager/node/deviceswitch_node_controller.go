@@ -198,7 +198,7 @@ func (r *DeviceSwitchNodeReconciler) reconcileDeleting(ctx context.Context, devi
 
 	controllerutil.RemoveFinalizer(deviceSwitch, config.Finalizer)
 
-	if err := r.Status().Update(ctx, deviceSwitch); err != nil {
+	if err := r.Update(ctx, deviceSwitch); err != nil {
 		return err
 	}
 

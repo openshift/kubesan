@@ -63,7 +63,7 @@ func (r *ThinPoolLvReconciler) reconcileNotDeleting(ctx context.Context, thinPoo
 	if !controllerutil.ContainsFinalizer(thinPoolLv, config.Finalizer) {
 		controllerutil.AddFinalizer(thinPoolLv, config.Finalizer)
 
-		if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+		if err := r.Update(ctx, thinPoolLv); err != nil {
 			return err
 		}
 	}
@@ -175,7 +175,7 @@ func (r *ThinPoolLvReconciler) removeThinPoolLv(ctx context.Context, thinPoolLv 
 
 	controllerutil.RemoveFinalizer(thinPoolLv, config.Finalizer)
 
-	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+	if err := r.Update(ctx, thinPoolLv); err != nil {
 		return err
 	}
 

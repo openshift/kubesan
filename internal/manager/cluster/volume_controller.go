@@ -62,7 +62,7 @@ func (r *VolumeReconciler) reconcileDeleting(ctx context.Context, blobMgr BlobMa
 
 	controllerutil.RemoveFinalizer(volume, config.Finalizer)
 
-	if err := r.Status().Update(ctx, volume); err != nil {
+	if err := r.Update(ctx, volume); err != nil {
 		return err
 	}
 	return nil
@@ -74,7 +74,7 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 	if !controllerutil.ContainsFinalizer(volume, config.Finalizer) {
 		controllerutil.AddFinalizer(volume, config.Finalizer)
 
-		if err := r.Status().Update(ctx, volume); err != nil {
+		if err := r.Update(ctx, volume); err != nil {
 			return err
 		}
 	}
