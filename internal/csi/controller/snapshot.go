@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
+	"gitlab.com/kubesan/kubesan/internal/common/config"
 )
 
 func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
@@ -32,7 +33,7 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	snapshot := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Name,
-			Namespace: "kubesan-system",
+			Namespace: config.Namespace,
 		},
 		Spec: v1alpha1.SnapshotSpec{
 			SourceVolume: req.SourceVolumeId,

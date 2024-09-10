@@ -3,6 +3,8 @@
 package config
 
 import (
+	"errors"
+	"io"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,12 +36,42 @@ const (
 var (
 	LocalNodeName = os.Getenv("NODE_NAME")
 
+	Namespace string
+
 	Scheme = runtime.NewScheme()
+
+	ErrCannotDetermineNamespace = errors.New("could not determine namespace from service account or WATCH_NAMESPACE env var")
 )
 
 func init() {
+	Namespace = getNamespace()
+
 	utilruntime.Must(clientgoscheme.AddToScheme(Scheme))
 
 	utilruntime.Must(v1alpha1.AddToScheme(Scheme))
 	// +kubebuilder:scaffold:scheme
+}
+
+func getNamespace() string {
+	namespace, present := os.LookupEnv("WATCH_NAMESPACE")
+	if present {
+		return namespace
+	}
+
+	fi, err := os.Open("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		panic(errors.Join(ErrCannotDetermineNamespace, err))
+	}
+	defer func(fi *os.File) {
+		if err := fi.Close(); err != nil {
+			panic(errors.Join(ErrCannotDetermineNamespace, err))
+		}
+	}(fi)
+
+	data, err := io.ReadAll(fi)
+	if err != nil {
+		panic(errors.Join(ErrCannotDetermineNamespace, err))
+	}
+
+	return string(data)
 }

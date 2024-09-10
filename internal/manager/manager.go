@@ -39,7 +39,7 @@ func RunClusterControllers() error {
 		Scheme: config.Scheme,
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{
-				"kubesan-system": {},
+				config.Namespace: {},
 			},
 		},
 		HealthProbeBindAddress: probeAddr,
@@ -83,7 +83,7 @@ func RunNodeControllers() error {
 		Scheme: config.Scheme,
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{
-				"kubesan-system": {},
+				config.Namespace: {},
 			},
 		},
 		HealthProbeBindAddress: probeAddr,

@@ -87,7 +87,7 @@ func (c *CsiK8sClient) TryWatchVolumeUntil(ctx context.Context, volume *v1alpha1
 	lw := cache.NewListWatchFromClient(
 		c.volumeRestClient,
 		"volumes",
-		"kubesan-system",
+		config.Namespace,
 		fields.OneTermEqualSelector("metadata.name", volume.Name),
 	)
 
@@ -116,7 +116,7 @@ func (c *CsiK8sClient) TryWatchSnapshotUntil(ctx context.Context, snapshot *v1al
 	lw := cache.NewListWatchFromClient(
 		c.snapshotRestClient,
 		"snapshots",
-		"kubesan-system",
+		config.Namespace,
 		fields.OneTermEqualSelector("metadata.name", snapshot.Name),
 	)
 

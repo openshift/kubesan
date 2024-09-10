@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
+	"gitlab.com/kubesan/kubesan/internal/common/config"
 	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
 )
 
@@ -56,7 +57,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	volume := &v1alpha1.Volume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Name,
-			Namespace: "kubesan-system",
+			Namespace: config.Namespace,
 		},
 		Spec: v1alpha1.VolumeSpec{
 			VgName:      lvmVolumeGroup,
