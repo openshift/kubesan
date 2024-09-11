@@ -11,9 +11,11 @@ import (
 
 type SnapshotSpec struct {
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	VgName string `json:"vgName"`
 
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	SourceVolume string `json:"sourceVolume"`
 }
 
@@ -26,10 +28,12 @@ type SnapshotStatus struct {
 	// The time at which the snapshot was created.
 	CreationTime *metav1.Time `json:"creationTime"`
 
-	// The size of the snapshot.
+	// The size of the snapshot, immutable once set.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	SizeBytes *int64 `json:"sizeBytes"`
 
 	// The file system type of the snapshot. `nil` if a snapshot of a block volume.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	FsType *string `json:"fsType,omitempty"`
 }
 

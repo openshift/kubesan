@@ -15,21 +15,29 @@ import (
 
 type VolumeSpec struct {
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	VgName string `json:"vgName"`
 
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
+	// +kubebuilder:validation:Enum=Thin;Fat
 	Mode VolumeMode `json:"mode"`
 
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	Type VolumeType `json:"type"`
 
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	Contents VolumeContents `json:"contents"`
 
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	AccessModes []VolumeAccessMode `json:"accessModes"`
 
 	// Must be positive and a multiple of 512. May be updated at will, but the actual size will only ever increase.
+	// +kubebuilder:validation:Minimum=512
+	// +kubebuilder:validation:MultipleOf=512
 	SizeBytes int64 `json:"sizeBytes"`
 
 	// May be updated at will.
@@ -109,6 +117,7 @@ type VolumeStatus struct {
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// Reflects the current size of the volume.
+	// +kubebuilder:validation:XValidation:rule=oldSelf<=self
 	SizeBytes int64 `json:"sizeBytes"`
 
 	FsType *string `json:"fsType,omitempty"`

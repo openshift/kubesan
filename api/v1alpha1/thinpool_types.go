@@ -27,6 +27,7 @@ type ThinPoolSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	VgName string `json:"vgName"`
 
 	// Add an Activation onto this list in order to have the thin-pool
