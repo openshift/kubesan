@@ -57,6 +57,10 @@ type ThinPoolStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="VG",type=string,JSONPath=`.spec.vgName`,description='VG owning the thin pool'
+// +kubebuilder:printcolumn:name="Active Node",type=string,JSONPath=`.status.activations[0].nodeName`,description='Node where thin pool is currently active'
+// +kubebuilder:printcolumn:name="Reason",type=string,JSONPath=`.status.activations[0].name`,description='Primary reason why thin pool is active'
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.status.conditions[?(@.type=="Activated")].lastTransitionTime`,description='Time since current activation'
 
 // ThinPool is the Schema for the thinpools API
 type ThinPool struct {

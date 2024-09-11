@@ -18,6 +18,8 @@ type SnapshotSpec struct {
 }
 
 type SnapshotStatus struct {
+	// TODO Use Condition for creation timestamp
+
 	// Whether the snapshot has been created.
 	Created bool `json:"created"`
 
@@ -34,6 +36,11 @@ type SnapshotStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="VG",type=string,JSONPath=`.spec.vgName`,description='VG owning the snapshot'
+// +kubebuilder:printcolumn:name="Source",type=string,JSONPath=`.spec.sourceVolume`,description='Volume that this snapshot was created on'
+// +kubebuilder:printcolumn:name="Available",type=date,JSONPath=`.status.creationTime`,description='Time since snapshot was available'
+// +kubebuilder:printcolumn:name="Size",type=integer,JSONPath=`.status.sizeBytes`,description='Size of snapshot'
+// +kubebuilder:printcolumn:name="FSType",type=string,JSONPath=`.status.fsType`,description='filesystem type (blank if block)',priority=1
 
 type Snapshot struct {
 	metav1.TypeMeta   `json:",inline"`

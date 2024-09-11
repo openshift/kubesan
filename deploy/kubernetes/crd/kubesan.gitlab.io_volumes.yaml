@@ -18,7 +18,39 @@ spec:
     singular: volume
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: '''VG owning the volume'''
+      jsonPath: .spec.vgName
+      name: VG
+      type: string
+    - description: '''Path to volume in nodes where it is active'''
+      jsonPath: .status.path
+      name: Path
+      priority: 1
+      type: string
+    - description: '''Time since volume was available'''
+      jsonPath: .status.conditions[?(@.type=="Available")].lastTransitionTime
+      name: Available
+      type: date
+    - description: '''Primary node where volume is currently active'''
+      jsonPath: .status.attachedToNodes[0]
+      name: Primary Node
+      type: string
+    - description: '''Size of volume'''
+      jsonPath: .status.sizeBytes
+      name: Size
+      type: integer
+    - description: '''Mode of volume (thin or fat)'''
+      jsonPath: .spec.mode
+      name: Mode
+      priority: 2
+      type: string
+    - description: '''Filesystem type (blank if block)'''
+      jsonPath: .spec.type.filesystem.fsType
+      name: FSType
+      priority: 2
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Volume is the Schema for the volumes API

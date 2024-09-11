@@ -18,7 +18,24 @@ spec:
     singular: thinpool
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: '''VG owning the thin pool'''
+      jsonPath: .spec.vgName
+      name: VG
+      type: string
+    - description: '''Node where thin pool is currently active'''
+      jsonPath: .status.activations[0].nodeName
+      name: Active Node
+      type: string
+    - description: '''Primary reason why thin pool is active'''
+      jsonPath: .status.activations[0].name
+      name: Reason
+      type: string
+    - description: '''Time since current activation'''
+      jsonPath: .status.conditions[?(@.type=="Activated")].lastTransitionTime
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ThinPool is the Schema for the thinpools API

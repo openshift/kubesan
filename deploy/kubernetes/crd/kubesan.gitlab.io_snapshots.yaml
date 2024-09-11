@@ -18,7 +18,29 @@ spec:
     singular: snapshot
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: '''VG owning the snapshot'''
+      jsonPath: .spec.vgName
+      name: VG
+      type: string
+    - description: '''Volume that this snapshot was created on'''
+      jsonPath: .spec.sourceVolume
+      name: Source
+      type: string
+    - description: '''Time since snapshot was available'''
+      jsonPath: .status.creationTime
+      name: Available
+      type: date
+    - description: '''Size of snapshot'''
+      jsonPath: .status.sizeBytes
+      name: Size
+      type: integer
+    - description: '''filesystem type (blank if block)'''
+      jsonPath: .status.fsType
+      name: FSType
+      priority: 1
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         properties:
