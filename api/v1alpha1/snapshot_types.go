@@ -11,6 +11,9 @@ import (
 
 type SnapshotSpec struct {
 	// Should be set from creation and never updated.
+	VgName string `json:"vgName"`
+
+	// Should be set from creation and never updated.
 	SourceVolume string `json:"sourceVolume"`
 }
 

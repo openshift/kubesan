@@ -26,6 +26,7 @@ type ThinPoolSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// Should be set from creation and never updated.
 	VgName string `json:"vgName"`
 
 	// Add an Activation onto this list in order to have the thin-pool
