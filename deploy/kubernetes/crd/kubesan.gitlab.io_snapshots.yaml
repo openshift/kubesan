@@ -28,7 +28,7 @@ spec:
       name: Source
       type: string
     - description: '''Time since snapshot was available'''
-      jsonPath: .status.creationTime
+      jsonPath: .status.conditions[?(@.type=="Available")].lastTransitionTime
       name: Available
       type: date
     - description: '''Size of snapshot'''
@@ -79,13 +79,36 @@ spec:
             type: object
           status:
             properties:
-              created:
-                description: Whether the snapshot has been created.
-                type: boolean
-              creationTime:
-                description: The time at which the snapshot was created.
-                format: date-time
-                type: string
+              conditions:
+                description: |-
+                  Conditions
+                  Available: The snapshot can be sourced by volumes.
+                items:
+                  description: |-
+                    Condition represents the state of the operator's
+                    reconciliation functionality.
+                  properties:
+                    lastHeartbeatTime:
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      description: ConditionType is the state of the operator's reconciliation
+                        functionality.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
               fsType:
                 description: The file system type of the snapshot. `nil` if a snapshot
                   of a block volume.
@@ -99,8 +122,6 @@ spec:
                 x-kubernetes-validations:
                 - rule: oldSelf==self
             required:
-            - created
-            - creationTime
             - sizeBytes
             type: object
         type: object

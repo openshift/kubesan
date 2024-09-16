@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -44,17 +45,21 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		return nil, err
 	}
 
-	err := s.client.WatchSnapshotUntil(ctx, snapshot, func() bool { return snapshot.Status.Created })
+	err := s.client.WatchSnapshotUntil(ctx, snapshot, func() bool {
+		return conditionsv1.IsStatusConditionTrue(snapshot.Status.Conditions, conditionsv1.ConditionAvailable)
+	})
 	if err != nil {
 		return nil, err
 	}
+
+	condition := conditionsv1.FindStatusCondition(snapshot.Status.Conditions, conditionsv1.ConditionAvailable)
 
 	resp := &csi.CreateSnapshotResponse{
 		Snapshot: &csi.Snapshot{
 			SizeBytes:      *snapshot.Status.SizeBytes,
 			SnapshotId:     snapshot.Name,
 			SourceVolumeId: snapshot.Spec.SourceVolume,
-			CreationTime:   timestamppb.New(snapshot.Status.CreationTime.Time),
+			CreationTime:   timestamppb.New(condition.LastTransitionTime.Time),
 			ReadyToUse:     true,
 		},
 	}

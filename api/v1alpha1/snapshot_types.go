@@ -4,6 +4,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 
 // Important: Run "make generate" to regenerate code after modifying this file
@@ -20,13 +22,12 @@ type SnapshotSpec struct {
 }
 
 type SnapshotStatus struct {
-	// TODO Use Condition for creation timestamp
-
-	// Whether the snapshot has been created.
-	Created bool `json:"created"`
-
-	// The time at which the snapshot was created.
-	CreationTime *metav1.Time `json:"creationTime"`
+	// Conditions
+	// Available: The snapshot can be sourced by volumes.
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +optional
+	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// The size of the snapshot, immutable once set.
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
@@ -42,7 +43,7 @@ type SnapshotStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="VG",type=string,JSONPath=`.spec.vgName`,description='VG owning the snapshot'
 // +kubebuilder:printcolumn:name="Source",type=string,JSONPath=`.spec.sourceVolume`,description='Volume that this snapshot was created on'
-// +kubebuilder:printcolumn:name="Available",type=date,JSONPath=`.status.creationTime`,description='Time since snapshot was available'
+// +kubebuilder:printcolumn:name="Available",type=date,JSONPath=`.status.conditions[?(@.type=="Available")].lastTransitionTime`,description='Time since snapshot was available'
 // +kubebuilder:printcolumn:name="Size",type=integer,JSONPath=`.status.sizeBytes`,description='Size of snapshot'
 // +kubebuilder:printcolumn:name="FSType",type=string,JSONPath=`.status.fsType`,description='filesystem type (blank if block)',priority=1
 
