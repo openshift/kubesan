@@ -25,6 +25,9 @@ ksan-wait-for-pvc-to-be-bound 300 test-pvc-2
 
 ksan-stage 'Mounting volumes read-write on all nodes...'
 
+# Two containers per pod: one to keep the pod alive indefinitely
+# (useful for debugging the PVC binding), the other that completes
+# with success or failure based on the accompanying test script
 for i in "${!NODES[@]}"; do
     kubectl create -f - <<EOF
     apiVersion: v1
@@ -36,7 +39,7 @@ for i in "${!NODES[@]}"; do
       terminationGracePeriodSeconds: 0
       restartPolicy: Never
       containers:
-        - name: container
+        - name: test
           image: $TEST_IMAGE
           command:
             - ./mount-rwx-helper.sh
@@ -47,6 +50,11 @@ for i in "${!NODES[@]}"; do
               devicePath: /var/pvc1
             - name: pvc-2
               devicePath: /var/pvc2
+        - name: sleep
+          image: $TEST_IMAGE
+          command:
+            - sleep
+            - infinity
       volumes:
         - name: pvc-1
           persistentVolumeClaim:
@@ -63,8 +71,10 @@ for i in "${!NODES[@]}"; do
 done
 
 # ...at which point, all pods should complete within a few seconds
+sleep 10
 for i in "${!NODES[@]}"; do
-    ksan-wait-for-pod-to-succeed 10 "test-pod-$i"
+    jsonpath='{.status.containerStatuses[?(@.name=="test")].state.terminated.exitCode}'
+    [[ "$( kubectl get pod "test-pod-${i}" -o jsonpath="${jsonpath}" )" = 0 ]]
 done
 
 ksan-stage 'Unmounting volumes from all nodes...'
