@@ -35,7 +35,7 @@ dd if=/tmp/next_data of=/var/pvc2 bs=64k seek=${next} count=1 oflag=direct
 # should run to completion fairly quickly once all the pods have
 # started, and mount-rwx.sh enforces an overall time limit.
 echo "Waiting for expected data to appear in /var/pvc[12]"
-duration=1
+counter=0
 while :; do
     if dd if=/var/pvc1 bs=64k skip=${next} count=1 iflag=direct |
            cmp /tmp/next_data - &&
@@ -44,7 +44,7 @@ while :; do
         echo "All expected data found, exiting"
         exit 0
     fi
-    duration=$(( ${duration} + 1 ))
-    echo "No match yet, sleeping ${duration}"
-    sleep ${duration}
+    echo "No match yet after ${counter} seconds, sleeping"
+    sleep 1
+    counter=$(( ${counter} + 1 ))
 done
