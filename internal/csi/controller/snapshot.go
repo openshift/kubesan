@@ -78,7 +78,8 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 
 	snapshot := &v1alpha1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: req.SnapshotId,
+			Name:      req.SnapshotId,
+			Namespace: config.Namespace,
 		},
 	}
 

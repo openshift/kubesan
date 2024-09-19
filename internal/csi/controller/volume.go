@@ -229,7 +229,8 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	volume := &v1alpha1.Volume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: req.VolumeId,
+			Name:      req.VolumeId,
+			Namespace: config.Namespace,
 		},
 	}
 
