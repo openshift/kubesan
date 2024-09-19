@@ -7,6 +7,9 @@ if you still need to set that up, you might try [CRI-O on
 Fedora](https://fedoramagazine.org/kubernetes-with-cri-o-on-fedora-linux-39/)
 for bare-metal.
 
+In addition, by "every node," this guide refers to nodes sharing the SAN. This
+includes worker nodes and potentially control-plane nodes.
+
 [//]: # (Comment - this would be a good place to add information on
 how to set up a Kubevirt or minikube setup)
 
@@ -84,7 +87,7 @@ Finally, KubeSAN assumes that you have shared storage visible
 as a shared LVM Volume Group accessible via one or more block devices
 shared to each node of the cluster, such as atop a LUN from a SAN.
 This shared VG and lockspace can be created on any node with access to
-the LUN, although you may find it easiest to do it on the control-plan
+the LUN, although you may find it easiest to do it on the control-plane
 node; here is how to create a VG named `my-vg`:
 
 ```console
