@@ -1366,11 +1366,6 @@ func (in *VolumeStatus) DeepCopyInto(out *VolumeStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.FsType != nil {
-		in, out := &in.FsType, &out.FsType
-		*out = new(string)
-		**out = **in
-	}
 	if in.AttachedToNodes != nil {
 		in, out := &in.AttachedToNodes, &out.AttachedToNodes
 		*out = make([]string, len(*in))

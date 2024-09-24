@@ -165,7 +165,9 @@ spec:
               conditions:
                 description: |-
                   Conditions
-                  Available: The volume can be attached to nodes and used by Pods.
+                  Available: The LVM volume has been created
+                  DataSourceCompleted: Any data source has been copied into the LVM,
+                  so that it is now ready to be attached to nodes
                 items:
                   description: |-
                     Condition represents the state of the operator's
@@ -192,10 +194,6 @@ spec:
                   - type
                   type: object
                 type: array
-              dataCopyInProgress:
-                type: boolean
-              fsType:
-                type: string
               path:
                 description: The path at which the volume is available on nodes to
                   which it is attached.
