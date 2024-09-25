@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"slices"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/commands"
@@ -67,7 +70,7 @@ func (r *ThinPoolLvReconciler) reconcileNotDeleting(ctx context.Context, thinPoo
 
 	// create LVM thin pool LV
 
-	if !thinPoolLv.Status.Created {
+	if !conditionsv1.IsStatusConditionTrue(thinPoolLv.Status.Conditions, conditionsv1.ConditionAvailable) {
 		err := r.createThinPoolLv(ctx, thinPoolLv)
 		if err != nil {
 			return err
@@ -148,7 +151,11 @@ func (r *ThinPoolLvReconciler) createThinPoolLv(ctx context.Context, thinPoolLv 
 		return err
 	}
 
-	thinPoolLv.Status.Created = true
+	condition := conditionsv1.Condition{
+		Type:   conditionsv1.ConditionAvailable,
+		Status: corev1.ConditionTrue,
+	}
+	conditionsv1.SetStatusCondition(&thinPoolLv.Status.Conditions, condition)
 
 	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
 		return err

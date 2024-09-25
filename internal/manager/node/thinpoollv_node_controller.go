@@ -5,11 +5,14 @@ package node
 import (
 	"context"
 	"fmt"
-	"slices"
+
+	//	"slices"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/commands"
@@ -50,7 +53,7 @@ func (r *ThinPoolLvNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !thinPoolLv.Status.Created {
+	if !conditionsv1.IsStatusConditionTrue(thinPoolLv.Status.Conditions, conditionsv1.ConditionAvailable) {
 		return ctrl.Result{}, nil
 	}
 
@@ -72,8 +75,8 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 		kubesanslices.Any(thinPoolLv.Spec.ThinLvs, func(spec v1alpha1.ThinLvSpec) bool { return spec.Activate })
 
 	if thinPoolLvShouldBeActive {
-		if slices.Contains(thinPoolLv.Spec.ThinLvPreferredNodes(), config.LocalNodeName) {
-			if thinPoolLv.Status.ActiveOnNode == nil {
+		if thinPoolLv.Spec.ActiveOnNode == config.LocalNodeName {
+			if thinPoolLv.Status.ActiveOnNode == "" {
 				// activate LVM thin pool LV
 
 				_, err := commands.Lvm(
@@ -86,12 +89,12 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 					return err
 				}
 
-				thinPoolLv.Status.ActiveOnNode = &config.LocalNodeName
+				thinPoolLv.Status.ActiveOnNode = config.LocalNodeName
 
 				if err := r.Status().Update(ctx, thinPoolLv); err != nil {
 					return err
 				}
-			} else if thinPoolLv.Status.ActiveOnNode != &config.LocalNodeName {
+			} else if thinPoolLv.Status.ActiveOnNode != config.LocalNodeName {
 				// TODO: idempotently (attempt to) activate LVM thin pool LV
 
 				// NOTE: if trying to figure out if thin pool is actually really already activated on another
@@ -109,7 +112,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 					// activation was since lost (node power failure, LVM lease renewal failure,
 					// etc.); update status to reflect reality
 
-					thinPoolLv.Status.ActiveOnNode = &config.LocalNodeName
+					thinPoolLv.Status.ActiveOnNode = config.LocalNodeName
 
 					for i := range thinPoolLv.Status.ThinLvs {
 						thinLvStatus := &thinPoolLv.Status.ThinLvs[i]
@@ -126,7 +129,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 			}
 		}
 	} else {
-		if thinPoolLv.Status.ActiveOnNode == &config.LocalNodeName {
+		if thinPoolLv.Status.ActiveOnNode == config.LocalNodeName {
 			// TODO: idempotently deactivate all LVM thin LVs
 
 			// TODO: idempotently deactivate LVM thin pool LV
@@ -139,7 +142,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 				}
 			}
 
-			thinPoolLv.Status.ActiveOnNode = nil
+			thinPoolLv.Status.ActiveOnNode = ""
 
 			if err := r.Status().Update(ctx, thinPoolLv); err != nil {
 				return err
@@ -151,7 +154,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 }
 
 func (r *ThinPoolLvNodeReconciler) reconcileThinLvActivations(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv) error {
-	if thinPoolLv.Status.ActiveOnNode != &config.LocalNodeName {
+	if thinPoolLv.Status.ActiveOnNode != config.LocalNodeName {
 		return nil
 	}
 

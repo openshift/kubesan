@@ -41,6 +41,19 @@ spec:
             type: object
           spec:
             properties:
+              activeOnNode:
+                description: |-
+                  Name of node where activation is needed, or empty.
+                  When changing, may only toggle between "" and non-empty.
+                type: string
+                x-kubernetes-validations:
+                - rule: (oldSelf==self)||((oldSelf=="")!=(self==""))
+              sharing:
+                description: Whether NBD sharing is needed from the active node.
+                enum:
+                - NotNeeded
+                - ServeNBD
+                type: string
               thinLvs:
                 description: May be updated at will.
                 items:
@@ -68,9 +81,6 @@ spec:
                     name:
                       description: Should be set from creation and never updated.
                       type: string
-                    preferredNode:
-                      description: May be updated at will.
-                      type: string
                     readOnly:
                       description: Should be set from creation and never updated.
                       type: boolean
@@ -91,21 +101,57 @@ spec:
               vgName:
                 description: Should be set from creation and never updated.
                 type: string
+                x-kubernetes-validations:
+                - rule: oldSelf==self
             required:
+            - sharing
             - vgName
             type: object
+            x-kubernetes-validations:
+            - rule: self.activeOnNode!=""||self.sharing!="ServeNBD"
           status:
             properties:
               activeOnNode:
                 description: The name of the node where the LVM thin pool LV is active,
-                  along with any active LVM thin LVs.
+                  along with any active LVM thin LVs; or "".
                 type: string
-              created:
-                description: Whether the LVM thin pool LV has been created.
-                type: boolean
+              conditions:
+                description: |-
+                  Conditions
+                  Available: The LVM volume has been created
+                  Activated: The last time Status.ActiveOnNode changed
+                items:
+                  description: |-
+                    Condition represents the state of the operator's
+                    reconciliation functionality.
+                  properties:
+                    lastHeartbeatTime:
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      description: ConditionType is the state of the operator's reconciliation
+                        functionality.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              nbdSever:
+                description: The name of a Pod serving NBD, or "" if not available
+                type: string
               thinLvs:
                 description: The status of each LVM thin LV that currently exists
-                  int the LVM thin pool LV.
+                  in the LVM thin pool LV.
                 items:
                   properties:
                     name:
@@ -139,8 +185,6 @@ spec:
                   - state
                   type: object
                 type: array
-            required:
-            - created
             type: object
         type: object
     served: true

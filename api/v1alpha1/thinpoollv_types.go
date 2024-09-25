@@ -5,19 +5,41 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
+	//	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
+
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 
 // Important: Run "make generate" to regenerate code after modifying this file
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// +kubebuilder:validation:XValidation:rule=self.activeOnNode!=""||self.sharing!="ServeNBD"
 type ThinPoolLvSpec struct {
 	// Should be set from creation and never updated.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	VgName string `json:"vgName"`
 
 	// May be updated at will.
 	ThinLvs []ThinLvSpec `json:"thinLvs,omitempty"`
+
+	// Name of node where activation is needed, or empty.
+	// When changing, may only toggle between "" and non-empty.
+	// +kubebuilder:validation:XValidation:rule=(oldSelf==self)||((oldSelf=="")!=(self==""))
+	ActiveOnNode string `json:"activeOnNode,omitempty"`
+
+	// Whether NBD sharing is needed from the active node.
+	// +kubebuilder:validation:Enum=NotNeeded;ServeNBD
+	Sharing ThinPoolSharing `json:"sharing"`
 }
+
+type ThinPoolSharing string
+
+const (
+	ThinPoolSharingNotNeeded = "NotNeeded"
+	ThinPoolSharingServeNBD  = "ServeNBD"
+
+	// TODO Possibility of ReadOnly sharing, for shared rather than exclusive activation
+)
 
 func (s *ThinPoolLvSpec) FindThinLv(name string) *ThinLvSpec {
 	for i := range s.ThinLvs {
@@ -26,17 +48,6 @@ func (s *ThinPoolLvSpec) FindThinLv(name string) *ThinLvSpec {
 		}
 	}
 	return nil
-}
-
-// Only considers ThinLvs that should be activated.
-func (s *ThinPoolLvSpec) ThinLvPreferredNodes() []string {
-	nodes := []string{}
-	for _, thinLv := range s.ThinLvs {
-		if thinLv.Activate && thinLv.PreferredNode != nil {
-			nodes = kubesanslices.AppendUnique(nodes, *thinLv.PreferredNode)
-		}
-	}
-	return nodes
 }
 
 type ThinLvSpec struct {
@@ -55,9 +66,6 @@ type ThinLvSpec struct {
 
 	// May be updated at will.
 	Activate bool `json:"activate"`
-
-	// May be updated at will.
-	PreferredNode *string `json:"preferredNode,omitempty"`
 }
 
 type ThinLvContents struct {
@@ -76,13 +84,21 @@ type ThinLvContentsSnapshot struct {
 }
 
 type ThinPoolLvStatus struct {
-	// Whether the LVM thin pool LV has been created.
-	Created bool `json:"created"`
+	// Conditions
+	// Available: The LVM volume has been created
+	// Activated: The last time Status.ActiveOnNode changed
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +optional
+	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
-	// The name of the node where the LVM thin pool LV is active, along with any active LVM thin LVs.
-	ActiveOnNode *string `json:"activeOnNode,omitempty"`
+	// The name of the node where the LVM thin pool LV is active, along with any active LVM thin LVs; or "".
+	ActiveOnNode string `json:"activeOnNode,omitempty"`
 
-	// The status of each LVM thin LV that currently exists int the LVM thin pool LV.
+	// The name of a Pod serving NBD, or "" if not available
+	NBDServer string `json:"nbdSever,omitempty"`
+
+	// The status of each LVM thin LV that currently exists in the LVM thin pool LV.
 	ThinLvs []ThinLvStatus `json:"thinLvs,omitempty"`
 }
 
