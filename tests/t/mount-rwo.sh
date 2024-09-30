@@ -9,6 +9,7 @@ for i in "${!NODES[@]}"; do
     metadata:
       name: test-pvc-$i
     spec:
+      storageClassName: kubesan
       accessModes:
         - ReadWriteOnce
       resources:

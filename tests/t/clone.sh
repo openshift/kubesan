@@ -11,6 +11,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: test-pvc-2
 spec:
+  storageClassName: kubesan
   volumeMode: Block
   accessModes:
     - ReadWriteOnce
@@ -67,6 +68,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: test-pvc-3
 spec:
+  storageClassName: kubesan
   volumeMode: Block
   accessModes:
     - ReadWriteOnce
