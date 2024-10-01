@@ -11,6 +11,7 @@ for i in 1 2; do
     metadata:
       name: test-pvc-$i
     spec:
+      storageClassName: kubesan
       accessModes:
         - ReadWriteMany
       resources:

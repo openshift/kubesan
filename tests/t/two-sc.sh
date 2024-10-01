@@ -31,6 +31,7 @@ make_pvc()
     metadata:
       name: test-pvc-${sc_name}
     spec:
+      storageClassName: kubesan
       accessModes:
         - ReadWriteOnce
       resources:

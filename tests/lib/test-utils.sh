@@ -35,6 +35,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: $name
 spec:
+  storageClassName: kubesan
   accessModes:
     - ReadWriteOnce
   resources:
@@ -59,6 +60,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: $name
 spec:
+  storageClassName: kubesan
   accessModes:
     - ReadWriteOnce
   resources:
