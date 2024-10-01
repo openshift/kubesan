@@ -25,9 +25,13 @@ requires_snapshotter=1
 # set to 1 if this target support sandbox, 0 otherwise
 support_sandbox=1
 
-# usuful only when requires_local_deploy=1, it indicates if this
+# useful only when requires_local_deploy=1, it indicates if this
 # deployer can handle multiple clusters at once.
 support_multiple_clusters=0
+
+# useful only when requires_local_deploy=1, it indicates if this
+# deployer can handle snapshots of a deployed cluster.
+support_snapshots=1
 
 # some deployers automatically add information to the current
 # user kubeconfig. Set to 1 to load the contex from kubeconfig
@@ -187,6 +191,12 @@ __delete_template_cluster() {
     __template delete -y cluster "$1"
 }
 export -f __delete_template_cluster
+
+# Usage: __snapshot_template_cluster <profile>
+__snapshot_template_cluster() {
+    __template snapshot -y cluster "$1"
+}
+export -f __snapshot_template_cluster
 
 # Usage: __get_template_node_ip <profile> <node>
 # get deplomyment nodes IP addresses, this is required only

@@ -85,11 +85,17 @@ __get_a_current_cluster() {
 
     export current_cluster
 
-    trap '{
-        __delete_${deploy_tool}_cluster "${current_cluster}"
-        rm -fr "${temp_dir}"
-        __wait_until_background_${deploy_tool}_cluster_is_ready
-        }' EXIT
+    if ! (( create_cache )) && ! (( use_cache )); then
+        trap '{
+           __delete_${deploy_tool}_cluster "${current_cluster}"
+           rm -fr "${temp_dir}"
+           __wait_until_background_${deploy_tool}_cluster_is_ready
+           }' EXIT
+    else
+        trap '{
+           __stop_${deploy_tool}_cluster "${current_cluster}"
+           }' EXIT
+    fi
 }
 export -f __get_a_current_cluster
 
@@ -105,7 +111,6 @@ __clean_background_clusters() {
     fi
 }
 export -f __clean_background_clusters
-
 
 __setup_nbd_storage() {
 

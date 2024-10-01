@@ -8,6 +8,7 @@ requires_nbd_storage=1
 requires_snapshotter=1
 support_sandbox=1
 support_multiple_clusters=1
+support_snapshots=0
 support_set_kubectl_context=1
 
 
@@ -100,6 +101,13 @@ __delete_minikube_cluster() {
     __minikube delete
 }
 export -f __delete_minikube_cluster
+
+# Usage: __snapshot_minikube_cluster <profile>
+# NOOP, minikube does not support snapshot
+__snapshot_minikube_cluster() {
+    return
+}
+export -f __snapshot_minikube_cluster
 
 # Usage: __get_minikube_node_ip <profile> <node>
 __get_minikube_node_ip() {

@@ -8,6 +8,7 @@ requires_nbd_storage=1
 requires_snapshotter=1
 support_sandbox=1
 support_multiple_clusters=0
+support_snapshots=1
 support_set_kubectl_context=0
 
 
@@ -134,6 +135,11 @@ __start_kcli_cluster() {
                 --param cmds=['yum -y install podman lvm2-lockd sanlock && systemctl enable --now podman lvmlockd sanlock'] \
                 "$1"
         created=1
+    else
+        if (( use_cache )); then
+            __log_cyan "restore from snapshot"
+            __kcli revert plan-snapshot --plan "$1" "$1"-snap
+        fi
     fi
 
     __kcli start plan "$1"
@@ -170,6 +176,13 @@ __delete_kcli_cluster() {
     __kcli delete -y cluster "$1"
 }
 export -f __delete_kcli_cluster
+
+# Usage: __snapshot_kcli_cluster <profile>
+__snapshot_kcli_cluster() {
+    __stop_${deploy_tool}_cluster --soft "$1"
+    __kcli create plan-snapshot --plan "$1" "$1"-snap
+}
+export -f __snapshot_kcli_cluster
 
 # Usage: __get_kcli_node_ip <profile> <node>
 __get_kcli_node_ip() {
