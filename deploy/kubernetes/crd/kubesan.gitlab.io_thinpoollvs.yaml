@@ -119,7 +119,7 @@ spec:
                 description: |-
                   Conditions
                   Available: The LVM volume has been created
-                  Activated: The last time Status.ActiveOnNode changed
+                  Active: The last time Status.ActiveOnNode changed
                 items:
                   description: |-
                     Condition represents the state of the operator's

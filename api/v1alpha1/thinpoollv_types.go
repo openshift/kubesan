@@ -83,10 +83,14 @@ type ThinLvContentsSnapshot struct {
 	SourceThinLvName string `json:"sourceThinLvName"`
 }
 
+const (
+	ThinPoolLvConditionActive = "Active"
+)
+
 type ThinPoolLvStatus struct {
 	// Conditions
 	// Available: The LVM volume has been created
-	// Activated: The last time Status.ActiveOnNode changed
+	// Active: The last time Status.ActiveOnNode changed
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +optional
