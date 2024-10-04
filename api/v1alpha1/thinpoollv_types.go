@@ -68,15 +68,22 @@ type ThinLvSpec struct {
 	Activate bool `json:"activate"`
 }
 
-type ThinLvContents struct {
+const (
 	// The LVM thin LV should initially be zeroed out.
-	Empty *ThinLvContentsEmpty `json:"empty,omitempty"`
+	ThinLvContentsTypeEmpty = "Empty"
 
 	// The LVM thin LV should initially be a copy of another LVM thin LV.
-	Snapshot *ThinLvContentsSnapshot `json:"snapshot,omitempty"`
-}
+	ThinLvContentsTypeSnapshot = "Snapshot"
+)
 
-type ThinLvContentsEmpty struct {
+type ThinLvContents struct {
+	// +unionDiscriminator
+	// +kubebuilder:validation:Enum:="Empty";"Snapshot"
+	// +kubebuilder:validation:Required
+	ContentsType string `json:"contentsType,omitempty"`
+
+	// +optional
+	Snapshot *ThinLvContentsSnapshot `json:"snapshot,omitempty"`
 }
 
 type ThinLvContentsSnapshot struct {

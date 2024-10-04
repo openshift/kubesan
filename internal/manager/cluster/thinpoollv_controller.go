@@ -183,8 +183,8 @@ func (r *ThinPoolLvReconciler) removeThinPoolLv(ctx context.Context, thinPoolLv 
 }
 
 func (r *ThinPoolLvReconciler) createThinLv(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv, thinLvSpec *v1alpha1.ThinLvSpec) error {
-	switch {
-	case thinLvSpec.Contents.Empty != nil:
+	switch thinLvSpec.Contents.ContentsType {
+	case v1alpha1.ThinLvContentsTypeEmpty:
 		// create empty LVM thin LV
 
 		_, err := commands.LvmLvCreateIdempotent(
@@ -211,7 +211,11 @@ func (r *ThinPoolLvReconciler) createThinLv(ctx context.Context, thinPoolLv *v1a
 			return err
 		}
 
-	case thinLvSpec.Contents.Snapshot != nil:
+	case v1alpha1.ThinLvContentsTypeSnapshot:
+		if thinLvSpec.Contents.Snapshot == nil {
+			return nil
+		}
+
 		sourceLv := thinLvSpec.Contents.Snapshot.SourceThinLvName
 
 		if thinPoolLv.Status.FindThinLv(sourceLv) == nil {
