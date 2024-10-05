@@ -28,7 +28,6 @@ func SetUpThinBlobReconciler(mgr ctrl.Manager) error {
 		For(&v1alpha1.ThinBlob{}).
 		Owns(&v1alpha1.DeviceSwitch{}).
 		Owns(&v1alpha1.ThinPoolLv{}).
-		Owns(&v1alpha1.NbdServer{}).
 		Complete(r)
 }
 

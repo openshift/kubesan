@@ -2,7 +2,7 @@
 
 resources:
 - kubesan.gitlab.io_deviceswitches.yaml
-- kubesan.gitlab.io_nbdservers.yaml
+- kubesan.gitlab.io_nbdexports.yaml
 - kubesan.gitlab.io_snapshots.yaml
 - kubesan.gitlab.io_thinblobs.yaml
 - kubesan.gitlab.io_thinpools.yaml
