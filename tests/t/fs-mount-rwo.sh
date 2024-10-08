@@ -68,3 +68,5 @@ kubectl delete pod "${NODE_INDICES[@]/#/test-pod-}" --timeout=30s
 ksan-stage 'Deleting volumes...'
 
 kubectl delete pvc "${NODE_INDICES[@]/#/test-pvc-}" --timeout=30s
+
+ksan-stage 'Finishing test...'
