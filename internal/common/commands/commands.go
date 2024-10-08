@@ -157,7 +157,8 @@ func LvmLvCreateIdempotent(args ...string) (Output, error) {
 func LvmLvRemoveIdempotent(args ...string) (Output, error) {
 	output, err := Lvm(append([]string{"lvremove"}, args...)...)
 
-	if err != nil && strings.Contains(string(output.Combined), "failed to find") {
+	// ignore both "failed to find" and "Failed to find"
+	if err != nil && strings.Contains(string(output.Combined), "ailed to find") {
 		err = nil // suppress error for idempotency
 	}
 
