@@ -48,4 +48,5 @@ if [[ $fail != 0 &&
     echo "SKIP: partial csi-sanity failures are still expected"
 fi
 
+ksan-stage 'Finishing test...'
 exit $fail

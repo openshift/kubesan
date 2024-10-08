@@ -133,3 +133,5 @@ kubectl delete vs test-vs-1 --timeout=60s
 ksan-stage 'Deleting volumes 2 and 3...'
 
 kubectl delete pvc test-pvc-2 test-pvc-3 --timeout=60s
+
+ksan-stage 'Finishing test...'

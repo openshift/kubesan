@@ -87,3 +87,5 @@ kubectl delete pod test-pod-1 --timeout=30s
 
 ksan-stage 'Deleting volume...'
 kubectl delete pvc test-pvc --timeout=30s
+
+ksan-stage 'Finishing test...'
