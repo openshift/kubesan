@@ -4,6 +4,9 @@ package controller
 
 import (
 	"context"
+	"log"
+	"math"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -11,6 +14,8 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
@@ -237,6 +242,31 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	propagation := client.PropagationPolicy(metav1.DeletePropagationForeground)
 
 	if err := s.client.Delete(ctx, volume, propagation); err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+
+	// Delete() returns immediately so wait for the resource to go away
+
+	err := wait.Backoff{
+		Duration: 500 * time.Millisecond,
+		Factor:   2, // exponential backoff
+		Jitter:   0.1,
+		Steps:    math.MaxInt,
+		Cap:      10 * time.Second,
+	}.DelayFunc().Until(ctx, true, false, func(ctx context.Context) (bool, error) {
+		err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId, Namespace: config.Namespace}, volume)
+		if err == nil {
+			log.Printf("Volume \"%v\" still exists", req.VolumeId)
+			return false, nil // keep going
+		} else if errors.IsNotFound(err) {
+			log.Printf("Volume \"%v\" deleted", req.VolumeId)
+			return true, nil // done
+		} else {
+			log.Printf("Volume \"%v\" Get() failed: %+v", req.VolumeId, err)
+			return false, err
+		}
+	})
+	if err != nil {
 		return nil, err
 	}
 

@@ -63,8 +63,7 @@ EOF
 ksan-wait-for-pod-to-succeed 60 test-pod
 kubectl delete pod test-pod --timeout=60s
 
-ksan-stage 'Deleting volume 1...'
-kubectl delete pvc test-pvc-1 --timeout=60s
+ksan-delete-volume test-pvc-1
 
 ksan-stage 'Creating volume 3 from the snapshot of volume 1 but with a bigger size...'
 
@@ -128,6 +127,4 @@ ksan-stage 'Deleting snapshot of volume 1...'
 
 kubectl delete vs test-vs-1 --timeout=60s
 
-ksan-stage 'Deleting volumes 2 and 3...'
-
-kubectl delete pvc test-pvc-2 test-pvc-3 --timeout=60s
+ksan-delete-volume test-pvc-2 test-pvc-3
