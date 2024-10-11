@@ -5,6 +5,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -141,6 +142,7 @@ func LvmCreateProfile(name string, contents string) error {
 }
 
 func Lvm(args ...string) (Output, error) {
+	log.Printf("LVM command: %v", args)
 	return RunOnHost(append([]string{"lvm"}, args...)...)
 }
 

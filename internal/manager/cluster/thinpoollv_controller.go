@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+// The ThinPoolLv cluster controller creates and removes thin-pools. Everything
+// else is handled by the node controller.
+
 package cluster
 
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -77,61 +79,41 @@ func (r *ThinPoolLvReconciler) reconcileNotDeleting(ctx context.Context, thinPoo
 		}
 	}
 
-	// create LVM thin LVs
-
-	for i := range thinPoolLv.Spec.ThinLvs {
-		thinLvSpec := &thinPoolLv.Spec.ThinLvs[i]
-
-		if thinPoolLv.Status.FindThinLv(thinLvSpec.Name) == nil {
-			err := r.createThinLv(ctx, thinPoolLv, thinLvSpec)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// remove LVM thin LVs
-
-	for i := 0; i < len(thinPoolLv.Status.ThinLvs); i++ {
-		thinLvStatus := &thinPoolLv.Status.ThinLvs[i]
-
-		if thinPoolLv.Spec.FindThinLv(thinLvStatus.Name) == nil && thinLvStatus.State.Inactive != nil {
-			err := r.removeThinLv(ctx, thinPoolLv, thinLvStatus.Name)
-			if err != nil {
-				return err
-			}
-
-			thinPoolLv.Status.ThinLvs = slices.Delete(thinPoolLv.Status.ThinLvs, i, i+1)
-			i--
-		}
-	}
-
 	return nil
 }
 
 func (r *ThinPoolLvReconciler) reconcileDeleting(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv) error {
+	// wait for node controller to deactivate thin-pool so there are no races
+
+	if conditionsv1.IsStatusConditionTrue(thinPoolLv.Status.Conditions, v1alpha1.ThinPoolLvConditionActive) {
+		return nil
+	}
+
 	// remove LVM thin LVs
 
 	for i := range thinPoolLv.Status.ThinLvs {
 		thinLv := &thinPoolLv.Status.ThinLvs[i]
 
-		if thinLv.State.Inactive != nil {
-			err := r.removeThinLv(ctx, thinPoolLv, thinLv.Name)
-			if err != nil {
-				return err
-			}
-
-			thinPoolLv.Status.ThinLvs = slices.Delete(thinPoolLv.Status.ThinLvs, i, i+1)
+		if thinLv.State.Inactive == nil {
+			return nil // try again when the LV becomes inactive
 		}
-	}
 
-	// remove LVM thin pool LV if there are no LVM thin LVs left
-
-	if len(thinPoolLv.Status.ThinLvs) == 0 {
-		err := r.removeThinPoolLv(ctx, thinPoolLv)
+		err := r.removeThinLv(thinPoolLv, thinLv.Name)
 		if err != nil {
 			return err
 		}
+	}
+
+	thinPoolLv.Status.ThinLvs = []v1alpha1.ThinLvStatus{}
+	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+		return err
+	}
+
+	// remove LVM thin pool LV
+
+	err := r.removeThinPoolLv(ctx, thinPoolLv)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -182,90 +164,10 @@ func (r *ThinPoolLvReconciler) removeThinPoolLv(ctx context.Context, thinPoolLv 
 	return nil
 }
 
-func (r *ThinPoolLvReconciler) createThinLv(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv, thinLvSpec *v1alpha1.ThinLvSpec) error {
-	switch {
-	case thinLvSpec.Contents.Empty != nil:
-		// create empty LVM thin LV
-
-		_, err := commands.LvmLvCreateIdempotent(
-			"--devicesfile", thinPoolLv.Spec.VgName,
-			"--type", "thin",
-			"--name", thinLvSpec.Name,
-			"--thinpool", thinPoolLv.Name,
-			"--virtualsize", fmt.Sprintf("%db", thinLvSpec.SizeBytes),
-			thinPoolLv.Spec.VgName,
-		)
-		if err != nil {
-			return err
-		}
-
-		// deactivate LVM thin LV (`--activate n` has no effect on `lvcreate --type thin`)
-
-		_, err = commands.Lvm(
-			"lvchange",
-			"--devicesfile", thinPoolLv.Spec.VgName,
-			"--activate", "n",
-			fmt.Sprintf("%s/%s", thinPoolLv.Spec.VgName, thinLvSpec.Name),
-		)
-		if err != nil {
-			return err
-		}
-
-	case thinLvSpec.Contents.Snapshot != nil:
-		sourceLv := thinLvSpec.Contents.Snapshot.SourceThinLvName
-
-		if thinPoolLv.Status.FindThinLv(sourceLv) == nil {
-			// source thin LV does not (currently) exist
-			return nil
-		}
-
-		// create snapshot LVM thin LV
-
-		_, err := commands.LvmLvCreateIdempotent(
-			"--devicesfile", thinPoolLv.Spec.VgName,
-			"--name", thinLvSpec.Name,
-			"--snapshot",
-			"--setactivationskip", "n",
-			fmt.Sprintf("%s/%s", thinPoolLv.Spec.VgName, sourceLv),
-		)
-		if err != nil {
-			return err
-		}
-
-	default:
-		// unknown LVM thin LV contents
-		return nil
-	}
-
-	thinLvStatus := v1alpha1.ThinLvStatus{
-		Name: thinLvSpec.Name,
-		State: v1alpha1.ThinLvState{
-			Inactive: &v1alpha1.ThinLvStateInactive{},
-		},
-		SizeBytes: thinLvSpec.SizeBytes,
-	}
-
-	thinPoolLv.Status.ThinLvs = append(thinPoolLv.Status.ThinLvs, thinLvStatus)
-
-	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *ThinPoolLvReconciler) removeThinLv(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv, thinLvName string) error {
+func (r *ThinPoolLvReconciler) removeThinLv(thinPoolLv *v1alpha1.ThinPoolLv, thinLvName string) error {
 	_, err := commands.LvmLvRemoveIdempotent(
 		"--devicesfile", thinPoolLv.Spec.VgName,
 		fmt.Sprintf("%s/%s", thinPoolLv.Spec.VgName, thinLvName),
 	)
-	if err != nil {
-		return err
-	}
-
-	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
