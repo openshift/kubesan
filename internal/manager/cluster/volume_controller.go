@@ -131,14 +131,6 @@ func (r *VolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, errors.NewBadRequest("invalid volume type")
 	}
 
-	switch {
-	case volume.Spec.Type.Block != nil:
-		// nothing to do
-
-	case volume.Spec.Type.Filesystem != nil:
-		return ctrl.Result{}, errors.NewBadRequest("not implemented") // TODO
-	}
-
 	if kubesanslices.CountNonNil(
 		volume.Spec.Contents.Empty,
 		volume.Spec.Contents.CloneVolume,

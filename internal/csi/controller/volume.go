@@ -111,19 +111,27 @@ func getVolumeMode(req *csi.CreateVolumeRequest) (v1alpha1.VolumeMode, error) {
 
 func getVolumeType(req *csi.CreateVolumeRequest) (*v1alpha1.VolumeType, error) {
 	var volumeType *v1alpha1.VolumeType
+	var isTypeBlock bool
+	var isTypeMount bool
 
 	for _, cap := range req.VolumeCapabilities {
 		var vt v1alpha1.VolumeType
 
 		if block := cap.GetBlock(); block != nil {
+			isTypeBlock = true
 			vt.Block = &v1alpha1.VolumeTypeBlock{}
 		} else if mount := cap.GetMount(); mount != nil {
+			isTypeMount = true
 			vt.Filesystem = &v1alpha1.VolumeTypeFilesystem{
 				FsType:       mount.FsType,
 				MountOptions: mount.MountFlags,
 			}
 		} else {
 			return nil, status.Error(codes.InvalidArgument, "invalid volume capabilities")
+		}
+
+		if isTypeBlock && isTypeMount {
+			return nil, status.Error(codes.InvalidArgument, "volume access type cannot be both block and mount")
 		}
 
 		if volumeType == nil {
