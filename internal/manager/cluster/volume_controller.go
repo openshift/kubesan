@@ -56,7 +56,7 @@ func (r *VolumeReconciler) reconcileDeleting(ctx context.Context, blobMgr BlobMa
 		return nil // wait until no longer attached
 	}
 
-	if err := blobMgr.RemoveBlob(volume.Name); err != nil {
+	if err := blobMgr.RemoveBlob(ctx, volume.Name); err != nil {
 		return err
 	}
 
@@ -82,7 +82,7 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 	// create LVM LV if necessary
 
 	if !conditionsv1.IsStatusConditionTrue(volume.Status.Conditions, conditionsv1.ConditionAvailable) {
-		err := blobMgr.CreateBlob(volume.Name, volume.Spec.SizeBytes)
+		err := blobMgr.CreateBlob(ctx, volume.Name, volume.Spec.SizeBytes)
 		if err != nil {
 			return err
 		}

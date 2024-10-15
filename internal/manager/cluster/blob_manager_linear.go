@@ -3,6 +3,7 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 
 	"gitlab.com/kubesan/kubesan/internal/common/commands"
@@ -23,7 +24,7 @@ func NewLinearBlobManager(vgName string) BlobManager {
 	}
 }
 
-func (m *LinearBlobManager) CreateBlob(name string, sizeBytes int64) error {
+func (m *LinearBlobManager) CreateBlob(ctx context.Context, name string, sizeBytes int64) error {
 	_, err := commands.LvmLvCreateIdempotent(
 		"--devicesfile", m.vgName,
 		"--activate", "n",
@@ -44,7 +45,7 @@ func (m *LinearBlobManager) CreateBlob(name string, sizeBytes int64) error {
 	return err
 }
 
-func (m *LinearBlobManager) RemoveBlob(name string) error {
+func (m *LinearBlobManager) RemoveBlob(ctx context.Context, name string) error {
 	_, err := commands.LvmLvRemoveIdempotent(
 		"--devicesfile", m.vgName,
 		fmt.Sprintf("%s/%s", m.vgName, name),
