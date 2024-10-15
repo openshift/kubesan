@@ -94,7 +94,7 @@ func (r *ThinPoolLvReconciler) reconcileDeleting(ctx context.Context, thinPoolLv
 	for i := range thinPoolLv.Status.ThinLvs {
 		thinLv := &thinPoolLv.Status.ThinLvs[i]
 
-		if thinLv.State.Inactive == nil {
+		if thinLv.State.Name != v1alpha1.ThinLvStatusStateNameInactive {
 			return nil // try again when the LV becomes inactive
 		}
 

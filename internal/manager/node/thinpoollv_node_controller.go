@@ -172,8 +172,8 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 			for i := range thinPoolLv.Status.ThinLvs {
 				thinLvStatus := &thinPoolLv.Status.ThinLvs[i]
 
-				thinLvStatus.State = v1alpha1.ThinLvState{
-					Inactive: &v1alpha1.ThinLvStateInactive{},
+				thinLvStatus.State = v1alpha1.ThinLvStatusState{
+					Name: v1alpha1.ThinLvStatusStateNameInactive,
 				}
 			}
 
@@ -210,7 +210,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinLvDeletion(ctx context.Context, 
 	for i := 0; i < len(thinPoolLv.Status.ThinLvs); i++ {
 		thinLvStatus := &thinPoolLv.Status.ThinLvs[i]
 
-		if thinPoolLv.Spec.FindThinLv(thinLvStatus.Name) == nil && thinLvStatus.State.Inactive != nil {
+		if thinPoolLv.Spec.FindThinLv(thinLvStatus.Name) == nil && thinLvStatus.State.Name != v1alpha1.ThinLvStatusStateNameInactive {
 			lvName := thinLvStatus.Name
 			log := log.FromContext(ctx)
 			log.Info("Deleting", "thin LV", lvName)
@@ -255,7 +255,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinLvActivations(ctx context.Contex
 		thinLvSpec := thinPoolLv.Spec.FindThinLv(thinLvStatus.Name)
 
 		shouldBeActive := thinLvSpec != nil && thinLvSpec.Activate
-		isActiveInStatus := thinLvStatus.State.Active != nil
+		isActiveInStatus := thinLvStatus.State.Name == v1alpha1.ThinLvStatusStateNameActive
 
 		path := fmt.Sprintf("/dev/%s/%s", thinPoolLv.Spec.VgName, thinLvStatus.Name)
 		isActuallyActive, err := commands.PathExistsOnHost(path)
@@ -279,8 +279,9 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinLvActivations(ctx context.Contex
 			// update status to reflect reality if necessary
 
 			if !isActiveInStatus {
-				thinLvStatus.State = v1alpha1.ThinLvState{
-					Active: &v1alpha1.ThinLvStateActive{
+				thinLvStatus.State = v1alpha1.ThinLvStatusState{
+					Name: v1alpha1.ThinLvStatusStateNameActive,
+					Active: &v1alpha1.ThinLvStatusStateActive{
 						Path: path,
 					},
 				}
@@ -305,8 +306,8 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinLvActivations(ctx context.Contex
 			// update status to reflect reality if necessary
 
 			if isActiveInStatus {
-				thinLvStatus.State = v1alpha1.ThinLvState{
-					Inactive: &v1alpha1.ThinLvStateInactive{},
+				thinLvStatus.State = v1alpha1.ThinLvStatusState{
+					Name: v1alpha1.ThinLvStatusStateNameInactive,
 				}
 
 				if err := r.Status().Update(ctx, thinPoolLv); err != nil {
@@ -387,8 +388,8 @@ func (r *ThinPoolLvNodeReconciler) createThinLv(ctx context.Context, thinPoolLv 
 
 	thinLvStatus := v1alpha1.ThinLvStatus{
 		Name: thinLvSpec.Name,
-		State: v1alpha1.ThinLvState{
-			Inactive: &v1alpha1.ThinLvStateInactive{},
+		State: v1alpha1.ThinLvStatusState{
+			Name: v1alpha1.ThinLvStatusStateNameInactive,
 		},
 		SizeBytes: thinLvSpec.SizeBytes,
 	}

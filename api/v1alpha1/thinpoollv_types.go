@@ -127,27 +127,31 @@ type ThinLvStatus struct {
 	Name string `json:"name"`
 
 	// The state of the LVM thin LV.
-	State ThinLvState `json:"state"`
+	State ThinLvStatusState `json:"state"`
 
 	// The current size of the LVM thin LV.
 	SizeBytes int64 `json:"sizeBytes"`
 }
 
-type ThinLvState struct {
+const (
 	// The LVM thin LV is not active on any node.
-	Inactive *ThinLvStateInactive `json:"inactive,omitempty"`
+	ThinLvStatusStateNameInactive = "Inactive"
 
 	// The LVM thin LV is active on the node where the LVM thin pool LV is active.
-	Active *ThinLvStateActive `json:"active,omitempty"`
+	ThinLvStatusStateNameActive = "Active"
+)
+
+type ThinLvStatusState struct {
+	// +unionDiscriminator
+	// +kubebuilder:validation:Enum:="Inactive";"Active"
+	// +kubebuilder:validation:Required
+	Name string `json:"name,omitempty"`
+
+	// +optional
+	Active *ThinLvStatusStateActive `json:"active,omitempty"`
 }
 
-type ThinLvStateCreating struct {
-}
-
-type ThinLvStateInactive struct {
-}
-
-type ThinLvStateActive struct {
+type ThinLvStatusStateActive struct {
 	// The path at which the LVM thin LV is available on the node where the LVM thin pool LV is active.
 	Path string `json:"path"`
 }
