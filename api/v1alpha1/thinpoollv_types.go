@@ -74,12 +74,16 @@ const (
 
 	// The LVM thin LV is active on the node where the LVM thin pool LV is active.
 	ThinLvSpecStateNameActive = "Active"
+
+	// The LVM thin LV has been removed from the thin pool.
+	ThinLvSpecStateNameRemoved = "Removed"
 )
 
 type ThinLvSpecState struct {
 	// +unionDiscriminator
-	// +kubebuilder:validation:Enum:="Inactive";"Active"
+	// +kubebuilder:validation:Enum:="Inactive";"Active";"Removed"
 	// +kubebuilder:validation:Required
+	// + TODO add validation rule preventing transitions out of "Removed" state
 	Name string `json:"name,omitempty"`
 }
 
@@ -154,11 +158,15 @@ const (
 
 	// The LVM thin LV is active on the node where the LVM thin pool LV is active.
 	ThinLvStatusStateNameActive = "Active"
+
+	// The LVM thin LV has been removed from the thin pool and can now be
+	// forgotten by removing the corresponding Spec.ThinLvs[] element.
+	ThinLvStatusStateNameRemoved = "Removed"
 )
 
 type ThinLvStatusState struct {
 	// +unionDiscriminator
-	// +kubebuilder:validation:Enum:="Inactive";"Active"
+	// +kubebuilder:validation:Enum:="Inactive";"Active";"Removed"
 	// +kubebuilder:validation:Required
 	Name string `json:"name,omitempty"`
 

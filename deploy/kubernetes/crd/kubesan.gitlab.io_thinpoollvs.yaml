@@ -93,6 +93,7 @@ spec:
                           enum:
                           - Inactive
                           - Active
+                          - Removed
                           type: string
                       type: object
                   required:
@@ -182,6 +183,7 @@ spec:
                           enum:
                           - Inactive
                           - Active
+                          - Removed
                           type: string
                       type: object
                   required:

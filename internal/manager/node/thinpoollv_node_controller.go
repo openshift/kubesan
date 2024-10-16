@@ -5,7 +5,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -207,25 +206,64 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 }
 
 func (r *ThinPoolLvNodeReconciler) reconcileThinLvDeletion(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv) error {
-	for i := 0; i < len(thinPoolLv.Status.ThinLvs); i++ {
-		thinLvStatus := &thinPoolLv.Status.ThinLvs[i]
+	needUpdate := false
 
-		if thinPoolLv.Spec.FindThinLv(thinLvStatus.Name) == nil && thinLvStatus.State.Name != v1alpha1.ThinLvStatusStateNameInactive {
-			lvName := thinLvStatus.Name
-			log := log.FromContext(ctx)
-			log.Info("Deleting", "thin LV", lvName)
+	// remove thin LVs from thin-pool that have been marked for removal in Spec.ThinLvs[]
 
-			thinPoolLv.Status.ThinLvs = slices.Delete(thinPoolLv.Status.ThinLvs, i, i+1)
+	for i := 0; i < len(thinPoolLv.Spec.ThinLvs); i++ {
+		thinLvSpec := &thinPoolLv.Spec.ThinLvs[i]
+		if thinLvSpec.State.Name != v1alpha1.ThinLvSpecStateNameRemoved {
+			continue
+		}
 
-			err := r.removeThinLv(ctx, thinPoolLv, lvName)
-			if err != nil {
-				return err
+		log := log.FromContext(ctx)
+		log.Info("Deleting", "thin LV", thinLvSpec.Name)
+
+		err := r.removeThinLv(ctx, thinPoolLv, thinLvSpec.Name)
+		if err != nil {
+			return err
+		}
+
+		thinLvStatus := thinPoolLv.Status.FindThinLv(thinLvSpec.Name)
+		if thinLvStatus == nil {
+			// This shouldn't happen since ThinLvStatus is set up
+			// during thin LV creation, but just in case...
+			thinLvStatus := v1alpha1.ThinLvStatus{
+				Name: thinLvSpec.Name,
+				State: v1alpha1.ThinLvStatusState{
+					Name: v1alpha1.ThinLvStatusStateNameRemoved,
+				},
+				SizeBytes: thinLvSpec.SizeBytes,
 			}
 
-			i--
+			thinPoolLv.Status.ThinLvs = append(thinPoolLv.Status.ThinLvs, thinLvStatus)
+		} else {
+			thinLvStatus.State = v1alpha1.ThinLvStatusState{
+				Name: v1alpha1.ThinLvStatusStateNameRemoved,
+			}
 		}
+
+		needUpdate = true
 	}
 
+	// drop removed thin LVs from Status.ThinLvs[] that no longer appear in Spec.ThinLvs[]
+
+	newThinLvs := make([]v1alpha1.ThinLvStatus, 0, len(thinPoolLv.Spec.ThinLvs))
+	for i := 0; i < len(thinPoolLv.Status.ThinLvs); i++ {
+		thinLvStatus := &thinPoolLv.Status.ThinLvs[i]
+		if thinLvStatus.State.Name == v1alpha1.ThinLvStatusStateNameRemoved && thinPoolLv.Spec.FindThinLv(thinLvStatus.Name) == nil {
+			needUpdate = true // a thin LV was dropped
+		} else {
+			newThinLvs = append(newThinLvs, *thinLvStatus)
+		}
+	}
+	thinPoolLv.Status.ThinLvs = newThinLvs
+
+	if needUpdate {
+		if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -405,18 +443,10 @@ func (r *ThinPoolLvNodeReconciler) createThinLv(ctx context.Context, thinPoolLv 
 	return nil
 }
 
-func (r *ThinPoolLvNodeReconciler) removeThinLv(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv, thinLvName string) error {
+func (r *ThinPoolLvNodeReconciler) removeThinLv(_ context.Context, thinPoolLv *v1alpha1.ThinPoolLv, thinLvName string) error {
 	_, err := commands.LvmLvRemoveIdempotent(
 		"--devicesfile", thinPoolLv.Spec.VgName,
 		fmt.Sprintf("%s/%s", thinPoolLv.Spec.VgName, thinLvName),
 	)
-	if err != nil {
-		return err
-	}
-
-	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
