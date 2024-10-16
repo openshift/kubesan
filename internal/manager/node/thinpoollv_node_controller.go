@@ -118,7 +118,7 @@ func (r *ThinPoolLvNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 // Returns true if the thin-pool should be active
 func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv) (bool, error) {
 	thinPoolLvShouldBeActive := thinPoolLv.DeletionTimestamp == nil &&
-		kubesanslices.Any(thinPoolLv.Spec.ThinLvs, func(spec v1alpha1.ThinLvSpec) bool { return spec.Activate })
+		kubesanslices.Any(thinPoolLv.Spec.ThinLvs, func(spec v1alpha1.ThinLvSpec) bool { return spec.State.Name == v1alpha1.ThinLvSpecStateNameActive })
 
 	if thinPoolLvShouldBeActive {
 		if thinPoolLv.Spec.ActiveOnNode == config.LocalNodeName {
@@ -254,7 +254,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinLvActivations(ctx context.Contex
 		thinLvStatus := &thinPoolLv.Status.ThinLvs[i]
 		thinLvSpec := thinPoolLv.Spec.FindThinLv(thinLvStatus.Name)
 
-		shouldBeActive := thinLvSpec != nil && thinLvSpec.Activate
+		shouldBeActive := thinLvSpec != nil && thinLvSpec.State.Name == v1alpha1.ThinLvSpecStateNameActive
 		isActiveInStatus := thinLvStatus.State.Name == v1alpha1.ThinLvStatusStateNameActive
 
 		path := fmt.Sprintf("/dev/%s/%s", thinPoolLv.Spec.VgName, thinLvStatus.Name)

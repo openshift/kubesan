@@ -65,7 +65,22 @@ type ThinLvSpec struct {
 	SizeBytes int64 `json:"sizeBytes"`
 
 	// May be updated at will.
-	Activate bool `json:"activate"`
+	State ThinLvSpecState `json:"state"`
+}
+
+const (
+	// The LVM thin LV is not active on any node.
+	ThinLvSpecStateNameInactive = "Inactive"
+
+	// The LVM thin LV is active on the node where the LVM thin pool LV is active.
+	ThinLvSpecStateNameActive = "Active"
+)
+
+type ThinLvSpecState struct {
+	// +unionDiscriminator
+	// +kubebuilder:validation:Enum:="Inactive";"Active"
+	// +kubebuilder:validation:Required
+	Name string `json:"name,omitempty"`
 }
 
 const (
