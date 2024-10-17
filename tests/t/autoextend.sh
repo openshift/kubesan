@@ -15,8 +15,7 @@ ksan-create-snapshot test-pvc-1 test-vs-2
 
 ksan-fill-volume test-pvc-1 64
 
-ksan-stage 'Deleting volume 1...'
-kubectl delete pvc test-pvc-1 --timeout=60s
+ksan-delete volume test-pvc-1
 
 ksan-stage 'Deleting first snapshot of volume 1...'
 kubectl delete vs test-vs-1 --timeout=60s

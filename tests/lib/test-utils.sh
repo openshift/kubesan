@@ -125,3 +125,15 @@ EOF
 
     ksan-wait-for-vs-to-be-bound 60 "$snapshot"
 }
+
+# Usage: ksan-delete volume <volume> [<volume2> ...]
+ksan-delete-volume() {
+    ksan-stage "Deleting volumes..."
+
+    # PVCs deletion is immediate but PVs only disappear after CSI DeleteVolume
+    # completes successfully. Wait for PVs so that there is no more CSI
+    # activity.
+    pvs=$(kubectl get pvc "$@" -o jsonpath='{.items[*].spec.volumeName}')
+    kubectl delete pvc "$@" --timeout=30s
+    ksan-poll 1 30 "[[ -z \"\$(kubectl get --no-headers pv $pvs 2>/dev/null)\" ]]"
+}

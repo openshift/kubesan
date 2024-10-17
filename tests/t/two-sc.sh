@@ -15,7 +15,7 @@ metadata:
     storageclass.kubernetes.io/is-default-class: "false"
 provisioner: kubesan.gitlab.io
 parameters:
-  backingVolumeGroup: second-vg
+  lvmVolumeGroup: second-vg
 EOF
 
 ksan-stage 'Provisioning volumes in each StorageClass...'
@@ -88,8 +88,6 @@ ksan-stage 'Unmounting volumes...'
 
 kubectl delete pod "test-pod" --timeout=30s
 
-ksan-stage 'Deleting volumes...'
-
-kubectl delete pvc "test-pvc-kubesan" "test-pvc-second" --timeout=30s
+ksan-delete-volume "test-pvc-kubesan" "test-pvc-second"
 
 ksan-stage 'Finishing test...'
