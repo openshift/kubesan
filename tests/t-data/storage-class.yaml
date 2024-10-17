@@ -6,4 +6,4 @@ metadata:
   name: kubesan
 provisioner: kubesan.gitlab.io
 parameters:
-  backingVolumeGroup: kubesan-vg
+  lvmVolumeGroup: kubesan-vg

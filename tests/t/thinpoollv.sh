@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: Apache-2.0
+
+ksan-stage "Creating empty ThinPoolLv..."
+
+kubectl create -f - <<EOF
+apiVersion: kubesan.gitlab.io/v1alpha1
+kind: ThinPoolLv
+metadata:
+  name: thinpoollv
+  namespace: kubesan-system
+spec:
+  vgName: kubesan-vg
+  sharing: NotNeeded
+EOF
+
+# Wait for Status.Conditions["Available"]
+ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' thinpoollv thinpoollv | grep --quiet 'Available True'"
+
+ksan-stage "Creating thin LV..."
+kubectl patch --namespace kubesan-system thinpoollv thinpoollv --type merge -p """
+spec:
+  activeOnNode: $(__ksan-get-node-name 0)
+  thinLvs:
+    - name: thinlv
+      contents:
+        contentsType: Empty
+      readOnly: false
+      sizeBytes: 67108864
+      activate: false
+"""
+ksan-poll 1 30 "[[ \"\$(kubectl get --namespace kubesan-system -o=jsonpath='{.status.thinLvs[0].name}' thinpoollv thinpoollv)\" = thinlv ]]"
+
+ksan-stage "Deleting thin LV..."
+kubectl patch --namespace kubesan-system thinpoollv thinpoollv --type json -p '[{"op": "remove", "path": "/spec/thinLvs/0"}]'
+ksan-poll 1 30 "[[ -z \"\$(kubectl get --namespace kubesan-system -o=jsonpath='{.status.thinLvs}' thinpoollv thinpoollv)\" ]]"
+
+ksan-stage "Deleting ThinPoolLv..."
+kubectl delete --namespace kubesan-system thinpoollv thinpoollv
+ksan-poll 1 30 "! kubectl get --namespace kubesan-system thinpoollv thinpoollv"
