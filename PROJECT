@@ -37,7 +37,7 @@ resources:
     namespaced: true
   controller: true
   domain: kubesan.gitlab.io
-  kind: NbdServer
+  kind: NbdExport
   path: gitlab.com/kubesan/kubesan/api/v1alpha1
   version: v1alpha1
 - api:

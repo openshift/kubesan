@@ -59,7 +59,6 @@ func RunClusterControllers() error {
 	}
 
 	return runManager(ctrlOpts, []func(ctrl.Manager) error{
-		clustercontrollers.SetUpNbdServerReconciler,
 		clustercontrollers.SetUpSnapshotReconciler,
 		clustercontrollers.SetUpThinBlobReconciler,
 		clustercontrollers.SetUpThinPoolReconciler,
@@ -91,7 +90,7 @@ func RunNodeControllers() error {
 
 	return runManager(ctrlOpts, []func(ctrl.Manager) error{
 		nodecontrollers.SetUpDeviceSwitchNodeReconciler,
-		nodecontrollers.SetUpNbdServerNodeReconciler,
+		nodecontrollers.SetUpNbdExportNodeReconciler,
 		nodecontrollers.SetUpThinPoolLvNodeReconciler,
 		nodecontrollers.SetUpVolumeNodeReconciler,
 	})
