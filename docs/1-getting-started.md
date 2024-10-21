@@ -129,13 +129,13 @@ with other users of LVM.
 If you are using OpenShift:
 
 ```console
-$ kubectl create -k https://gitlab.com/kubesan/kubesan/deploy/openshift?ref=v0.4.0
+$ kubectl create -k https://gitlab.com/kubesan/kubesan/deploy/openshift?ref=v0.5.0
 ```
 
 Otherwise use the vanilla Kubernetes kustomization:
 
 ```console
-$ kubectl create -k https://gitlab.com/kubesan/kubesan/deploy/kubernetes?ref=v0.4.0
+$ kubectl create -k https://gitlab.com/kubesan/kubesan/deploy/kubernetes?ref=v0.5.0
 ```
 
 If you wish to create snapshots of volumes, your Kubernetes cluster must have
@@ -174,7 +174,7 @@ metadata:
   name: my-san
 provisioner: kubesan.gitlab.io
 parameters:
-  backingVolumeGroup: my-vg
+  lvmVolumeGroup: my-vg
 ```
 
 If you are using OpenShift Virtualization, you must also patch the corresponding
@@ -201,5 +201,46 @@ spec:
     - ReadWriteOnce
 ```
 
+When creating your StorageClass objects, KubeSAN understands the
+following parameters:
+- lvmVolumeGroup: Mandatory, must be the name of an LVM Volume Group
+  already visible to all nodes in the cluster.  (In the future, we
+  plan to add a way to inform KubeSAN about topological constraints,
+  such as a volume group visible to only a subset of the cluster)
+- mode: Optional. At present, this defaults to "Linear", but it is
+  likely that the default will change to "Thin" in a future release
+  (so for now, it is best to supply this parameter explicitly).
+  Specifies the mode to use for each volume created by this storage
+  class, can be:
+  - "Thin": Volumes are backed by a thin pool LV, and can be sparse
+    (unused portions of the volume do not consume storage from the
+    VG).  Snapshots and cloning are quick, however, only one node at a
+    time has efficient access to the volume.  While it is possible to
+    have shared access to the volume across nodes, such access works
+    best if the window of time where more than one node is accessing
+    the volume is short-lived (this is tuned for how KubeVirt does
+    live-migration of storage between nodes).  In the current release,
+    support for this mode is lacking, but it will be added before
+    v1.0.0.
+  - "Linear": Volumes are fully allocated by a linear LV, and can be
+    shared across multiple nodes with no overhead.  It is not
+    possible to take snapshots of these volumes.
+
 You can have several KubeSAN `StorageClass`es on the same cluster that
-are backed by different shared volume groups.
+are backed by different shared volume groups, or even multiple classes
+that target the same volume group but differ in the other parameters
+affecting volume creation.  If you use more than one StorageClass, you
+may want to [set the default
+StorageClass](https://kubernetes.io/docs/tasks/administer-cluster/change-default-storage-class/)
+for use by Persistent Volume Claims that don't explicitly request a
+storageclass.
+
+The following matrix documents setups that KubeSAN supports or plans to
+support in a future release:
+
+| Description         | RWO     | RWX     | ROX     | Snapshots | Clone   |
+| :------------------ | :------ | :------ | :------ | :-------- | :------ |
+| LinearLV Block      | Yes     | Yes     | Planned | No        | No      |
+| LinearLV Filesystem | Planned | No      | Planned | No        | No      |
+| ThinLV Block        | Planned | Planned | Planned | Planned   | Planned |
+| ThinLV Filesystem   | Planned | No      | Planned | Planned   | Planned |

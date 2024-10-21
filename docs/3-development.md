@@ -4,30 +4,36 @@ Information relevant for KubeSAN developers.
 
 ## Code design
 
-The CSI plugin implementation is split into two main layers: (1) the "blob
-manager" layer and (2) the actual CSI gRPC server implementation layer. The blob
-manager layer knows nothing about CSI or gRPC, while the CSI layer relies on the
-former and knows nothing about LVM or NBD.
+The CSI plugin implementation is split into two main layers: (1) the
+"manager" layer and (2) the actual CSI gRPC server implementation
+layer. The manager layer knows nothing about CSI or gRPC, while the
+CSI layer relies on the former and knows nothing about LVM or NBD.
 
-This leads to a nice separation of concerns, with the blob manager layer
+This leads to a nice separation of concerns, with the manager layer
 managing all storage on the backing shared volume group (including everything
 LVM-, device mapper-, and NBD-related), and the CSI layer implementing
 higher-level functionality like copying data between blobs (volumes/snapshots)
 to implement volume cloning and creating and managing file systems inside blobs
 to provision `Filesystem` volumes for users.
 
-### The blob manager layer
+### The manager layer
 
-The blob manager layer is fully responsible for managing storage on the backing
-shared volume group. It exposes functionality to provision "blobs" (essentially
-disks) and to attach those blobs to nodes as needed, dealing with all
-complexities like managing NBD connections and keeping track of whether a blob
-is still needed on a given node and so on. It implements its functionality using
-a mix of device mapper, LVM, and NBD.
+The manager layer is fully responsible for managing storage on the
+backing shared volume group. It exposes functionality to provide
+several kubernetes Custom Resource Definitions (CRDs) that track the
+various LVM thin pools, volumes, and snapshots in the volume group, as
+well as other resources like NBD exports and device mapper setups.
 
-"Blobs" are named as such instead of simply "volumes" to avoid confusion with
-the concept of Kubernetes volumes, as blobs are used to store the contents of
-both Kubernetes volumes and volume snapshots.
+A more detailed design document will be provided in a future release,
+once the interactions of the various CRDs is coded up.  The rest of
+this document covers an earlier design prior to the current state of
+CRDs.
+
+A "blob" is an LV resource (either volume or snapshot - essentially a
+disk) that will be exposed to CSI.  "Blobs" are named as such instead
+of simply "volumes" to avoid confusion with the concept of Kubernetes
+volumes, as blobs are used to store the contents of both Kubernetes
+volumes and volume snapshots.
 
 This layer fully resides in the `pkg/kubesan/blobs` package and provides
 a couple types:

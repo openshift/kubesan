@@ -16,6 +16,7 @@ metadata:
 provisioner: kubesan.gitlab.io
 parameters:
   lvmVolumeGroup: second-vg
+  allocationMode: Thin  # TODO allow this to be chosen by tests/run.sh
 EOF
 
 ksan-stage 'Provisioning volumes in each StorageClass...'
