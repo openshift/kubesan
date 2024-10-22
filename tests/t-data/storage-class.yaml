@@ -7,4 +7,4 @@ metadata:
 provisioner: kubesan.gitlab.io
 parameters:
   lvmVolumeGroup: kubesan-vg
-  allocationMode: Thin  # TODO allow this to be chosen by tests/run.sh
+  mode: @@MODE@@
