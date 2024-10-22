@@ -132,7 +132,7 @@ __setup_nbd_storage() {
         __${deploy_tool}_ssh "${NODES[0]}" "
             sudo mkdir -p /mnt/vda1
             sudo truncate -s 0 /mnt/vda1/backing${i}.raw
-            sudo truncate -s 2G /mnt/vda1/backing${i}.raw
+            sudo truncate -s 4G /mnt/vda1/backing${i}.raw
             __run_in_test_container_async --net host \
                 -v /mnt/vda1/backing${i}.raw:/disk${i} -- \
                 qemu-nbd --cache=none --format=raw --persistent \
