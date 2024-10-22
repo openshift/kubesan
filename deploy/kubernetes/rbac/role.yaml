@@ -38,7 +38,7 @@ rules:
 - apiGroups:
   - kubesan.gitlab.io
   resources:
-  - nbdservers
+  - nbdexports
   verbs:
   - create
   - delete
@@ -50,13 +50,7 @@ rules:
 - apiGroups:
   - kubesan.gitlab.io
   resources:
-  - nbdservers/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - kubesan.gitlab.io
-  resources:
-  - nbdservers/status
+  - nbdexports/status
   verbs:
   - get
   - patch
