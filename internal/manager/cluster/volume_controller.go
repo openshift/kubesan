@@ -60,10 +60,10 @@ func (r *VolumeReconciler) reconcileDeleting(ctx context.Context, blobMgr BlobMa
 		return err
 	}
 
-	controllerutil.RemoveFinalizer(volume, config.Finalizer)
-
-	if err := r.Update(ctx, volume); err != nil {
-		return err
+	if controllerutil.RemoveFinalizer(volume, config.Finalizer) {
+		if err := r.Update(ctx, volume); err != nil {
+			return err
+		}
 	}
 	return nil
 }
