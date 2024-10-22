@@ -61,7 +61,6 @@ func RunClusterControllers() error {
 	return runManager(ctrlOpts, []func(ctrl.Manager) error{
 		clustercontrollers.SetUpSnapshotReconciler,
 		clustercontrollers.SetUpThinBlobReconciler,
-		clustercontrollers.SetUpThinPoolReconciler,
 		clustercontrollers.SetUpThinPoolLvReconciler,
 		clustercontrollers.SetUpVolumeReconciler,
 	})

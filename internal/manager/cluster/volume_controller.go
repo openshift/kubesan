@@ -44,8 +44,8 @@ func newBlobManager(volume *v1alpha1.Volume) (BlobManager, error) {
 	switch volume.Spec.Mode {
 	case v1alpha1.VolumeModeThin:
 		return nil, errors.NewBadRequest("thin blobs not yet implemented")
-	case v1alpha1.VolumeModeFat:
-		return NewFatBlobManager(volume.Spec.VgName), nil
+	case v1alpha1.VolumeModeLinear:
+		return NewLinearBlobManager(volume.Spec.VgName), nil
 	default:
 		return nil, errors.NewBadRequest("invalid volume mode")
 	}
@@ -56,7 +56,7 @@ func (r *VolumeReconciler) reconcileDeleting(ctx context.Context, blobMgr BlobMa
 		return nil // wait until no longer attached
 	}
 
-	if err := blobMgr.RemoveBlob(volume.Name); err != nil {
+	if err := blobMgr.RemoveBlob(ctx, volume.Name); err != nil {
 		return err
 	}
 
@@ -82,7 +82,7 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 	// create LVM LV if necessary
 
 	if !conditionsv1.IsStatusConditionTrue(volume.Status.Conditions, conditionsv1.ConditionAvailable) {
-		err := blobMgr.CreateBlob(volume.Name, volume.Spec.SizeBytes)
+		err := blobMgr.CreateBlob(ctx, volume.Name, volume.Spec.SizeBytes)
 		if err != nil {
 			return err
 		}

@@ -112,7 +112,7 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 			}
 		} else if fileInfo.Mode()&os.ModeSymlink != 0 {
 			err = os.Remove(req.StagingTargetPath)
-			
+
 			if err != nil {
 				return nil, err
 			}

@@ -58,9 +58,6 @@ spec:
                 description: May be updated at will.
                 items:
                   properties:
-                    activate:
-                      description: May be updated at will.
-                      type: boolean
                     contents:
                       description: Should be set from creation and never updated.
                       properties:
@@ -89,12 +86,22 @@ spec:
                         ever increase.
                       format: int64
                       type: integer
+                    state:
+                      description: May be updated at will.
+                      properties:
+                        name:
+                          enum:
+                          - Inactive
+                          - Active
+                          - Removed
+                          type: string
+                      type: object
                   required:
-                  - activate
                   - contents
                   - name
                   - readOnly
                   - sizeBytes
+                  - state
                   type: object
                 type: array
               vgName:
@@ -164,8 +171,6 @@ spec:
                       description: The state of the LVM thin LV.
                       properties:
                         active:
-                          description: The LVM thin LV is active on the node where
-                            the LVM thin pool LV is active.
                           properties:
                             path:
                               description: The path at which the LVM thin LV is available
@@ -174,9 +179,12 @@ spec:
                           required:
                           - path
                           type: object
-                        inactive:
-                          description: The LVM thin LV is not active on any node.
-                          type: object
+                        name:
+                          enum:
+                          - Inactive
+                          - Active
+                          - Removed
+                          type: string
                       type: object
                   required:
                   - name

@@ -17,7 +17,7 @@ EOF
 ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' thinpoollv thinpoollv | grep --quiet 'Available True'"
 
 ksan-stage "Creating thin LV..."
-kubectl patch --namespace kubesan-system thinpoollv thinpoollv --type merge -p """
+kubectl patch --namespace kubesan-system thinpoollv thinpoollv --type merge --patch """
 spec:
   activeOnNode: $(__ksan-get-node-name 0)
   thinLvs:
@@ -26,12 +26,17 @@ spec:
         contentsType: Empty
       readOnly: false
       sizeBytes: 67108864
-      activate: false
+      state:
+        name: Inactive
 """
 ksan-poll 1 30 "[[ \"\$(kubectl get --namespace kubesan-system -o=jsonpath='{.status.thinLvs[0].name}' thinpoollv thinpoollv)\" = thinlv ]]"
 
-ksan-stage "Deleting thin LV..."
-kubectl patch --namespace kubesan-system thinpoollv thinpoollv --type json -p '[{"op": "remove", "path": "/spec/thinLvs/0"}]'
+ksan-stage "Requesting thin LV deletion..."
+kubectl patch --namespace kubesan-system thinpoollv thinpoollv --type json --patch '[{"op": "replace", "path": "/spec/thinLvs/0/state/name", "value": "Removed"}]'
+ksan-poll 1 30 "[[ \"\$(kubectl get --namespace kubesan-system -o=jsonpath='{.status.thinLvs[0].state.name}' thinpoollv thinpoollv)\" = \"Removed\" ]]"
+
+ksan-stage "Removing thin LV from Spec..."
+kubectl patch --namespace kubesan-system thinpoollv thinpoollv --type json --patch '[{"op": "remove", "path": "/spec/thinLvs/0"}]'
 ksan-poll 1 30 "[[ -z \"\$(kubectl get --namespace kubesan-system -o=jsonpath='{.status.thinLvs}' thinpoollv thinpoollv)\" ]]"
 
 ksan-stage "Deleting ThinPoolLv..."

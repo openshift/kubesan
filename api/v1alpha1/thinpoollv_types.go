@@ -65,7 +65,26 @@ type ThinLvSpec struct {
 	SizeBytes int64 `json:"sizeBytes"`
 
 	// May be updated at will.
-	Activate bool `json:"activate"`
+	State ThinLvSpecState `json:"state"`
+}
+
+const (
+	// The LVM thin LV is not active on any node.
+	ThinLvSpecStateNameInactive = "Inactive"
+
+	// The LVM thin LV is active on the node where the LVM thin pool LV is active.
+	ThinLvSpecStateNameActive = "Active"
+
+	// The LVM thin LV has been removed from the thin pool.
+	ThinLvSpecStateNameRemoved = "Removed"
+)
+
+type ThinLvSpecState struct {
+	// +unionDiscriminator
+	// +kubebuilder:validation:Enum:="Inactive";"Active";"Removed"
+	// +kubebuilder:validation:Required
+	// + TODO add validation rule preventing transitions out of "Removed" state
+	Name string `json:"name,omitempty"`
 }
 
 const (
@@ -127,27 +146,35 @@ type ThinLvStatus struct {
 	Name string `json:"name"`
 
 	// The state of the LVM thin LV.
-	State ThinLvState `json:"state"`
+	State ThinLvStatusState `json:"state"`
 
 	// The current size of the LVM thin LV.
 	SizeBytes int64 `json:"sizeBytes"`
 }
 
-type ThinLvState struct {
+const (
 	// The LVM thin LV is not active on any node.
-	Inactive *ThinLvStateInactive `json:"inactive,omitempty"`
+	ThinLvStatusStateNameInactive = "Inactive"
 
 	// The LVM thin LV is active on the node where the LVM thin pool LV is active.
-	Active *ThinLvStateActive `json:"active,omitempty"`
+	ThinLvStatusStateNameActive = "Active"
+
+	// The LVM thin LV has been removed from the thin pool and can now be
+	// forgotten by removing the corresponding Spec.ThinLvs[] element.
+	ThinLvStatusStateNameRemoved = "Removed"
+)
+
+type ThinLvStatusState struct {
+	// +unionDiscriminator
+	// +kubebuilder:validation:Enum:="Inactive";"Active";"Removed"
+	// +kubebuilder:validation:Required
+	Name string `json:"name,omitempty"`
+
+	// +optional
+	Active *ThinLvStatusStateActive `json:"active,omitempty"`
 }
 
-type ThinLvStateCreating struct {
-}
-
-type ThinLvStateInactive struct {
-}
-
-type ThinLvStateActive struct {
+type ThinLvStatusStateActive struct {
 	// The path at which the LVM thin LV is available on the node where the LVM thin pool LV is active.
 	Path string `json:"path"`
 }
