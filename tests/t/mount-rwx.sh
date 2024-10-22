@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
+ksan-supported-modes Linear # TODO add Thin when NBD is implemented
+
 ksan-stage 'Provisioning volumes...'
 
 # Two distinct volumes, to ensure parallel cross-node NBD devices work

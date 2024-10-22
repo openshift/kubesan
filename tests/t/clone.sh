@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
+ksan-supported-modes # TODO add Thin when cloning is implemented
+
 ksan-create-volume test-pvc-1 64Mi
 ksan-fill-volume test-pvc-1 64
 

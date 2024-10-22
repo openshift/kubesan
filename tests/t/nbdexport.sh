@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
+# This test does not use ksan-supported-modes because it directly tests the
+# NbdExport CRD without using Volumes or StorageClass at all.
+
 ksan-stage "Creating NbdExport..."
 
 kubectl create -f - <<EOF

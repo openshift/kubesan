@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
+ksan-supported-modes # TODO add Thin when RWX is implemented
+
 # SOME DEFINITIONS
 
 # Usage: start_pod <one_based_node_index>

@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
+ksan-supported-modes Linear Thin
+
 ksan-stage 'Creating second shared VG'
 
 __create_ksan_shared_vg second-vg /dev/kubesan-drive-1
@@ -16,7 +18,7 @@ metadata:
 provisioner: kubesan.gitlab.io
 parameters:
   lvmVolumeGroup: second-vg
-  mode: Thin  # TODO allow this to be chosen by tests/run.sh
+  mode: $mode
 EOF
 
 ksan-stage 'Provisioning volumes in each StorageClass...'
