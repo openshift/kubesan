@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/mount-utils"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
@@ -53,16 +54,26 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, err
 	}
 
-	// create symlink to device for NodePublishVolume() (block volumes only)
+	// mount filesystem
+	if mount := req.VolumeCapability.GetMount(); mount != nil {
+		path := volume.Status.GetPath()
 
-	err = os.Remove(req.StagingTargetPath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
+		// format and mount (Filesystem volumes only)
+		if err := s.formatAndMount(path, req.StagingTargetPath, mount.FsType, mount.MountFlags); err != nil {
+			return nil, err
+		}
+	} else {
 
-	err = os.Symlink(volume.Status.GetPath(), req.StagingTargetPath)
-	if err != nil {
-		return nil, err
+		// create symlink to device for NodePublishVolume() (block volumes only)
+		err = os.Remove(req.StagingTargetPath)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+
+		err = os.Symlink(volume.Status.GetPath(), req.StagingTargetPath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// success
@@ -81,10 +92,31 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Errorf(codes.InvalidArgument, "must specify staging target path")
 	}
 
-	// remove symlink to device
-	err := os.Remove(req.StagingTargetPath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
+	// unmount file system, if necessary
+	sure, err := s.mounter.IsMountPoint(req.StagingTargetPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to determine whether %s is a mount point for volume %s: %v", req.StagingTargetPath, req.VolumeId, err)
+	}
+	if sure {
+		if err := mount.CleanupMountPoint(req.StagingTargetPath, s.mounter, true); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to clean up mount point %s for volume %s: %v", req.StagingTargetPath, req.VolumeId, err)
+		}
+	} else {
+		// filesystem volumes can enter this branch if they were unmounted earlier
+
+		// remove symlink to device (for block volumes only, is no op for filesystems)
+		fileInfo, err := os.Lstat(req.StagingTargetPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return nil, status.Errorf(codes.Internal, "error determining if dir %s is a symbolic link", req.StagingTargetPath)
+			}
+		} else if fileInfo.Mode()&os.ModeSymlink != 0 {
+			err = os.Remove(req.StagingTargetPath)
+			
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// detach volume from local node
@@ -114,6 +146,38 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	// success
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
+}
+
+// Mount a file system from a device and format it, if necessary.
+func (s *NodeServer) formatAndMount(source string, target string, fstype string, mountFlags []string) error {
+	f := mount.NewSafeFormatAndMount(s.mounter, s.exec)
+
+	// already mounted?
+
+	if sure, err := f.IsMountPoint(target); sure && err == nil {
+		return nil
+	}
+
+	// format, if necessary, and then mount
+
+	if err := f.FormatAndMountSensitive(source, target, fstype, nil, mountFlags); err != nil {
+		return status.Errorf(codes.Internal, "format and mount failed source=%s target=%s fstype=%s: %v", source, target, fstype, err)
+	}
+
+	// cloned volumes may be larger than the file system, so resize
+
+	resizeFs := mount.NewResizeFs(s.exec)
+	needResize, err := resizeFs.NeedResize(source, target)
+	if err != nil {
+		return status.Errorf(codes.Internal, "failed to determine whether to resize source=%s target=%s fstype=%s: %v", source, target, fstype, err)
+	}
+	if needResize {
+		_, err := resizeFs.Resize(source, target)
+		if err != nil {
+			return status.Errorf(codes.Internal, "failed to resize source=%s target=%s fstype=%s: %v", source, target, fstype, err)
+		}
+	}
+	return nil
 }
 
 // // Mount a file system from a device and format it, if necessary.
