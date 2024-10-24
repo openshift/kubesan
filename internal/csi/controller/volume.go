@@ -6,6 +6,7 @@ import (
 	"context"
 	"log"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -59,9 +60,20 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
+	// Kubernetes object names are typically DNS Subdomain Names (RFC
+	// 1123). Only lowercase characters are allowed.
+	//
+	// Converting to lowercase does not uniquely represent all possible
+	// names, but it's enough to make the csi-sanity test suite work (it
+	// produces uppercase names). Kubernetes itself uses the lowercase PVC
+	// UUID as the name so there is no problem in practice.
+	//
+	// See https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
+	name := strings.ToLower(req.Name)
+
 	volume := &v1alpha1.Volume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name,
+			Name:      name,
 			Namespace: config.Namespace,
 		},
 		Spec: v1alpha1.VolumeSpec{
@@ -88,7 +100,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	resp := &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			CapacityBytes: capacity,
-			VolumeId:      volume.Name,
+			VolumeId:      name,
 			ContentSource: req.VolumeContentSource,
 		},
 	}
