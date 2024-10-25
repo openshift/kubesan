@@ -15,8 +15,11 @@ import (
 )
 
 const (
-	Domain  = "kubesan.gitlab.io"
-	Version = "v0.5.0"
+	Domain = "kubesan.gitlab.io"
+
+	// + Don't forget to update deploy/kubernetes/kustomization.yaml
+	// + when bumping this version string for a release.
+	Version = "v0.7.0"
 
 	Finalizer = Domain + "/finalizer"
 
