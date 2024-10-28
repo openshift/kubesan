@@ -26,6 +26,10 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Errorf(codes.InvalidArgument, "must specify volume id")
 	}
 
+	if req.StagingTargetPath == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify staging target path")
+	}
+
 	if err := validate.ValidateVolumeCapability(req.VolumeCapability); err != nil {
 		return nil, err
 	}
