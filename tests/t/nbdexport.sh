@@ -12,7 +12,11 @@ metadata:
   name: export
   namespace: kubesan-system
 spec:
-  source: "/dev/null"
+  export: export
+  # The CRD needs a block device in /dev. Cheat and reuse the second VG
+  # that this test is otherwise not using; however, this is unsafe to
+  # do in a production environment.
+  path: "/dev/kubesan-drive-1"
   host: $(__ksan-get-node-name 0)
 EOF
 

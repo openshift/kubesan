@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: &name {{.Podname}}
+  namespace: {{.Namespace}}
+  labels:
+    kubesan.gitlab.io/component: nbd-server
+    kubesan.gitlab.io/name: *name
+spec:
+  nodeName: {{.Node}}
+  terminationGracePeriodSeconds: 0
+  restartPolicy: Never
+  serviceAccountName: nbd-server
+  containers:
+    - name: nbd-server
+      image: {{.Image}}
+      command:
+        - qemu-nbd
+        - --cache=none
+        - --format=raw
+        - --persistent
+        - --share=0
+        - --export-name={{.Export}}
+        - {{.DevicePathOnHost}}
+      volumeMounts:
+        - name: dev
+          mountPath: /dev
+      securityContext:
+        privileged: true
+      ports:
+        - containerPort: &port 10809
+      readinessProbe:
+        tcpSocket:
+          port: *port
+        initialDelaySeconds: 1
+        periodSeconds: 1
+  volumes:
+    - name: dev
+      hostPath:
+        path: /dev
+        type: Directory
