@@ -22,9 +22,13 @@ spec:
       command:
         - ./csi-sanity
         - --csi.controllerendpoint
-        - /run/csi/kubesan-controller/socket
+        - /var/lib/kubelet/plugins/kubesan-controller/socket
         - --csi.endpoint
-        - /run/csi/kubesan-node/socket
+        - /var/lib/kubelet/plugins/kubesan-node/socket
+        - --csi.mountdir
+        - /var/lib/kubelet/plugins/csi-sanity-target
+        - --csi.stagingdir
+        - /var/lib/kubelet/plugins/csi-sanity-staging
         - --csi.testvolumeaccesstype
         - block
         - --csi.testvolumeparameters
@@ -34,9 +38,12 @@ spec:
 #        - --ginkgo.fail-fast
       volumeMounts:
         - name: drivers
-          mountPath: /run/csi
+          mountPath: /var/lib/kubelet/plugins
         - name: csi-parameters
           mountPath: /etc/csi-parameters
+        # Mount /dev so that symlinks to block devices resolve
+        - name: dev
+          mountPath: /dev
       securityContext:
         privileged: true
   volumes:
@@ -47,6 +54,10 @@ spec:
     - name: csi-parameters
       configMap:
         name: csi-parameters
+    - name: dev
+      hostPath:
+        path: /dev
+        type: Directory
 EOF
 
 fail=0
