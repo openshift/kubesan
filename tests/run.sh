@@ -20,6 +20,7 @@ initial_working_dir="${PWD}"
 deploy_tool=kcli
 ksanregistry=""
 fail_fast=0
+mode=Thin
 num_nodes=2
 repeat=1
 set_kubectl_context=0
@@ -33,6 +34,10 @@ while (( $# > 0 )); do
     case "$1" in
         --fail-fast)
             fail_fast=1
+            ;;
+        --mode)
+            shift
+            mode=$1
             ;;
         --nodes)
             shift
@@ -70,6 +75,11 @@ while (( $# > 0 )); do
     shift
 done
 
+if [[ "$mode" != Thin && "$mode" != Linear ]]; then
+    echo "Invalid mode \"$mode\", must be \"Thin\" or \"Linear\""
+    exit 1
+fi
+
 if [[ -f "${script_dir}/deployers/${deploy_tool}_iface.sh" ]]; then
     source "${script_dir}/deployers/${deploy_tool}_iface.sh"
     if (( requires_external_tool )); then
@@ -102,6 +112,7 @@ with it.
 
 Options:
    --fail-fast             Cancel remaining tests after a test fails.
+   --mode Thin|Linear      Select LVM LV type via StorageClass \"mode\" parameter (default: Thin).
    --nodes <n>             Number of nodes in the cluster (default: 2).
    --repeat <n>            Run each test n times (default: 1).
    --set-kubectl-context   Update the current user's kubectl context to point at the cluster (minikube only).
@@ -283,7 +294,7 @@ __run() {
             __log_cyan "Installing KubeSAN..."
             pattern="s;quay.io/kubesan/([a-z-]+):(latest|v[0-9+\.]+);${ksanregistry}/kubesan/\1:test;g"
             kubectl kustomize "${repo_root}/deploy/kubernetes" | sed -E "$pattern" | kubectl create -f -
-            kubectl create -f "${script_dir}/t-data/storage-class.yaml"
+            sed -E "s/@@MODE@@/$mode/g" "${script_dir}/t-data/storage-class.yaml" | kubectl create -f -
         fi
 
         # an externally deployed cluster might already have a snapshot class

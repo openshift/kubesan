@@ -5,6 +5,8 @@
 # consumption occurs when a snapshot is created and the volume is subsequently
 # completely overwritten.
 
+ksan-supported-modes # TODO enable Thin when snapshots are implemented
+
 ksan-create-volume test-pvc-1 64Mi
 
 ksan-fill-volume test-pvc-1 64

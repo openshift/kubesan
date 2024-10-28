@@ -1,5 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
+# Usage: ksan-supported-modes [<mode1> ...]
+ksan-supported-modes() {
+    for allowed in "$@"; do
+        if [[ "$mode" == "$allowed" ]]; then
+            return
+        fi
+    done
+
+    echo "SKIP: test does not support StorageClass mode \"$mode\"" >&2
+    exit 77
+}
+
 # Usage: ksan-stage <format> <args...>
 ksan-stage() {
     (

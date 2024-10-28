@@ -12,6 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
@@ -33,6 +34,7 @@ func SetUpVolumeReconciler(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Volume{}).
+		Owns(&v1alpha1.ThinPoolLv{}). // for ThinBlobManager
 		Complete(r)
 }
 
@@ -40,10 +42,10 @@ func SetUpVolumeReconciler(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/status,verbs=get;update;patch,namespace=kubesan-system
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/finalizers,verbs=update,namespace=kubesan-system
 
-func newBlobManager(volume *v1alpha1.Volume) (BlobManager, error) {
+func (r *VolumeReconciler) newBlobManager(volume *v1alpha1.Volume) (BlobManager, error) {
 	switch volume.Spec.Mode {
 	case v1alpha1.VolumeModeThin:
-		return nil, errors.NewBadRequest("thin blobs not yet implemented")
+		return NewThinBlobManager(r.Client, r.Scheme, volume, volume.Spec.VgName), nil
 	case v1alpha1.VolumeModeLinear:
 		return NewLinearBlobManager(volume.Spec.VgName), nil
 	default:
@@ -52,18 +54,27 @@ func newBlobManager(volume *v1alpha1.Volume) (BlobManager, error) {
 }
 
 func (r *VolumeReconciler) reconcileDeleting(ctx context.Context, blobMgr BlobManager, volume *v1alpha1.Volume) error {
+	log := log.FromContext(ctx).WithValues("nodeName", config.LocalNodeName)
+
 	if len(volume.Status.AttachedToNodes) > 0 {
+		log.Info("reconcileDeleting waiting for AttachedToNodes[] to become empty")
 		return nil // wait until no longer attached
 	}
 
 	if err := blobMgr.RemoveBlob(ctx, volume.Name); err != nil {
+		if _, ok := err.(*WatchPending); ok {
+			log.Info("RemoveBlob waiting for Watch")
+			return nil // wait until Watch triggers
+		}
 		return err
 	}
 
-	controllerutil.RemoveFinalizer(volume, config.Finalizer)
+	log.Info("RemoveBlob succeeded")
 
-	if err := r.Update(ctx, volume); err != nil {
-		return err
+	if controllerutil.RemoveFinalizer(volume, config.Finalizer) {
+		if err := r.Update(ctx, volume); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -82,10 +93,18 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 	// create LVM LV if necessary
 
 	if !conditionsv1.IsStatusConditionTrue(volume.Status.Conditions, conditionsv1.ConditionAvailable) {
+		log := log.FromContext(ctx).WithValues("nodeName", config.LocalNodeName)
+
 		err := blobMgr.CreateBlob(ctx, volume.Name, volume.Spec.SizeBytes)
 		if err != nil {
+			if _, ok := err.(*WatchPending); ok {
+				log.Info("CreateBlob waiting for Watch")
+				return nil // wait until Watch triggers
+			}
 			return err
 		}
+
+		log.Info("CreateBlob succeeded")
 
 		condition := conditionsv1.Condition{
 			Type:   conditionsv1.ConditionAvailable,
@@ -107,14 +126,17 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 }
 
 func (r *VolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	// log := log.FromContext(ctx)
+	log := log.FromContext(ctx).WithValues("nodeName", config.LocalNodeName)
+
+	log.Info("VolumeReconciler entered")
+	defer log.Info("VolumeReconciler exited")
 
 	volume := &v1alpha1.Volume{}
 	if err := r.Get(ctx, req.NamespacedName, volume); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	blobMgr, err := newBlobManager(volume)
+	blobMgr, err := r.newBlobManager(volume)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

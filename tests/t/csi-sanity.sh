@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
+ksan-supported-modes Linear Thin
+
 kubectl create -f - <<EOF
 apiVersion: v1
 kind: Pod

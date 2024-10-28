@@ -207,11 +207,8 @@ following parameters:
   already visible to all nodes in the cluster.  (In the future, we
   plan to add a way to inform KubeSAN about topological constraints,
   such as a volume group visible to only a subset of the cluster)
-- mode: Optional. At present, this defaults to "Linear", but it is
-  likely that the default will change to "Thin" in a future release
-  (so for now, it is best to supply this parameter explicitly).
-  Specifies the mode to use for each volume created by this storage
-  class, can be:
+- mode: Optional. At present, this defaults to "Thin". Specifies the mode to
+  use for each volume created by this storage class, can be:
   - "Thin": Volumes are backed by a thin pool LV, and can be sparse
     (unused portions of the volume do not consume storage from the
     VG).  Snapshots and cloning are quick, however, only one node at a

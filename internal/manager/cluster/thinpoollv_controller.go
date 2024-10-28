@@ -14,6 +14,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
@@ -43,6 +44,11 @@ func SetUpThinPoolLvReconciler(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs/finalizers,verbs=update,namespace=kubesan-system
 
 func (r *ThinPoolLvReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := log.FromContext(ctx).WithValues("nodeName", config.LocalNodeName)
+
+	log.Info("ThinPoolLvReconciler entered")
+	defer log.Info("ThinPoolLvReconciler exited")
+
 	thinPoolLv := &v1alpha1.ThinPoolLv{}
 	if err := r.Get(ctx, req.NamespacedName, thinPoolLv); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -104,9 +110,11 @@ func (r *ThinPoolLvReconciler) reconcileDeleting(ctx context.Context, thinPoolLv
 		}
 	}
 
-	thinPoolLv.Status.ThinLvs = []v1alpha1.ThinLvStatus{}
-	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
-		return err
+	if len(thinPoolLv.Status.ThinLvs) > 0 {
+		thinPoolLv.Status.ThinLvs = []v1alpha1.ThinLvStatus{}
+		if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+			return err
+		}
 	}
 
 	// remove LVM thin pool LV
@@ -155,10 +163,10 @@ func (r *ThinPoolLvReconciler) removeThinPoolLv(ctx context.Context, thinPoolLv 
 		return err
 	}
 
-	controllerutil.RemoveFinalizer(thinPoolLv, config.Finalizer)
-
-	if err := r.Update(ctx, thinPoolLv); err != nil {
-		return err
+	if controllerutil.RemoveFinalizer(thinPoolLv, config.Finalizer) {
+		if err := r.Update(ctx, thinPoolLv); err != nil {
+			return err
+		}
 	}
 
 	return nil

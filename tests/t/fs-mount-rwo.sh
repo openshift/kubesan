@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
+ksan-supported-modes Linear Thin
+
 ksan-stage 'Provisioning %d volumes...' "${#NODES[@]}"
 
 for i in "${!NODES[@]}"; do
