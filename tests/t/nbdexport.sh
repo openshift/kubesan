@@ -5,6 +5,8 @@
 
 ksan-stage "Creating NbdExport..."
 
+# Manually create an NbdExport CR. Most users will never do this directly,
+# but instead rely on KubeSAN to do it automatically based on CSI actions.
 kubectl create -f - <<EOF
 apiVersion: kubesan.gitlab.io/v1alpha1
 kind: NbdExport
@@ -23,17 +25,53 @@ EOF
 # Wait for Status.Conditions["Available"]
 ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' nbdexport export | grep --quiet 'Available True'"
 
-# TODO Connect a temporary NBD client to the export, to prove that CR
-# creation does trigger the correct access.
-
 ksan-stage "Adding client..."
 kubectl patch --namespace kubesan-system nbdexport export --type merge -p "
 spec:
   clients:
     - $(__ksan-get-node-name 1)
 "
+# Run a pod with two containers: one to keep the pod alive indefinitely
+# (useful for debugging), the other that checks the NBD connection via
+# the accompanying test script
+kubectl create -f - <<EOF
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: test-pod
+    spec:
+      nodeName: $(__ksan-get-node-name 1)
+      terminationGracePeriodSeconds: 0
+      restartPolicy: Never
+      containers:
+        - name: test
+          image: $TEST_IMAGE
+          command:
+            - ./nbdexport-helper.sh
+            - "$(kubectl -n kubesan-system get nbdexports export -o jsonpath={.status.uri})"
+            - /dev/kubesan-drive-1
+          volumeMounts:
+            - name: dev
+              mountPath: /dev
+          securityContext:
+            privileged: true
+        - name: sleep
+          image: $TEST_IMAGE
+          command:
+            - sleep
+            - infinity
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
+EOF
+
+jsonpath='{.status.containerStatuses[?(@.name=="test")].state.terminated.exitCode}'
+ksan-poll 1 60 "[[ \"\$( kubectl get pod test-pod -o jsonpath=\"\${jsonpath}\" )\" = 0 ]]"
 
 ksan-stage "Deleting export..."
+kubectl delete pod test-pod --timeout=30s
 kubectl delete --namespace kubesan-system --wait=false nbdexport export
 ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' nbdexport export | grep --quiet 'Available False'"
 
