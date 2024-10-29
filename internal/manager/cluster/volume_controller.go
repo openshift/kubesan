@@ -19,6 +19,7 @@ import (
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
 	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
+	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
 )
 
 type VolumeReconciler struct {
@@ -62,7 +63,7 @@ func (r *VolumeReconciler) reconcileDeleting(ctx context.Context, blobMgr BlobMa
 	}
 
 	if err := blobMgr.RemoveBlob(ctx, volume.Name); err != nil {
-		if _, ok := err.(*WatchPending); ok {
+		if _, ok := err.(*util.WatchPending); ok {
 			log.Info("RemoveBlob waiting for Watch")
 			return nil // wait until Watch triggers
 		}
@@ -97,7 +98,7 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 
 		err := blobMgr.CreateBlob(ctx, volume.Name, volume.Spec.SizeBytes)
 		if err != nil {
-			if _, ok := err.(*WatchPending); ok {
+			if _, ok := err.(*util.WatchPending); ok {
 				log.Info("CreateBlob waiting for Watch")
 				return nil // wait until Watch triggers
 			}
