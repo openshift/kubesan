@@ -3,6 +3,14 @@
 ksan-supported-modes Linear Thin
 
 kubectl create -f - <<EOF
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: csi-parameters
+data:
+  parameters: '$(kubectl get --output jsonpath={.parameters} sc kubesan)'
+---
 apiVersion: v1
 kind: Pod
 metadata:
@@ -16,17 +24,28 @@ spec:
       command:
         - ./csi-sanity
         - --csi.controllerendpoint
-        - /run/csi/kubesan-controller/socket
+        - /var/lib/kubelet/plugins/kubesan-controller/socket
         - --csi.endpoint
-        - /run/csi/kubesan-node/socket
+        - /var/lib/kubelet/plugins/kubesan-node/socket
+        - --csi.mountdir
+        - /var/lib/kubelet/plugins/csi-sanity-target
+        - --csi.stagingdir
+        - /var/lib/kubelet/plugins/csi-sanity-staging
         - --csi.testvolumeaccesstype
         - block
+        - --csi.testvolumeparameters
+        - /etc/csi-parameters/parameters
         - --ginkgo.v
         - --ginkgo.seed=1
 #        - --ginkgo.fail-fast
       volumeMounts:
         - name: drivers
-          mountPath: /run/csi
+          mountPath: /var/lib/kubelet/plugins
+        - name: csi-parameters
+          mountPath: /etc/csi-parameters
+        # Mount /dev so that symlinks to block devices resolve
+        - name: dev
+          mountPath: /dev
       securityContext:
         privileged: true
   volumes:
@@ -34,10 +53,18 @@ spec:
       hostPath:
         path: /var/lib/kubelet/plugins/
         type: DirectoryOrCreate
+    - name: csi-parameters
+      configMap:
+        name: csi-parameters
+    - name: dev
+      hostPath:
+        path: /dev
+        type: Directory
 EOF
 
 fail=0
 ksan-wait-for-pod-to-succeed 60 csi-sanity || fail=$?
+kubectl delete configmap csi-parameters
 kubectl logs pods/csi-sanity
 
 # TODO fix remaining issues, then hard-fail this test if csi-sanity fails.

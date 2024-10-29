@@ -64,6 +64,13 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return nil, status.Errorf(codes.InvalidArgument, "must specify target path")
 	}
 
+	// remove symlink created by NodePublishVolume
+
+	err := os.Remove(req.TargetPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
 	// success
 
 	resp := &csi.NodeUnpublishVolumeResponse{}
