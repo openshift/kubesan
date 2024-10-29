@@ -35,6 +35,9 @@ spec:
         - block
         - --csi.testvolumeparameters
         - /etc/csi-parameters/parameters
+        # Reduce volume size to fit test shared Volume Group
+        - --csi.testvolumesize=1073741824
+        - --csi.testvolumeexpandsize=2147483648
         - --ginkgo.v
         - --ginkgo.seed=1
 #        - --ginkgo.fail-fast
