@@ -220,11 +220,18 @@ func getVolumeAccessMode(capability *csi.VolumeCapability) (v1alpha1.VolumeAcces
 
 func validateCapacity(capacityRange *csi.CapacityRange) (capacity int64, minCapacity int64, maxCapacity int64, err error) {
 	if capacityRange == nil {
-		return -1, -1, -1, status.Errorf(codes.InvalidArgument, "must specify capacity")
+		// The capacity_range field is OPTIONAL in the CSI spec and the
+		// plugin MAY choose an implementation-defined capacity range.
+		// The csi-sanity test suite assumes the plugin chooses the
+		// capacity range, so we have to pick a number here instead of
+		// returning an error.
+		var gigabyte int64 = 1024 * 1024 * 1024
+		minCapacity = gigabyte
+		maxCapacity = gigabyte
+	} else {
+		minCapacity = capacityRange.RequiredBytes
+		maxCapacity = capacityRange.LimitBytes
 	}
-
-	minCapacity = capacityRange.RequiredBytes
-	maxCapacity = capacityRange.LimitBytes
 
 	if minCapacity == 0 {
 		return -1, -1, -1, status.Errorf(codes.InvalidArgument, "must specify minimum capacity")
