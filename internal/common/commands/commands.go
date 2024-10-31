@@ -167,6 +167,48 @@ func LvmLvRemoveIdempotent(args ...string) (Output, error) {
 	return output, err
 }
 
+func LvmLvHasTag(vgName string, lvName string, tag string) (bool, error) {
+	output, err := Lvm(
+		"lvs",
+		"--devicesfile", vgName,
+		"--select", fmt.Sprintf("lv_tags = {\"%s\"}", tag),
+		fmt.Sprintf("%s/%s", vgName, lvName),
+	)
+	if err != nil {
+		return false, err
+	}
+
+	// there is output only if the tag is present
+	return string(output.Combined) != "", nil
+}
+
+func LvmLvAddTag(vgName string, lvName string, tag string) error {
+	// lvchange succeeds if the tag is already present
+	_, err := Lvm(
+		"lvchange",
+		"--devicesfile", vgName,
+		"--addtag", tag,
+		fmt.Sprintf("%s/%s", vgName, lvName),
+	)
+	return err
+}
+
+// Calls a function with an LV activated temporarily
+func WithLvmLvActivated(vgName string, lvName string, op func() error) (err error) {
+	vgLvName := fmt.Sprintf("%s/%s", vgName, lvName)
+
+	_, err = Lvm("lvchange", "--activate", "y", vgLvName)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_, err = Lvm("lvchange", "--activate", "n", vgLvName)
+	}()
+
+	return op()
+}
+
 var (
 	nbdClientConnectedPattern = regexp.MustCompile(`^Connected (/dev/\S*)`)
 )
