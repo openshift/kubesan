@@ -11,14 +11,14 @@ import (
 
 func ValidateVolumeCapability(capability *csi.VolumeCapability) error {
 	if mount := capability.GetMount(); mount != nil {
-		return validateVolumeCapabilityMount(capability, mount)
+		return validateVolumeCapabilityMount(capability)
 	} else if capability.GetBlock() == nil {
 		return status.Errorf(codes.InvalidArgument, "expected a block or mount volume")
 	}
 	return nil
 }
 
-func validateVolumeCapabilityMount(capability *csi.VolumeCapability, mount *csi.VolumeCapability_MountVolume) error {
+func validateVolumeCapabilityMount(capability *csi.VolumeCapability) error {
 	// Reject multi-node access modes
 	accessMode := capability.GetAccessMode().GetMode()
 	if accessMode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER &&
@@ -27,14 +27,5 @@ func validateVolumeCapabilityMount(capability *csi.VolumeCapability, mount *csi.
 		accessMode != csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER {
 		return status.Errorf(codes.InvalidArgument, "Filesystem volumes only support single-node access modes (got %d)", accessMode)
 	}
-
-	// TODO implement fs_type and mount_flags
-	if mount.FsType != "" {
-		return status.Errorf(codes.InvalidArgument, "specifying fs_type is not yet implemented")
-	}
-	if len(mount.MountFlags) != 0 {
-		return status.Errorf(codes.InvalidArgument, "specifying mount_flags is not yet implemented")
-	}
-
 	return nil
 }
