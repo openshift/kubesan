@@ -3,13 +3,17 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 )
@@ -41,6 +45,8 @@ var (
 	PodName       = os.Getenv("POD_NAME")
 
 	Namespace string
+
+	image string = ""
 
 	Scheme = runtime.NewScheme()
 
@@ -78,4 +84,16 @@ func getNamespace() string {
 	}
 
 	return string(data)
+}
+
+func GetImage(ctx context.Context, c client.Client) (string, error) {
+	if image == "" {
+		pod := &corev1.Pod{}
+		err := c.Get(ctx, types.NamespacedName{Name: PodName, Namespace: Namespace}, pod)
+		if err != nil {
+			return "", err
+		}
+		image = pod.Spec.Containers[0].Image
+	}
+	return image, nil
 }
