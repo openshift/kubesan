@@ -46,7 +46,8 @@ var (
 
 	Namespace string
 
-	image string = ""
+	image         string  = ""
+	priorityClass *string = nil
 
 	Scheme = runtime.NewScheme()
 
@@ -96,4 +97,16 @@ func GetImage(ctx context.Context, c client.Client) (string, error) {
 		image = pod.Spec.Containers[0].Image
 	}
 	return image, nil
+}
+
+func GetPriorityClass(ctx context.Context, c client.Client) (string, error) {
+	if priorityClass == nil {
+		pod := &corev1.Pod{}
+		err := c.Get(ctx, types.NamespacedName{Name: PodName, Namespace: Namespace}, pod)
+		if err != nil {
+			return "", err
+		}
+		priorityClass = &pod.Spec.PriorityClassName
+	}
+	return *priorityClass, nil
 }

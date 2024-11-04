@@ -61,6 +61,14 @@ func StartServer(ctx context.Context, owner metav1.Object, scheme *runtime.Schem
 		return "", err
 	}
 
+	priority, err := config.GetPriorityClass(ctx, c)
+	if err != nil {
+		return "", err
+	}
+	if priority != "" {
+		pod.Spec.PriorityClassName = priority
+	}
+
 	if err = controllerutil.SetControllerReference(owner, pod, scheme); err != nil {
 		return "", err
 	}
