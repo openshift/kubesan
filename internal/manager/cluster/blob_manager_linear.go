@@ -6,13 +6,18 @@ import (
 	"context"
 	"fmt"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"gitlab.com/kubesan/kubesan/internal/common/commands"
+	"gitlab.com/kubesan/kubesan/internal/manager/common/workers"
 )
 
+// Per-reconcile invocation state
 type LinearBlobManager struct {
-	vgName string
+	workers *workers.Workers
+	owner   client.Object
+	vgName  string
 }
 
 // NewLinearBlobManager returns a BlobManager implemented using LVM's linear
@@ -20,15 +25,37 @@ type LinearBlobManager struct {
 // ReadWriteMany without NBD when used without LVM's COW snapshots. They are a
 // natural fit for use cases that require constant RWX and do not need
 // snapshots.
-func NewLinearBlobManager(vgName string) BlobManager {
+func NewLinearBlobManager(workers *workers.Workers, owner client.Object, vgName string) BlobManager {
 	return &LinearBlobManager{
-		vgName: vgName,
+		workers: workers,
+		owner:   owner,
+		vgName:  vgName,
 	}
 }
 
-func (m *LinearBlobManager) CreateBlob(ctx context.Context, name string, sizeBytes int64) error {
-	log := log.FromContext(ctx)
+type blkdiscardWork struct {
+	vgName string
+	lvName string
+}
 
+func (w *blkdiscardWork) Run(ctx context.Context) error {
+	log := log.FromContext(ctx)
+	return commands.WithLvmLvActivated(w.vgName, w.lvName, func() error {
+		path := fmt.Sprintf("/dev/%s/%s", w.vgName, w.lvName)
+		log.Info("blkdiscard worker zeroing LV", "path", path)
+		_, err := commands.RunOnHostContext(ctx, "blkdiscard", "--zeroout", path)
+		// To test long-running operations: _, err := commands.RunOnHostContext(ctx, "sleep", "30")
+		log.Info("blkdiscard worker finished", "path", path)
+		return err
+	})
+}
+
+// Returns a unique name for a blkdiscard work item
+func (m *LinearBlobManager) blkdiscardWorkName(name string) string {
+	return fmt.Sprintf("blkdiscard/%s/%s", m.vgName, name)
+}
+
+func (m *LinearBlobManager) CreateBlob(ctx context.Context, name string, sizeBytes int64) error {
 	_, err := commands.LvmLvCreateIdempotent(
 		"--devicesfile", m.vgName,
 		"--activate", "n",
@@ -56,12 +83,11 @@ func (m *LinearBlobManager) CreateBlob(ctx context.Context, name string, sizeByt
 		return err
 	}
 	if !hasTag {
-		err = commands.WithLvmLvActivated(m.vgName, name, func() error {
-			path := fmt.Sprintf("/dev/%s/%s", m.vgName, name)
-			log.Info("CreateBlob zeroing LV", "path", path)
-			_, err := commands.RunOnHost("blkdiscard", "--zeroout", path)
-			return err
-		})
+		work := &blkdiscardWork{
+			vgName: m.vgName,
+			lvName: name,
+		}
+		err := m.workers.Run(m.blkdiscardWorkName(name), m.owner, work)
 		if err != nil {
 			return err
 		}
@@ -76,6 +102,11 @@ func (m *LinearBlobManager) CreateBlob(ctx context.Context, name string, sizeByt
 }
 
 func (m *LinearBlobManager) RemoveBlob(ctx context.Context, name string) error {
+	// stop blkdiscard in case it's running
+	if err := m.workers.Cancel(m.blkdiscardWorkName(name)); err != nil {
+		return err
+	}
+
 	_, err := commands.LvmLvRemoveIdempotent(
 		"--devicesfile", m.vgName,
 		fmt.Sprintf("%s/%s", m.vgName, name),

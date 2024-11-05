@@ -20,23 +20,27 @@ import (
 	"gitlab.com/kubesan/kubesan/internal/common/config"
 	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
 	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
+	"gitlab.com/kubesan/kubesan/internal/manager/common/workers"
 )
 
 type VolumeReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme  *runtime.Scheme
+	workers *workers.Workers
 }
 
 func SetUpVolumeReconciler(mgr ctrl.Manager) error {
 	r := &VolumeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		workers: workers.NewWorkers(),
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Volume{}).
-		Owns(&v1alpha1.ThinPoolLv{}). // for ThinBlobManager
-		Complete(r)
+		Owns(&v1alpha1.ThinPoolLv{}) // for ThinBlobManager
+	r.workers.SetUpReconciler(builder)
+	return builder.Complete(r)
 }
 
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
@@ -48,7 +52,7 @@ func (r *VolumeReconciler) newBlobManager(volume *v1alpha1.Volume) (BlobManager,
 	case v1alpha1.VolumeModeThin:
 		return NewThinBlobManager(r.Client, r.Scheme, volume, volume.Spec.VgName), nil
 	case v1alpha1.VolumeModeLinear:
-		return NewLinearBlobManager(volume.Spec.VgName), nil
+		return NewLinearBlobManager(r.workers, volume, volume.Spec.VgName), nil
 	default:
 		return nil, errors.NewBadRequest("invalid volume mode")
 	}
