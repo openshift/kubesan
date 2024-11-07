@@ -70,6 +70,10 @@ func (r *VolumeNodeReconciler) reconcileThinDetaching(ctx context.Context, volum
 	oldThinPoolLv := thinPoolLv.DeepCopy()
 
 	if thinPoolLv.Status.ActiveOnNode != config.LocalNodeName {
+		if thinPoolLv.Spec.ActiveOnNode == config.LocalNodeName {
+			// clear thinPoolLv.Spec.ActiveOnNode once activation is no longer required
+			return thinpoollv.UpdateThinPoolLv(ctx, r.Client, thinPoolLv, false)
+		}
 		return nil // it's not attached to this node
 	}
 
