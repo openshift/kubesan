@@ -9,6 +9,7 @@ import (
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
 	"gitlab.com/kubesan/kubesan/internal/manager/common/thinpoollv"
+	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -164,7 +165,7 @@ func (m *ThinBlobManager) CreateBlob(ctx context.Context, name string, sizeBytes
 	}
 
 	if !m.checkThinLvExists(thinPoolLv, thinLvName, sizeBytes) {
-		return &WatchPending{}
+		return &util.WatchPending{}
 	}
 	// TODO propagate back errors
 
@@ -203,7 +204,7 @@ func (m *ThinBlobManager) RemoveBlob(ctx context.Context, name string) error {
 	}
 
 	if !m.checkThinLvRemoved(thinPoolLv, thinLvName) {
-		return &WatchPending{}
+		return &util.WatchPending{}
 	}
 
 	err = m.forgetRemovedThinLv(ctx, thinPoolLv, thinLvName)
@@ -212,7 +213,7 @@ func (m *ThinBlobManager) RemoveBlob(ctx context.Context, name string) error {
 		return err
 	}
 	if thinPoolLv.Status.FindThinLv(thinLvName) != nil {
-		return &WatchPending{}
+		return &util.WatchPending{}
 	}
 
 	// orphan thinPoolLv since we don't need it anymore but snapshots may still need it
