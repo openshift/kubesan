@@ -25,10 +25,11 @@ fsGroup:
 supplementalGroups:
   type: RunAsAny
 users:
-  - system:serviceaccount:kubesan-system:csi-controller-plugin
-  - system:serviceaccount:kubesan-system:csi-node-plugin
-  - system:serviceaccount:kubesan-system:cluster-controller-manager
-  - system:serviceaccount:kubesan-system:node-controller-manager
+  - system:serviceaccount:openshift-storage:csi-controller-plugin
+  - system:serviceaccount:openshift-storage:csi-node-plugin
+  - system:serviceaccount:openshift-storage:cluster-controller-manager
+  - system:serviceaccount:openshift-storage:node-controller-manager
+  - system:serviceaccount:openshift-storage:nbd-server
 volumes:
   - configMap
   - emptyDir

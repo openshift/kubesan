@@ -73,6 +73,8 @@ spec:
                           required:
                           - sourceThinLvName
                           type: object
+                      required:
+                      - contentsType
                       type: object
                     name:
                       description: Should be set from creation and never updated.
@@ -95,6 +97,8 @@ spec:
                           - Active
                           - Removed
                           type: string
+                      required:
+                      - name
                       type: object
                   required:
                   - contents
@@ -185,6 +189,8 @@ spec:
                           - Active
                           - Removed
                           type: string
+                      required:
+                      - name
                       type: object
                   required:
                   - name

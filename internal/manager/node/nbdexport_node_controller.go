@@ -16,6 +16,8 @@ import (
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
+	"gitlab.com/kubesan/kubesan/internal/common/nbd"
+	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
 )
 
 type NbdExportNodeReconciler struct {
@@ -31,11 +33,15 @@ func SetUpNbdExportNodeReconciler(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.NbdExport{}).
+		Owns(&corev1.Pod{}).
 		Complete(r)
 }
 
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports/status,verbs=get;update;patch,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports/finalizers,verbs=update,namespace=kubesan-system
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=core,resources=pods/finalizers,verbs=update,namespace=kubesan-system
 
 func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("node", config.LocalNodeName)
@@ -66,19 +72,44 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	log.Info("Starting export")
+	serverId := &nbd.ServerId{
+		Node:   config.LocalNodeName,
+		Export: export.Spec.Export,
+	}
 
-	// TODO actually set up the NBD export
+	if export.Status.Uri == "" {
+		log.Info("Starting export pod")
 
-	if !conditionsv1.IsStatusConditionTrue(export.Status.Conditions, conditionsv1.ConditionAvailable) {
+		uri, err := nbd.StartServer(ctx, export, r.Scheme, r.Client, serverId, export.Spec.Path)
+		if err != nil {
+			if _, ok := err.(*util.WatchPending); ok {
+				log.Info("StartServer waiting for Pod")
+				return ctrl.Result{}, nil // will retry after Pod changes status
+			}
+			return ctrl.Result{}, err
+		}
+		export.Status.Uri = uri
 		condition := conditionsv1.Condition{
 			Type:   conditionsv1.ConditionAvailable,
 			Status: corev1.ConditionTrue,
 		}
 		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
+		if err = r.Status().Update(ctx, export); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	log.Info("Checking export pod status")
+	if err := nbd.CheckServerHealth(ctx, r.Client, serverId); err != nil {
+		condition := conditionsv1.Condition{
+			Type:   conditionsv1.ConditionAvailable,
+			Status: corev1.ConditionFalse,
+		}
+		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
 		if err := r.Status().Update(ctx, export); err != nil {
 			return ctrl.Result{}, err
 		}
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -102,7 +133,16 @@ func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export 
 		return nil // wait until no longer attached
 	}
 
-	// TODO actually remove the NBD export
+	serverId := &nbd.ServerId{
+		Node:   config.LocalNodeName,
+		Export: export.Spec.Export,
+	}
+	if err := nbd.StopServer(ctx, r.Client, serverId); err != nil {
+		if _, ok := err.(*util.WatchPending); ok {
+			return nil // will retry after Pod changes status
+		}
+		return err
+	}
 
 	// Now the CR can be deleted
 	controllerutil.RemoveFinalizer(export, config.Finalizer)

@@ -12,13 +12,20 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 type NbdExportSpec struct {
-	// The LV (Volume or Snapshot) that is being exported.
-	// Should be set from creation and never updated.
+	// The short name of the LV (Volume or Snapshot) to export, write-once
+	// at creation.
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
-	Source string `json:"source"`
+	// +kubebuilder:validation:Pattern="[-a-z0-9]+"
+	Export string `json:"export"`
+
+	// The "/dev/..." path of the export, write-once at creation.
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
+	// +kubebuilder:validation:Pattern="/dev/[-_/a-z0-9]+"
+	Path string `json:"path"`
 
 	// The node hosting the export. Write-once at creation.
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
+	// +kubebuilder:validation:Pattern="[-_.a-z0-9]+"
 	Host string `json:"host"`
 
 	// The set of clients connecting to the export.
@@ -33,15 +40,23 @@ type NbdExportStatus struct {
 	// +patchStrategy=merge
 	// +optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+
+	// NBD URI for connecting to the NBD export, using IP address.
+	// write-once when Conditions["Available"] is first set
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
+	// + TODO Add TLS support, which changes this to a nbds:// URI
+	// +kubebuilder:validation:Pattern="nbd://[0-9a-f:.]+/[-a-z0-9]+"
+	Uri string `json:"uri,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Source",type=string,JSONPath=`.spec.source`,description='LV source of the export'
+// +kubebuilder:printcolumn:name="Export",type=string,JSONPath=`.spec.export`,description='LV source of the export'
 // +kubebuilder:printcolumn:name="Host",type=string,JSONPath=`.spec.host`,description='Node hosting the export'
 // + TODO determine if there is a way to print a column "Clients" that displays the number of items in the .spec.clients array
-// +kubebuilder:printcolumn:name="Available",type=date,JSONPath=`.status.conditions[?(@.type=="Available"&&@.status=="True")].lastTransitionTime`,description='Time since export was available'
+// +kubebuilder:printcolumn:name="Available",type=date,JSONPath=`.status.conditions[?(@.type=="Available")].lastTransitionTime`,description='Time since export was available'
+// +kubebuilder:printcolumn:name="URI",type=string,JSONPath=`.status.uri`,description='NBD URI for the export'
 
 type NbdExport struct {
 	metav1.TypeMeta   `json:",inline"`

@@ -21,7 +21,7 @@ spec:
       hostPID: true
       containers:
         - name: manager
-          image: quay.io/kubesan/kubesan:latest
+          image: kubesan # config.go expects this image in containers[0]
           args:
             - node-controller-manager
           env:
@@ -29,6 +29,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: WATCH_NAMESPACE
               valueFrom:
                 fieldRef:

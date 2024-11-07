@@ -292,8 +292,15 @@ __run() {
 
         if (( install_kubesan )); then
             __log_cyan "Installing KubeSAN..."
-            pattern="s;quay.io/kubesan/([a-z-]+):(latest|v[0-9+\.]+);${ksanregistry}/kubesan/\1:test;g"
-            kubectl kustomize "${repo_root}/deploy/kubernetes" | sed -E "$pattern" | kubectl create -f -
+            cat >${temp_dir}/kustomization.yaml <<EOF
+resources:
+  - $(realpath --relative-to=${temp_dir} ${repo_root})/deploy/kubernetes
+images:
+  - name: quay.io/kubesan/kubesan
+    newName: ${ksanregistry}/kubesan/kubesan
+    newTag: test
+EOF
+            kubectl create -k ${temp_dir}
             sed -E "s/@@MODE@@/$mode/g" "${script_dir}/t-data/storage-class.yaml" | kubectl create -f -
         fi
 

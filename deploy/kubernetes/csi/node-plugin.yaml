@@ -8,6 +8,13 @@ metadata:
   namespace: kubesan-system
 
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nbd-server
+  namespace: kubesan-system
+
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -26,7 +33,7 @@ spec:
       serviceAccountName: csi-node-plugin
       containers:
         - name: csi-plugin
-          image: quay.io/kubesan/kubesan:latest
+          image: kubesan # config.go expects this image in containers[0]
           args:
             - csi-node-plugin
           env:
@@ -34,6 +41,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: WATCH_NAMESPACE
               valueFrom:
                 fieldRef:

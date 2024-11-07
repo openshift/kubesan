@@ -84,7 +84,7 @@ type ThinLvSpecState struct {
 	// +kubebuilder:validation:Enum:="Inactive";"Active";"Removed"
 	// +kubebuilder:validation:Required
 	// + TODO add validation rule preventing transitions out of "Removed" state
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
 const (
@@ -99,7 +99,7 @@ type ThinLvContents struct {
 	// +unionDiscriminator
 	// +kubebuilder:validation:Enum:="Empty";"Snapshot"
 	// +kubebuilder:validation:Required
-	ContentsType string `json:"contentsType,omitempty"`
+	ContentsType string `json:"contentsType"`
 
 	// +optional
 	Snapshot *ThinLvContentsSnapshot `json:"snapshot,omitempty"`
@@ -168,7 +168,7 @@ type ThinLvStatusState struct {
 	// +unionDiscriminator
 	// +kubebuilder:validation:Enum:="Inactive";"Active";"Removed"
 	// +kubebuilder:validation:Required
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// +optional
 	Active *ThinLvStatusStateActive `json:"active,omitempty"`

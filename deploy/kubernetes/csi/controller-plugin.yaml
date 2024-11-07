@@ -26,7 +26,7 @@ spec:
       serviceAccountName: csi-controller-plugin
       containers:
         - name: csi-plugin
-          image: quay.io/kubesan/kubesan:latest
+          image: kubesan # config.go expects this image in containers[0]
           args:
             - csi-controller-plugin
           env:
@@ -34,6 +34,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: WATCH_NAMESPACE
               valueFrom:
                 fieldRef:
