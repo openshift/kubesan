@@ -60,7 +60,7 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	// mount filesystem
 	if mount := req.VolumeCapability.GetMount(); mount != nil {
-		path := volume.Status.GetPath()
+		path := volume.Status.Path
 
 		// format and mount (Filesystem volumes only)
 		if err := s.formatAndMount(path, req.StagingTargetPath, mount.FsType, mount.MountFlags); err != nil {
@@ -74,7 +74,7 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			return nil, err
 		}
 
-		err = os.Symlink(volume.Status.GetPath(), req.StagingTargetPath)
+		err = os.Symlink(volume.Status.Path, req.StagingTargetPath)
 		if err != nil {
 			return nil, err
 		}

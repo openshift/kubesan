@@ -102,7 +102,7 @@ func (r *VolumeNodeReconciler) updateStatusAttachedToNodes(ctx context.Context, 
 			// TODO remove this when dm-multipath is introduced since it will use the volume name
 			// Create symlink from the volume name to the thin Lv name
 			thinLvPath := fmt.Sprintf("/dev/%s/%s", volume.Spec.VgName, thinpoollv.VolumeToThinLvName(volume.Name))
-			_, _ = commands.RunOnHost("ln", "--symbolic", "--force", thinLvPath, volume.Status.GetPath()) // ignore error because this is a temporary hack
+			_, _ = commands.RunOnHost("ln", "--symbolic", "--force", thinLvPath, volume.Status.Path) // ignore error because this is a temporary hack
 
 			volume.Status.AttachedToNodes = append(volume.Status.AttachedToNodes, config.LocalNodeName)
 
@@ -114,7 +114,7 @@ func (r *VolumeNodeReconciler) updateStatusAttachedToNodes(ctx context.Context, 
 		if slices.Contains(volume.Status.AttachedToNodes, config.LocalNodeName) {
 			// TODO remove this when dm-multipath is introduced since it will use the volume name
 			// Remove symlink from the volume name to the thin Lv name
-			_, _ = commands.RunOnHost("rm", "--force", volume.Status.GetPath()) // ignore error because this is a temporary hack
+			_, _ = commands.RunOnHost("rm", "--force", volume.Status.Path) // ignore error because this is a temporary hack
 
 			volume.Status.AttachedToNodes = kubesanslices.RemoveAll(volume.Status.AttachedToNodes, config.LocalNodeName)
 

@@ -127,19 +127,11 @@ type VolumeStatus struct {
 
 	// The path at which the volume is available on nodes to which it is attached.
 	// + TODO does this have to be in Status, or can it be reliably generated/probed where needed?
-	Path *string `json:"path,omitempty"`
+	Path string `json:"path,omitempty"`
 }
 
 func (v *VolumeStatus) IsAttachedToNode(node string) bool {
 	return slices.Contains(v.AttachedToNodes, node)
-}
-
-func (v *VolumeStatus) GetPath() string {
-	if v.Path == nil {
-		return ""
-	} else {
-		return *v.Path
-	}
 }
 
 // +kubebuilder:object:root=true

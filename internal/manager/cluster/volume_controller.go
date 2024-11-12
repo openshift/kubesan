@@ -119,8 +119,8 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 
 		volume.Status.SizeBytes = volume.Spec.SizeBytes // TODO report actual size?
 
-		path := fmt.Sprintf("/dev/%s/%s", volume.Spec.VgName, volume.Name)
-		volume.Status.Path = &path
+		// TODO use dm device path for Thin volumes
+		volume.Status.Path = fmt.Sprintf("/dev/%s/%s", volume.Spec.VgName, volume.Name)
 
 		if err := r.Status().Update(ctx, volume); err != nil {
 			return err
