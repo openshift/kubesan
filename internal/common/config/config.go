@@ -43,6 +43,7 @@ const (
 var (
 	LocalNodeName = os.Getenv("NODE_NAME")
 	PodName       = os.Getenv("POD_NAME")
+	PodIP         = os.Getenv("POD_IP")
 
 	Namespace string
 

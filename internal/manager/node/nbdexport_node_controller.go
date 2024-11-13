@@ -17,7 +17,6 @@ import (
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
 	"gitlab.com/kubesan/kubesan/internal/common/nbd"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
 )
 
 type NbdExportNodeReconciler struct {
@@ -33,7 +32,6 @@ func SetUpNbdExportNodeReconciler(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.NbdExport{}).
-		Owns(&corev1.Pod{}).
 		Complete(r)
 }
 
@@ -80,12 +78,8 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if export.Status.Uri == "" {
 		log.Info("Starting export pod")
 
-		uri, err := nbd.StartServer(ctx, export, r.Scheme, r.Client, serverId, export.Spec.Path)
+		uri, err := nbd.StartServer(serverId, export.Spec.Path)
 		if err != nil {
-			if _, ok := err.(*util.WatchPending); ok {
-				log.Info("StartServer waiting for Pod")
-				return ctrl.Result{}, nil // will retry after Pod changes status
-			}
 			return ctrl.Result{}, err
 		}
 		export.Status.Uri = uri
@@ -100,7 +94,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	log.Info("Checking export pod status")
-	if err := nbd.CheckServerHealth(ctx, r.Client, serverId); err != nil {
+	if err := nbd.CheckServerHealth(serverId); err != nil {
 		condition := conditionsv1.Condition{
 			Type:   conditionsv1.ConditionAvailable,
 			Status: corev1.ConditionFalse,
@@ -137,10 +131,7 @@ func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export 
 		Node:   config.LocalNodeName,
 		Export: export.Spec.Export,
 	}
-	if err := nbd.StopServer(ctx, r.Client, serverId); err != nil {
-		if _, ok := err.(*util.WatchPending); ok {
-			return nil // will retry after Pod changes status
-		}
+	if err := nbd.StopServer(serverId); err != nil {
 		return err
 	}
 
