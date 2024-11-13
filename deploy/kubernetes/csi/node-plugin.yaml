@@ -33,7 +33,7 @@ spec:
       serviceAccountName: csi-node-plugin
       containers:
         - name: csi-plugin
-          image: kubesan # config.go expects this image in containers[0]
+          image: kubesan
           args:
             - csi-node-plugin
           env:
