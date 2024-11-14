@@ -76,13 +76,24 @@ func PathExistsOnHost(hostPath string) (bool, error) {
 }
 
 func Dmsetup(args ...string) (Output, error) {
+	log.Printf("dmsetup command: %v", args)
 	return RunOnHost(append([]string{"dmsetup"}, args...)...)
 }
 
 func DmsetupCreateIdempotent(args ...string) (Output, error) {
 	output, err := Dmsetup(append([]string{"create"}, args...)...)
 
-	if err != nil && strings.Contains(string(output.Combined), "already exists") {
+	if err != nil && strings.Contains(string(output.Combined), "resource busy") {
+		err = nil // suppress error for idempotency
+	}
+
+	return output, err
+}
+
+func DmsetupSuspendIdempotent(args ...string) (Output, error) {
+	output, err := Dmsetup(append([]string{"suspend"}, args...)...)
+
+	if err != nil && strings.Contains(string(output.Combined), "No such device or address") {
 		err = nil // suppress error for idempotency
 	}
 
@@ -92,7 +103,7 @@ func DmsetupCreateIdempotent(args ...string) (Output, error) {
 func DmsetupRemoveIdempotent(args ...string) (Output, error) {
 	output, err := Dmsetup(append([]string{"remove"}, args...)...)
 
-	if err != nil && strings.Contains(string(output.Combined), "no such device or address") {
+	if err != nil && strings.Contains(string(output.Combined), "No such device or address") {
 		err = nil // suppress error for idempotency
 	}
 
