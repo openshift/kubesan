@@ -26,7 +26,6 @@ func SetUpThinBlobReconciler(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ThinBlob{}).
-		Owns(&v1alpha1.DeviceSwitch{}).
 		Owns(&v1alpha1.ThinPoolLv{}).
 		Complete(r)
 }
