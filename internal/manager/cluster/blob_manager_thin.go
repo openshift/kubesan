@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
+	"gitlab.com/kubesan/kubesan/internal/common/dm"
 	"gitlab.com/kubesan/kubesan/internal/manager/common/thinpoollv"
 	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
 
@@ -247,4 +248,8 @@ func (m *ThinBlobManager) RemoveBlob(ctx context.Context, name string) error {
 	}
 
 	return nil
+}
+
+func (m *ThinBlobManager) GetPath(name string) string {
+	return dm.GetDevicePath(name)
 }

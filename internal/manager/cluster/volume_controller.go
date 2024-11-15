@@ -4,7 +4,6 @@ package cluster
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -119,8 +118,7 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 
 		volume.Status.SizeBytes = volume.Spec.SizeBytes // TODO report actual size?
 
-		// TODO use dm device path for Thin volumes
-		volume.Status.Path = fmt.Sprintf("/dev/%s/%s", volume.Spec.VgName, volume.Name)
+		volume.Status.Path = blobMgr.GetPath(volume.Name)
 
 		if err := r.Status().Update(ctx, volume); err != nil {
 			return err
