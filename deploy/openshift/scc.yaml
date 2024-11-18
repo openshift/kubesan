@@ -29,7 +29,6 @@ users:
   - system:serviceaccount:openshift-storage:csi-node-plugin
   - system:serviceaccount:openshift-storage:cluster-controller-manager
   - system:serviceaccount:openshift-storage:node-controller-manager
-  - system:serviceaccount:openshift-storage:nbd-server
 volumes:
   - configMap
   - emptyDir

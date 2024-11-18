@@ -8,13 +8,6 @@ metadata:
   namespace: kubesan-system
 
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: nbd-server
-  namespace: kubesan-system
-
----
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
