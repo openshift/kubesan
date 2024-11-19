@@ -3,29 +3,22 @@
 package nbd
 
 import (
-	"bytes"
-	"context"
-	_ "embed"
+	"encoding/json"
 	"fmt"
-	"html/template"
+	"net/url"
+	"strings"
+	"time"
+
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/digitalocean/go-qemu/qmp"
 
 	"gitlab.com/kubesan/kubesan/internal/common/config"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
 )
 
-//go:embed server-pod.template.yaml
-var serverPodYamlTemplateFile string
-var serverPodYamlTemplate = template.Must(template.New("").Parse(serverPodYamlTemplateFile))
+const (
+	QmpSockPath = "/run/qsd/qmp.sock"
+)
 
 // The NbdExport CR should be named Node-Export; but to make it easier,
 // this code takes both pieces as separate items.
@@ -37,126 +30,211 @@ type ServerId struct {
 	Export string
 }
 
-func (id *ServerId) Podname() string {
-	// The NbdExport CRD ensured that Node and Export match [-_.a-z0-9]+
-	return fmt.Sprintf("nbd-server-%s-%s", id.Node, id.Export)
+// A QEMU Monitor Protocol (QMP) connection to a qemu-storage-daemon instance
+// that is running an NBD server.
+type qemuStorageDaemonMonitor struct {
+	monitor qmp.Monitor
 }
 
-// Returns success only once the server is running and has the TCP port open.
-// An error return of WatchPending indicates that the caller should try this
-// function again the next time the resource is reconciled. Make sure to add
-// mgr.Owns(corev1.Pod) when creating the controller-runtime manager, so that
-// the necessary Watch will spot the desired Pod resource changes.
-func StartServer(ctx context.Context, owner metav1.Object, scheme *runtime.Scheme, c client.Client, id *ServerId, devicePathOnHost string) (string, error) {
-	// create Pod
-
-	image, err := config.GetImage(ctx, c)
+func newQemuStorageDaemonMonitor(path string) (*qemuStorageDaemonMonitor, error) {
+	monitor, err := qmp.NewSocketMonitor("unix", path, 100*time.Millisecond)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	pod := &corev1.Pod{}
-	err = instantiateTemplate(serverPodYamlTemplate, id, devicePathOnHost, pod, image)
+	err = monitor.Connect()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	priority, err := config.GetPriorityClass(ctx, c)
-	if err != nil {
-		return "", err
-	}
-	if priority != "" {
-		pod.Spec.PriorityClassName = priority
-	}
-
-	if err = controllerutil.SetControllerReference(owner, pod, scheme); err != nil {
-		return "", err
-	}
-
-	err = c.Create(ctx, pod)
-	if err != nil && !k8serrors.IsAlreadyExists(err) {
-		return "", err
-	}
-
-	// check if Pod is ready
-
-	err = c.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: config.Namespace}, pod)
-	if err != nil {
-		return "", err
-	}
-
-	ready := kubesanslices.Any(pod.Status.Conditions, func(cond corev1.PodCondition) bool {
-		return cond.Type == "Ready" && cond.Status == "True"
-	})
-	if ready {
-		return fmt.Sprintf("nbd://%s/%s",
-			pod.Status.PodIP, id.Export), nil
-	}
-	return "", &util.WatchPending{}
+	return &qemuStorageDaemonMonitor{monitor: monitor}, nil
 }
 
-func CheckServerHealth(ctx context.Context, c client.Client, id *ServerId) error {
-	pod := &corev1.Pod{}
-	err := c.Get(ctx, types.NamespacedName{Name: id.Podname(), Namespace: config.Namespace}, pod)
+// Closes the monitor connection and frees resources.
+func (q *qemuStorageDaemonMonitor) Close() {
+	_ = q.monitor.Disconnect()
+}
+
+// JSON encodes a value. Useful for avoiding escaping issues when expanding
+// values into JSON snippets.
+func jsonify(v any) string {
+	raw, _ := json.Marshal(v)
+	return string(raw)
+}
+
+// Run a QMP command ignoring error strings containing idempotencyGuard.
+func (q *qemuStorageDaemonMonitor) run(cmd string, idempotencyGuard string) error {
+	_, err := q.monitor.Run([]byte(cmd))
 	if err != nil {
-		return err
+		if !strings.Contains(err.Error(), idempotencyGuard) {
+			return err
+		}
 	}
-
-	if pod.Status.Phase != "Running" {
-		return k8serrors.NewServiceUnavailable("NBD server unexpectedly gone")
-	}
-
 	return nil
 }
 
-// An error return of WatchPending indicates that the caller should try this
-// function again the next time the resource is reconciled.
-func StopServer(ctx context.Context, c client.Client, id *ServerId) error {
-	// delete server
-	propagation := client.PropagationPolicy(metav1.DeletePropagationForeground)
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      id.Podname(),
-			Namespace: config.Namespace,
-		},
-	}
-	err := c.Delete(ctx, pod, propagation)
+func (q *qemuStorageDaemonMonitor) BlockdevAdd(nodeName string, devicePathOnHost string) error {
+	cmd := fmt.Sprintf(`
+{
+    "execute": "blockdev-add",
+    "arguments": {
+        "driver": "host_device",
+        "node-name": %s,
+        "cache": {
+            "direct": true
+        },
+        "filename": %s,
+        "aio": "native"
+    }
+}
+`, jsonify(nodeName), jsonify(devicePathOnHost))
 
-	if k8serrors.IsNotFound(err) {
-		return nil
-	}
-	if err == nil {
-		return &util.WatchPending{}
-	}
-	return err
+	return q.run(cmd, "Duplicate nodes with node-name")
 }
 
-func instantiateTemplate(
-	yamlTemplate *template.Template,
-	id *ServerId,
-	devicePathOnHost string,
-	object runtime.Object,
-	image string,
-) error {
-	args := map[string]template.HTML{
-		"Podname":          template.HTML(id.Podname()),
-		"Namespace":        template.HTML(config.Namespace),
-		"Node":             template.HTML(id.Node),
-		"Image":            template.HTML(image),
-		"Export":           template.HTML(id.Export),
-		"DevicePathOnHost": template.HTML(devicePathOnHost),
+func (q *qemuStorageDaemonMonitor) BlockdevDel(nodeName string) error {
+	cmd := fmt.Sprintf(`
+{
+    "execute": "blockdev-del",
+    "arguments": { "node-name": %s }
+}`, jsonify(nodeName))
+
+	return q.run(cmd, "Failed to find node with node-name")
+}
+
+func (q *qemuStorageDaemonMonitor) BlockExportAdd(id string, nodeName string, export string) error {
+	cmd := fmt.Sprintf(`
+{
+    "execute": "block-export-add",
+    "arguments": {
+        "type": "nbd",
+        "id": %s,
+        "node-name": %s,
+        "writable": true,
+        "name": %s
+    }
+}
+`, jsonify(id), jsonify(nodeName), jsonify(export))
+
+	return q.run(cmd, " is already in use")
+}
+
+func (q *qemuStorageDaemonMonitor) BlockExportDel(id string) error {
+	cmd := fmt.Sprintf(`
+{
+    "execute": "block-export-del",
+    "arguments": {
+        "id": %s,
+        "mode": "hard"
+    }
+}
+`, jsonify(id))
+
+	return q.run(cmd, " is not found")
+}
+
+// The response to the query-block-exports QMP command
+type blockExportInfo struct {
+	Id           string `json:"id"`
+	Type         string `json:"type"`
+	NodeName     string `json:"node-name"`
+	ShuttingDown bool   `json:"shutting-down"`
+}
+
+func (q *qemuStorageDaemonMonitor) QueryBlockExports() ([]blockExportInfo, error) {
+	cmd := `{"execute": "query-block-exports"}`
+	raw, err := q.monitor.Run([]byte(cmd))
+	if err != nil {
+		return nil, err
 	}
 
-	var yaml bytes.Buffer
-	err := yamlTemplate.Execute(&yaml, args)
+	response := struct {
+		Return []blockExportInfo `json:"return"`
+	}{}
+	err = json.Unmarshal(raw, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Return, nil
+}
+
+// Returns the QMP node name given an NBD export name.
+func nodeName(export string) string {
+	return fmt.Sprintf("blockdev-%s", export)
+}
+
+// Returns the QMP block export id given an NBD export name.
+func blockExportId(export string) string {
+	return fmt.Sprintf("export-%s", export)
+}
+
+// Returns success only once the server is running and has the TCP port open.
+func StartServer(id *ServerId, devicePathOnHost string) (string, error) {
+	qsd, err := newQemuStorageDaemonMonitor(QmpSockPath)
+	if err != nil {
+		return "", err
+	}
+	defer qsd.Close()
+
+	nodeName := nodeName(id.Export)
+	err = qsd.BlockdevAdd(nodeName, devicePathOnHost)
+	if err != nil {
+		return "", err
+	}
+
+	blockExportId := blockExportId(id.Export)
+	err = qsd.BlockExportAdd(blockExportId, nodeName, id.Export)
+	if err != nil {
+		return "", err
+	}
+
+	// Build NBD URI
+	url := url.URL{
+		Scheme: "nbd",
+		Host:   config.PodIP,
+		Path:   id.Export,
+	}
+	return url.String(), nil
+}
+
+func CheckServerHealth(id *ServerId) error {
+	qsd, err := newQemuStorageDaemonMonitor(QmpSockPath)
+	if err != nil {
+		return err
+	}
+	defer qsd.Close()
+
+	exports, err := qsd.QueryBlockExports()
 	if err != nil {
 		return err
 	}
 
-	_, _, err = scheme.Codecs.UniversalDeserializer().Decode(yaml.Bytes(), nil, object)
-	if err != nil {
-		return fmt.Errorf("failed to decode YAML: %s:\n%s", err, yaml.String())
+	blockExportId := blockExportId(id.Export)
+	for i := range exports {
+		if exports[i].Id == blockExportId {
+			return nil // success
+		}
 	}
 
+	return k8serrors.NewServiceUnavailable("NBD server unexpectedly gone")
+}
+
+func StopServer(id *ServerId) error {
+	qsd, err := newQemuStorageDaemonMonitor(QmpSockPath)
+	if err != nil {
+		return err
+	}
+	defer qsd.Close()
+
+	err = qsd.BlockExportDel(blockExportId(id.Export))
+	if err != nil {
+		return err
+	}
+
+	err = qsd.BlockdevDel(nodeName(id.Export))
+	if err != nil {
+		return err
+	}
 	return nil
 }

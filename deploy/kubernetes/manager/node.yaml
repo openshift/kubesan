@@ -21,7 +21,7 @@ spec:
       hostPID: true
       containers:
         - name: manager
-          image: kubesan # config.go expects this image in containers[0]
+          image: kubesan
           args:
             - node-controller-manager
           env:
@@ -33,6 +33,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: WATCH_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -60,3 +64,38 @@ spec:
               memory: 64Mi
           securityContext:
             privileged: true
+          volumeMounts:
+            - mountPath: /run/qsd
+              name: qsd-sock-dir
+        - name: qemu-storage-daemon
+          image: kubesan
+          command:
+            - /usr/bin/qemu-storage-daemon
+            - --chardev
+            - socket,id=qmp-sock,path=/run/qsd/qmp.sock,server=on,wait=off
+            - --monitor
+            - chardev=qmp-sock
+            - --nbd-server
+            - addr.type=inet,addr.host=0.0.0.0,addr.port=10809,max-connections=0
+          securityContext:
+            privileged: true
+          ports:
+            - containerPort: &port 10809
+          readinessProbe:
+            tcpSocket:
+              port: *port
+            initialDelaySeconds: 1
+            periodSeconds: 1
+          volumeMounts:
+            - name: qsd-sock-dir
+              mountPath: /run/qsd
+            - name: dev
+              mountPath: /dev
+      volumes:
+        - name: qsd-sock-dir
+          emptyDir:
+            medium: Memory
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
