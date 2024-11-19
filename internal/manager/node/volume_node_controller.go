@@ -21,6 +21,7 @@ import (
 	"gitlab.com/kubesan/kubesan/internal/common/config"
 	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
 	"gitlab.com/kubesan/kubesan/internal/manager/common/thinpoollv"
+	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
 )
 
 type VolumeNodeReconciler struct {
@@ -44,6 +45,7 @@ func SetUpVolumeNodeReconciler(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/status,verbs=get;update;patch,namespace=kubesan-system
 
 // Ensure that the volume is attached to this node
+// May fail with WatchPending if another reconcile will trigger progress
 func (r *VolumeNodeReconciler) reconcileThinAttaching(ctx context.Context, volume *v1alpha1.Volume, thinPoolLv *v1alpha1.ThinPoolLv) error {
 	oldThinPoolLv := thinPoolLv.DeepCopy()
 
@@ -85,7 +87,15 @@ func (r *VolumeNodeReconciler) reconcileThinDetaching(ctx context.Context, volum
 		}
 	}
 
-	return thinpoollv.UpdateThinPoolLv(ctx, r.Client, thinPoolLv, oldThinPoolLv != thinPoolLv)
+	if err := thinpoollv.UpdateThinPoolLv(ctx, r.Client, thinPoolLv, oldThinPoolLv != thinPoolLv); err != nil {
+		return err
+	}
+
+	if !isThinLvActiveOnLocalNode(thinPoolLv, thinLvName) {
+		return &util.WatchPending{}
+	}
+
+	return nil
 }
 
 func isThinLvActiveOnLocalNode(thinPoolLv *v1alpha1.ThinPoolLv, name string) bool {
@@ -129,19 +139,25 @@ func (r *VolumeNodeReconciler) updateStatusAttachedToNodes(ctx context.Context, 
 
 func (r *VolumeNodeReconciler) reconcileThin(ctx context.Context, volume *v1alpha1.Volume) error {
 	thinPoolLv := &v1alpha1.ThinPoolLv{}
+	log := log.FromContext(ctx).WithValues("nodeName", config.LocalNodeName)
 
-	if err := r.Get(ctx, types.NamespacedName{Name: volume.Name, Namespace: config.Namespace}, thinPoolLv); err != nil {
+	err := r.Get(ctx, types.NamespacedName{Name: volume.Name, Namespace: config.Namespace}, thinPoolLv)
+	if err != nil {
 		return client.IgnoreNotFound(err)
 	}
 
 	if slices.Contains(volume.Spec.AttachToNodes, config.LocalNodeName) {
-		if err := r.reconcileThinAttaching(ctx, volume, thinPoolLv); err != nil {
-			return err
-		}
+		err = r.reconcileThinAttaching(ctx, volume, thinPoolLv)
 	} else {
-		if err := r.reconcileThinDetaching(ctx, volume, thinPoolLv); err != nil {
-			return err
+		err = r.reconcileThinDetaching(ctx, volume, thinPoolLv)
+	}
+
+	if err != nil {
+		if _, ok := err.(*util.WatchPending); ok {
+			log.Info("reconcileThin waiting for Watch")
+			return nil // wait until Watch triggers
 		}
+		return err
 	}
 
 	return r.updateStatusAttachedToNodes(ctx, volume, thinPoolLv)
