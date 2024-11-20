@@ -113,3 +113,7 @@ func (m *LinearBlobManager) RemoveBlob(ctx context.Context, name string) error {
 	)
 	return err
 }
+
+func (m *LinearBlobManager) GetPath(name string) string {
+	return fmt.Sprintf("/dev/%s/%s", m.vgName, name)
+}

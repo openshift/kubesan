@@ -88,7 +88,6 @@ func RunNodeControllers() error {
 	}
 
 	return runManager(ctrlOpts, []func(ctrl.Manager) error{
-		nodecontrollers.SetUpDeviceSwitchNodeReconciler,
 		nodecontrollers.SetUpNbdExportNodeReconciler,
 		nodecontrollers.SetUpThinPoolLvNodeReconciler,
 		nodecontrollers.SetUpVolumeNodeReconciler,

@@ -17,4 +17,8 @@ type BlobManager interface {
 	// RemoveBlob removes a blob if it exists. No error is returned if the
 	// blob does not exist.
 	RemoveBlob(ctx context.Context, name string) error
+
+	// GetPath returns the matching device name that should exist on
+	// any node where the blob is staged.
+	GetPath(name string) string
 }
