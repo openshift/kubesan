@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# In OpenShift, we stick KubeSAN into the pre-existing
+# openshift-storage namespace, so we don't need to create (or delete)
+# a namespace object.
+
+$patch: delete
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubesan-system

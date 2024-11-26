@@ -11,6 +11,10 @@ resources:
 
 patches:
   - target:
+      kind: Namespace
+      name: kubesan-system
+    path: delete_namespace.yaml
+  - target:
       kind: Deployment
     path: patch_priority_class.yaml
   - target:
