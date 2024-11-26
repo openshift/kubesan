@@ -331,7 +331,7 @@ EOF
         if (( uninstall_kubesan )); then
             # __clean_cluster after test TBD for all deployers
             __log_cyan "Uninstalling KubeSAN..."
-            kubectl delete --ignore-not-found --timeout=60s \
+            kubectl delete --ignore-not-found --timeout=120s \
                 -k "${repo_root}/deploy/kubernetes" \
                 || exit_code="$?"
 
