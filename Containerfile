@@ -1,17 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
-FROM quay.io/projectquay/golang:1.22 AS builder
+FROM quay.io/projectquay/golang:1.22 AS makefile
+
+RUN dnf install -qy diffutils && dnf clean all
 
 WORKDIR /kubesan
 
-COPY go.mod go.sum ./
-RUN go mod download
+COPY ./ ./
 
-COPY api/ api/
-COPY cmd/ cmd/
-COPY internal/ internal/
-
-RUN go build -o bin/kubesan cmd/main.go
+RUN make build
 
 # CentOS Stream 9 doesn't provide package nbd
 # FROM quay.io/centos/centos:stream9
@@ -23,6 +20,6 @@ RUN dnf install -qy nbd qemu-img util-linux-core e2fsprogs xfsprogs && dnf clean
 
 WORKDIR /kubesan
 
-COPY --from=builder /kubesan/bin/kubesan bin/
+COPY --from=makefile /kubesan/bin/kubesan bin/
 
 ENTRYPOINT [ "/kubesan/bin/kubesan" ]
