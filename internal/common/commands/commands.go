@@ -217,13 +217,13 @@ func LvmLvAddTag(vgName string, lvName string, tag string) error {
 func WithLvmLvActivated(vgName string, lvName string, op func() error) (err error) {
 	vgLvName := fmt.Sprintf("%s/%s", vgName, lvName)
 
-	_, err = Lvm("lvchange", "--activate", "y", vgLvName)
+	_, err = Lvm("lvchange", "--devicesfile", vgName, "--activate", "y", vgLvName)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		_, err = Lvm("lvchange", "--activate", "n", vgLvName)
+		_, err = Lvm("lvchange", "--devicesfile", vgName, "--activate", "n", vgLvName)
 	}()
 
 	return op()
