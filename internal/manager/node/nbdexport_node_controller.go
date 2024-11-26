@@ -74,7 +74,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	if export.Status.Uri == "" {
-		log.Info("Starting export pod")
+		log.Info("Starting NBD export")
 
 		uri, err := nbd.StartServer(serverId, export.Spec.Path)
 		if err != nil {
@@ -91,7 +91,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	log.Info("Checking export pod status")
+	log.Info("Checking NBD export status")
 	if err := nbd.CheckServerHealth(serverId); err != nil {
 		condition := conditionsv1.Condition{
 			Type:   conditionsv1.ConditionAvailable,
