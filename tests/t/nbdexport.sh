@@ -14,7 +14,7 @@ metadata:
   name: export
   namespace: kubesan-system
 spec:
-  export: export
+  export: pvc-00000000-0000-0000-0000-000000000000-thin
   # The CRD needs a block device in /dev. Cheat and reuse the second VG
   # that this test is otherwise not using; however, this is unsafe to
   # do in a production environment.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -167,9 +168,34 @@ func (q *qemuStorageDaemonMonitor) QueryBlockExports(ctx context.Context) ([]blo
 	return response.Return, nil
 }
 
+// Qemu has a tiny 32-byte limit on node names, even though it is okay
+// with longer NBD export names.  We need to map incoming export names
+// (k8s likes 40-byte pvc-UUID naming) to a shorter string; and our
+// mapping can live in local memory.  That is because q-s-d is in the
+// same pod as our reconciler code; there is no safe way for a
+// DaemonSet to restart our pod while the NBD server is active, so as
+// long as we block upgrades until the node is drained of PVC clients,
+// a replacement process is always okay to start with fresh numbers
+// and a fresh q-s-d instance.  However, we do need to worry about
+// concurrent gothreads access.
+var blockdevs = struct {
+	sync.Mutex
+	m     map[string]string
+	count uint64
+}{m: make(map[string]string)}
+
 // Returns the QMP node name given an NBD export name.
 func nodeName(export string) string {
-	return fmt.Sprintf("blockdev-%s", export)
+	blockdevs.Lock()
+	defer blockdevs.Unlock()
+
+	blockdev, ok := blockdevs.m[export]
+	if !ok {
+		blockdev = fmt.Sprintf("blockdev-%d", blockdevs.count)
+		blockdevs.count++
+		blockdevs.m[export] = blockdev
+	}
+	return blockdev
 }
 
 // Returns the QMP block export id given an NBD export name.
@@ -244,5 +270,10 @@ func StopServer(ctx context.Context, id *ServerId) error {
 	if err != nil {
 		return err
 	}
+
+	blockdevs.Lock()
+	delete(blockdevs.m, id.Export)
+	blockdevs.Unlock()
+
 	return nil
 }
