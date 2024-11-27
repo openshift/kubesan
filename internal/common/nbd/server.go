@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,9 @@ import (
 
 	"github.com/digitalocean/go-qemu/qmp"
 
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+
+	"gitlab.com/kubesan/kubesan/api/v1alpha1"
 	"gitlab.com/kubesan/kubesan/internal/common/config"
 )
 
@@ -23,8 +27,9 @@ const (
 	QmpSockPath = "/run/qsd/qmp.sock"
 )
 
-// The NbdExport CR should be named Node-Export; but to make it easier,
-// this code takes both pieces as separate items.
+// The Volume code will name the NbdExport CR Node-Volume-thin (where
+// Volume==Export); but it is easier to pass items explicitly than trying
+// to parse items out of a CR name.
 type ServerId struct {
 	// The node to which the server should be scheduled.
 	Node string
@@ -276,4 +281,20 @@ func StopServer(ctx context.Context, id *ServerId) error {
 	blockdevs.Unlock()
 
 	return nil
+}
+
+// Return true if no new clients should connect to this export
+func ExportDegraded(export *v1alpha1.NbdExport) bool {
+	return export.Status.Uri != "" && !conditionsv1.IsStatusConditionTrue(export.Status.Conditions, conditionsv1.ConditionAvailable)
+}
+
+// Return true if this node should stop serving the given export.
+func ShouldStopServer(export *v1alpha1.NbdExport, nodes []string) bool {
+	if export == nil || export.Spec.Host != config.LocalNodeName {
+		return false
+	}
+	if ExportDegraded(export) {
+		return true
+	}
+	return !slices.Contains(nodes, config.LocalNodeName) || (len(nodes) == 1 && nodes[0] == config.LocalNodeName)
 }

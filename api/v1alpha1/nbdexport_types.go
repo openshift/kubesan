@@ -11,6 +11,7 @@ import (
 // Important: Run "make generate" to regenerate code after modifying this file
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// +kubebuilder:validation:XValidation:rule=`has(self.path)?has(oldSelf.path):true`
 type NbdExportSpec struct {
 	// The short name of the LV (Volume or Snapshot) to export, write-once
 	// at creation.
@@ -18,10 +19,12 @@ type NbdExportSpec struct {
 	// +kubebuilder:validation:Pattern="[-a-z0-9]+"
 	Export string `json:"export"`
 
-	// The "/dev/..." path of the export, write-once at creation.
+	// The "/dev/..." path of the export, write-once at creation, then
+	// cleared to trigger server stop.
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
-	// +kubebuilder:validation:Pattern="/dev/[-_/a-z0-9]+"
-	Path string `json:"path"`
+	// +kubebuilder:validation:Pattern="^(|/dev/[-_/a-z0-9]+)$"
+	// +optional
+	Path string `json:"path,omitempty"`
 
 	// The node hosting the export. Write-once at creation.
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
