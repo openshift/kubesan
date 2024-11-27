@@ -10,24 +10,6 @@ metadata:
   namespace: kubesan-system
 rules:
 - apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods/finalizers
-  verbs:
-  - update
-- apiGroups:
   - kubesan.gitlab.io
   resources:
   - nbdexports

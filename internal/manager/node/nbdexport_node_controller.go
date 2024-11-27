@@ -38,8 +38,6 @@ func SetUpNbdExportNodeReconciler(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports/status,verbs=get;update;patch,namespace=kubesan-system
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports/finalizers,verbs=update,namespace=kubesan-system
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
-// +kubebuilder:rbac:groups=core,resources=pods/finalizers,verbs=update,namespace=kubesan-system
 
 func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("node", config.LocalNodeName)
@@ -76,7 +74,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	if export.Status.Uri == "" {
-		log.Info("Starting export pod")
+		log.Info("Starting NBD export")
 
 		uri, err := nbd.StartServer(serverId, export.Spec.Path)
 		if err != nil {
@@ -93,7 +91,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	log.Info("Checking export pod status")
+	log.Info("Checking NBD export status")
 	if err := nbd.CheckServerHealth(serverId); err != nil {
 		condition := conditionsv1.Condition{
 			Type:   conditionsv1.ConditionAvailable,

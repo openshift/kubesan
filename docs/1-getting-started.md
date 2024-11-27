@@ -94,10 +94,8 @@ node; here is how to create a VG named `my-vg`:
 $ sudo vgcreate --shared my-vg /dev/my-san-lun
 ```
 
-KubeSAN will then ensure that all cluster nodes use `vgchange
---lock-start` as needed to access the VG.  KubeSAN assumes that
-it will be the sole owner of the shared volume group; you should not
-assume that any pre-existing data will be preserved.
+KubeSAN assumes that it will be the sole owner of the shared volume group; you
+should not assume that any pre-existing data will be preserved.
 
 Other shared storage solutions, such as an NFS file mounted through
 loopback, or even /dev/nbdX pointing to a common NBD server, will
@@ -107,7 +105,7 @@ is not likely to work correctly, since lvm documents that when
 lvmlockd uses sanlock for maintaining shared VG consistency, it works
 best when all io is ultimately directed to the same physical location.
 
-Finally, create a devices file with the same name as the LVM Volume Group on
+Next, create a devices file with the same name as the LVM Volume Group on
 every node in the cluster:
 
 ```console
@@ -123,6 +121,14 @@ $ sudo vgs --devicesfile my-vg my-vg
 Each node must have a devices file because KubeSAN restricts its LVM commands
 to access only devices listed in this file, reducing the chance of interference
 with other users of LVM.
+
+Finally, ensure that locking has been started on every node that will use the
+shared LVM Volume Group. This operation must be performed every time a node
+boots, either manually or automatically, such as from a systemd unit:
+
+```console
+$ sudo vgchange --devicesfile my-vg --lock-start
+```
 
 ## Installing KubeSAN
 

@@ -60,6 +60,7 @@ spec:
           image: registry.k8s.io/sig-storage/csi-provisioner:v3.5.0
           args:
             - --extra-create-metadata  # to get PVC/PV info in CreateVolume()
+            - --default-fstype=ext4 # default FSType so that SecurityContext fsGroup works
           volumeMounts:
             - name: socket-dir
               mountPath: /run/csi
