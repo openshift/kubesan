@@ -76,7 +76,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if export.Status.Uri == "" {
 		log.Info("Starting NBD export")
 
-		uri, err := nbd.StartServer(serverId, export.Spec.Path)
+		uri, err := nbd.StartServer(ctx, serverId, export.Spec.Path)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -92,7 +92,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	log.Info("Checking NBD export status")
-	if err := nbd.CheckServerHealth(serverId); err != nil {
+	if err := nbd.CheckServerHealth(ctx, serverId); err != nil {
 		condition := conditionsv1.Condition{
 			Type:   conditionsv1.ConditionAvailable,
 			Status: corev1.ConditionFalse,
@@ -129,7 +129,7 @@ func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export 
 		Node:   config.LocalNodeName,
 		Export: export.Spec.Export,
 	}
-	if err := nbd.StopServer(serverId); err != nil {
+	if err := nbd.StopServer(ctx, serverId); err != nil {
 		return err
 	}
 

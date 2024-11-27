@@ -3,6 +3,7 @@
 package nbd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/digitalocean/go-qemu/qmp"
 
@@ -63,17 +65,21 @@ func jsonify(v any) string {
 }
 
 // Run a QMP command ignoring error strings containing idempotencyGuard.
-func (q *qemuStorageDaemonMonitor) run(cmd string, idempotencyGuard string) error {
+func (q *qemuStorageDaemonMonitor) run(ctx context.Context, cmd string, idempotencyGuard string) error {
+	log := log.FromContext(ctx)
+
+	log.Info("sending QMP to q-s-d", "command", cmd)
 	_, err := q.monitor.Run([]byte(cmd))
 	if err != nil {
 		if !strings.Contains(err.Error(), idempotencyGuard) {
+			log.Info("q-s-d returned failure", "error", err.Error())
 			return err
 		}
 	}
 	return nil
 }
 
-func (q *qemuStorageDaemonMonitor) BlockdevAdd(nodeName string, devicePathOnHost string) error {
+func (q *qemuStorageDaemonMonitor) BlockdevAdd(ctx context.Context, nodeName string, devicePathOnHost string) error {
 	cmd := fmt.Sprintf(`
 {
     "execute": "blockdev-add",
@@ -89,20 +95,20 @@ func (q *qemuStorageDaemonMonitor) BlockdevAdd(nodeName string, devicePathOnHost
 }
 `, jsonify(nodeName), jsonify(devicePathOnHost))
 
-	return q.run(cmd, "Duplicate nodes with node-name")
+	return q.run(ctx, cmd, "Duplicate nodes with node-name")
 }
 
-func (q *qemuStorageDaemonMonitor) BlockdevDel(nodeName string) error {
+func (q *qemuStorageDaemonMonitor) BlockdevDel(ctx context.Context, nodeName string) error {
 	cmd := fmt.Sprintf(`
 {
     "execute": "blockdev-del",
     "arguments": { "node-name": %s }
 }`, jsonify(nodeName))
 
-	return q.run(cmd, "Failed to find node with node-name")
+	return q.run(ctx, cmd, "Failed to find node with node-name")
 }
 
-func (q *qemuStorageDaemonMonitor) BlockExportAdd(id string, nodeName string, export string) error {
+func (q *qemuStorageDaemonMonitor) BlockExportAdd(ctx context.Context, id string, nodeName string, export string) error {
 	cmd := fmt.Sprintf(`
 {
     "execute": "block-export-add",
@@ -116,10 +122,10 @@ func (q *qemuStorageDaemonMonitor) BlockExportAdd(id string, nodeName string, ex
 }
 `, jsonify(id), jsonify(nodeName), jsonify(export))
 
-	return q.run(cmd, " is already in use")
+	return q.run(ctx, cmd, " is already in use")
 }
 
-func (q *qemuStorageDaemonMonitor) BlockExportDel(id string) error {
+func (q *qemuStorageDaemonMonitor) BlockExportDel(ctx context.Context, id string) error {
 	cmd := fmt.Sprintf(`
 {
     "execute": "block-export-del",
@@ -130,7 +136,7 @@ func (q *qemuStorageDaemonMonitor) BlockExportDel(id string) error {
 }
 `, jsonify(id))
 
-	return q.run(cmd, " is not found")
+	return q.run(ctx, cmd, " is not found")
 }
 
 // The response to the query-block-exports QMP command
@@ -141,8 +147,10 @@ type blockExportInfo struct {
 	ShuttingDown bool   `json:"shutting-down"`
 }
 
-func (q *qemuStorageDaemonMonitor) QueryBlockExports() ([]blockExportInfo, error) {
+func (q *qemuStorageDaemonMonitor) QueryBlockExports(ctx context.Context) ([]blockExportInfo, error) {
+	log := log.FromContext(ctx)
 	cmd := `{"execute": "query-block-exports"}`
+	log.Info("sending QMP to q-s-d", "command", cmd)
 	raw, err := q.monitor.Run([]byte(cmd))
 	if err != nil {
 		return nil, err
@@ -170,7 +178,7 @@ func blockExportId(export string) string {
 }
 
 // Returns success only once the server is running and has the TCP port open.
-func StartServer(id *ServerId, devicePathOnHost string) (string, error) {
+func StartServer(ctx context.Context, id *ServerId, devicePathOnHost string) (string, error) {
 	qsd, err := newQemuStorageDaemonMonitor(QmpSockPath)
 	if err != nil {
 		return "", err
@@ -178,13 +186,13 @@ func StartServer(id *ServerId, devicePathOnHost string) (string, error) {
 	defer qsd.Close()
 
 	nodeName := nodeName(id.Export)
-	err = qsd.BlockdevAdd(nodeName, devicePathOnHost)
+	err = qsd.BlockdevAdd(ctx, nodeName, devicePathOnHost)
 	if err != nil {
 		return "", err
 	}
 
 	blockExportId := blockExportId(id.Export)
-	err = qsd.BlockExportAdd(blockExportId, nodeName, id.Export)
+	err = qsd.BlockExportAdd(ctx, blockExportId, nodeName, id.Export)
 	if err != nil {
 		return "", err
 	}
@@ -198,14 +206,14 @@ func StartServer(id *ServerId, devicePathOnHost string) (string, error) {
 	return url.String(), nil
 }
 
-func CheckServerHealth(id *ServerId) error {
+func CheckServerHealth(ctx context.Context, id *ServerId) error {
 	qsd, err := newQemuStorageDaemonMonitor(QmpSockPath)
 	if err != nil {
 		return err
 	}
 	defer qsd.Close()
 
-	exports, err := qsd.QueryBlockExports()
+	exports, err := qsd.QueryBlockExports(ctx)
 	if err != nil {
 		return err
 	}
@@ -220,19 +228,19 @@ func CheckServerHealth(id *ServerId) error {
 	return k8serrors.NewServiceUnavailable("NBD server unexpectedly gone")
 }
 
-func StopServer(id *ServerId) error {
+func StopServer(ctx context.Context, id *ServerId) error {
 	qsd, err := newQemuStorageDaemonMonitor(QmpSockPath)
 	if err != nil {
 		return err
 	}
 	defer qsd.Close()
 
-	err = qsd.BlockExportDel(blockExportId(id.Export))
+	err = qsd.BlockExportDel(ctx, blockExportId(id.Export))
 	if err != nil {
 		return err
 	}
 
-	err = qsd.BlockdevDel(nodeName(id.Export))
+	err = qsd.BlockdevDel(ctx, nodeName(id.Export))
 	if err != nil {
 		return err
 	}
