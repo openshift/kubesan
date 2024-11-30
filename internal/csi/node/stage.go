@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/mount-utils"
 
 	"gitlab.com/kubesan/kubesan/api/v1alpha1"
@@ -37,21 +38,28 @@ func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	// attach volume to local node
 
 	volume := &v1alpha1.Volume{}
-	if err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId, Namespace: config.Namespace}, volume); err != nil {
-		return nil, err
-	}
-
-	if !slices.Contains(volume.Spec.AttachToNodes, config.LocalNodeName) {
-		volume.Spec.AttachToNodes = kubesanslices.AppendUnique(volume.Spec.AttachToNodes, config.LocalNodeName)
-
-		if err := s.client.Update(ctx, volume); err != nil {
-			return nil, err
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId, Namespace: config.Namespace}, volume); err != nil {
+			return err
 		}
+
+		if !slices.Contains(volume.Spec.AttachToNodes, config.LocalNodeName) {
+			volume.Spec.AttachToNodes = kubesanslices.AppendUnique(volume.Spec.AttachToNodes, config.LocalNodeName)
+
+			// TODO would s.client.Patch be better?
+			if err := s.client.Update(ctx, volume); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	// wait until volume is attached to local node
 
-	err := s.client.WatchVolumeUntil(ctx, volume, func() bool {
+	err = s.client.WatchVolumeUntil(ctx, volume, func() bool {
 		return slices.Contains(volume.Status.AttachedToNodes, config.LocalNodeName)
 	})
 	if err != nil {
@@ -126,16 +134,23 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	// detach volume from local node
 
 	volume := &v1alpha1.Volume{}
-	if err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId, Namespace: config.Namespace}, volume); err != nil {
-		return nil, err
-	}
-
-	if slices.Contains(volume.Spec.AttachToNodes, config.LocalNodeName) {
-		volume.Spec.AttachToNodes = kubesanslices.RemoveAll(volume.Spec.AttachToNodes, config.LocalNodeName)
-
-		if err := s.client.Update(ctx, volume); err != nil {
-			return nil, err
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := s.client.Get(ctx, types.NamespacedName{Name: req.VolumeId, Namespace: config.Namespace}, volume); err != nil {
+			return err
 		}
+
+		if slices.Contains(volume.Spec.AttachToNodes, config.LocalNodeName) {
+			volume.Spec.AttachToNodes = kubesanslices.RemoveAll(volume.Spec.AttachToNodes, config.LocalNodeName)
+
+			// TODO would s.client.Patch via $deleteFromScalarList be better?
+			if err := s.client.Update(ctx, volume); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	// wait until volume is detached from local node
