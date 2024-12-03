@@ -78,16 +78,19 @@ spec:
                 x-kubernetes-validations:
                 - rule: oldSelf==self
               path:
-                description: The "/dev/..." path of the export, write-once at creation.
-                pattern: /dev/[-_/a-z0-9]+
+                description: |-
+                  The "/dev/..." path of the export, write-once at creation, then
+                  cleared to trigger server stop.
+                pattern: ^(|/dev/[-_/a-z0-9]+)$
                 type: string
                 x-kubernetes-validations:
                 - rule: oldSelf==self
             required:
             - export
             - host
-            - path
             type: object
+            x-kubernetes-validations:
+            - rule: has(self.path)?has(oldSelf.path):true
           status:
             properties:
               conditions:

@@ -55,7 +55,7 @@ func RunInContainer(command ...string) (Output, error) {
 }
 
 func RunOnHostContext(ctx context.Context, command ...string) (Output, error) {
-	return RunInContainer(append([]string{"nsenter", "--target", "1", "--all"}, command...)...)
+	return RunInContainerContext(ctx, append([]string{"nsenter", "--target", "1", "--all"}, command...)...)
 }
 
 func RunOnHost(command ...string) (Output, error) {

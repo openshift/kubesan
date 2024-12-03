@@ -68,6 +68,19 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
+	if export.Spec.Path == "" {
+		condition := conditionsv1.Condition{
+			Type:    conditionsv1.ConditionAvailable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "Stopping",
+			Message: "server stop requested, waiting for clients to disconnect",
+		}
+		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
+		if err := r.Status().Update(ctx, export); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	serverId := &nbd.ServerId{
 		Node:   config.LocalNodeName,
 		Export: export.Spec.Export,
@@ -76,14 +89,16 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if export.Status.Uri == "" {
 		log.Info("Starting NBD export")
 
-		uri, err := nbd.StartServer(serverId, export.Spec.Path)
+		uri, err := nbd.StartServer(ctx, serverId, export.Spec.Path)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 		export.Status.Uri = uri
 		condition := conditionsv1.Condition{
-			Type:   conditionsv1.ConditionAvailable,
-			Status: corev1.ConditionTrue,
+			Type:    conditionsv1.ConditionAvailable,
+			Status:  corev1.ConditionTrue,
+			Reason:  "Ready",
+			Message: "NBD Export is ready",
 		}
 		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
 		if err = r.Status().Update(ctx, export); err != nil {
@@ -92,10 +107,12 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	log.Info("Checking NBD export status")
-	if err := nbd.CheckServerHealth(serverId); err != nil {
+	if err := nbd.CheckServerHealth(ctx, serverId); err != nil {
 		condition := conditionsv1.Condition{
-			Type:   conditionsv1.ConditionAvailable,
-			Status: corev1.ConditionFalse,
+			Type:    conditionsv1.ConditionAvailable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "DeviceError",
+			Message: "unexpected NBD server error",
 		}
 		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
 		if err := r.Status().Update(ctx, export); err != nil {
@@ -109,10 +126,12 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export *v1alpha1.NbdExport) error {
 	// Mark the export unavailable, so no new clients attach
-	if !conditionsv1.IsStatusConditionFalse(export.Status.Conditions, conditionsv1.ConditionAvailable) {
+	if !nbd.ExportDegraded(export) {
 		condition := conditionsv1.Condition{
-			Type:   conditionsv1.ConditionAvailable,
-			Status: corev1.ConditionFalse,
+			Type:    conditionsv1.ConditionAvailable,
+			Status:  corev1.ConditionFalse,
+			Reason:  "Deleting",
+			Message: "deletion requested, waiting for clients to disconnect",
 		}
 		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
 		if err := r.Status().Update(ctx, export); err != nil {
@@ -129,7 +148,7 @@ func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export 
 		Node:   config.LocalNodeName,
 		Export: export.Spec.Export,
 	}
-	if err := nbd.StopServer(serverId); err != nil {
+	if err := nbd.StopServer(ctx, serverId); err != nil {
 		return err
 	}
 

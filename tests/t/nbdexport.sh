@@ -14,7 +14,7 @@ metadata:
   name: export
   namespace: kubesan-system
 spec:
-  export: export
+  export: pvc-00000000-0000-0000-0000-000000000000-thin
   # The CRD needs a block device in /dev. Cheat and reuse the second VG
   # that this test is otherwise not using; however, this is unsafe to
   # do in a production environment.
@@ -70,10 +70,16 @@ EOF
 jsonpath='{.status.containerStatuses[?(@.name=="test")].state.terminated.exitCode}'
 ksan-poll 1 60 "[[ \"\$( kubectl get pod test-pod -o jsonpath=\"\${jsonpath}\" )\" = 0 ]]"
 
+ksan-stage "Marking export degraded..."
+kubectl patch --namespace kubesan-system nbdexport export --type merge -p "
+spec:
+  path: ""
+"
+ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' nbdexport export | grep --quiet 'Available False'"
+
 ksan-stage "Deleting export..."
 kubectl delete pod test-pod --timeout=30s
 kubectl delete --namespace kubesan-system --wait=false nbdexport export
-ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' nbdexport export | grep --quiet 'Available False'"
 
 ksan-stage "Dropping client..."
 kubectl patch --namespace kubesan-system nbdexport export --type merge -p "

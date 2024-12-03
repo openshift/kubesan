@@ -104,15 +104,7 @@ func (r *VolumeNodeReconciler) reconcileThinDetaching(ctx context.Context, volum
 		}
 	}
 
-	if err := thinpoollv.UpdateThinPoolLv(ctx, r.Client, thinPoolLv, oldThinPoolLv != thinPoolLv); err != nil {
-		return err
-	}
-
-	if !isThinLvActiveOnLocalNode(thinPoolLv, thinLvName) {
-		return &util.WatchPending{}
-	}
-
-	return nil
+	return thinpoollv.UpdateThinPoolLv(ctx, r.Client, thinPoolLv, oldThinPoolLv != thinPoolLv)
 }
 
 func isThinLvActiveOnLocalNode(thinPoolLv *v1alpha1.ThinPoolLv, name string) bool {
