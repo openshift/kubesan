@@ -25,7 +25,20 @@ spec:
     singular: thinpoollv
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: VG owning the thin pool
+      jsonPath: .spec.vgName
+      name: VG
+      type: string
+    - description: '''Time since pool last changed activation status'''
+      jsonPath: .status.conditions[?(@.type=="Active")].lastTransitionTime
+      name: Activity
+      type: date
+    - description: '''Node where thin pool is currently active'''
+      jsonPath: .status.activeOnNode
+      name: Node
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         properties:
@@ -55,12 +68,6 @@ spec:
                 type: string
                 x-kubernetes-validations:
                 - rule: (oldSelf==self)||((oldSelf=="")!=(self==""))
-              sharing:
-                description: Whether NBD sharing is needed from the active node.
-                enum:
-                - NotNeeded
-                - ServeNBD
-                type: string
               thinLvs:
                 description: May be updated at will.
                 items:
@@ -121,11 +128,8 @@ spec:
                 x-kubernetes-validations:
                 - rule: oldSelf==self
             required:
-            - sharing
             - vgName
             type: object
-            x-kubernetes-validations:
-            - rule: self.activeOnNode!=""||self.sharing!="ServeNBD"
           status:
             properties:
               activeOnNode:
@@ -163,9 +167,6 @@ spec:
                   - type
                   type: object
                 type: array
-              nbdSever:
-                description: The name of a Pod serving NBD, or "" if not available
-                type: string
               thinLvs:
                 description: The status of each LVM thin LV that currently exists
                   in the LVM thin pool LV.

@@ -63,8 +63,7 @@ func (m *ThinBlobManager) createThinPoolLv(ctx context.Context, name string) (*v
 			Namespace: config.Namespace,
 		},
 		Spec: v1alpha1.ThinPoolLvSpec{
-			VgName:  m.vgName,
-			Sharing: v1alpha1.ThinPoolSharingNotNeeded,
+			VgName: m.vgName,
 		},
 	}
 

@@ -13,7 +13,6 @@ metadata:
   namespace: kubesan-system
 spec:
   vgName: kubesan-vg
-  sharing: NotNeeded
 EOF
 
 # Wait for Status.Conditions["Available"]
