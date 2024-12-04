@@ -34,10 +34,11 @@ ksan-stage() {
     )
 }
 
-# Usage: ksan-create-volume <name> <size>
+# Usage: ksan-create-volume <name> <size> <access>
 ksan-create-volume() {
     name=$1
     size=$2
+    access=$3
 
     ksan-stage "Creating volume \"$name\"..."
 
@@ -49,7 +50,7 @@ metadata:
 spec:
   storageClassName: kubesan
   accessModes:
-    - ReadWriteOnce
+    - $access
   resources:
     requests:
       storage: $size
@@ -57,6 +58,16 @@ spec:
 EOF
 
     ksan-wait-for-pvc-to-be-bound 300 "$name"
+}
+
+# Usage: ksan-create-rwo-volume <name> <size>
+ksan-create-rwo-volume() {
+    ksan-create-volume "$@" ReadWriteOnce
+}
+
+# Usage: ksan-create-rwx-volume <name> <size>
+ksan-create-rwx-volume() {
+    ksan-create-volume "$@" ReadWriteMany
 }
 
 # Usage: ksan-create-fs-volume <name> <size>

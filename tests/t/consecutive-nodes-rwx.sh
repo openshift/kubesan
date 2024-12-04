@@ -1,25 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-# 
+#
 # This test verifies that the volume can be accessed consecutively from each
 # node. This ensures that there are no LV activation leaks after a node
 # finishes accessing the volume.
 
 ksan-supported-modes Linear Thin
 
-kubectl create -f - <<EOF
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: test-pvc
-spec:
-  storageClassName: kubesan
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 64Mi
-  volumeMode: Block
-EOF
+ksan-create-rwx-volume test-pvc 64Mi
 
 for i in "${!NODES[@]}"; do
     ksan-stage "Accessing volume from node ${NODES[i]}..."
