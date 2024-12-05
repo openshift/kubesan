@@ -12,9 +12,14 @@ metadata:
 spec:
   group: kubesan.gitlab.io
   names:
+    categories:
+    - kubesan
     kind: NbdExport
     listKind: NbdExportList
     plural: nbdexports
+    shortNames:
+    - nbd
+    - nbds
     singular: nbdexport
   scope: Namespaced
   versions:

@@ -12,9 +12,15 @@ metadata:
 spec:
   group: kubesan.gitlab.io
   names:
+    categories:
+    - kubesan
+    - lv
     kind: Snapshot
     listKind: SnapshotList
     plural: snapshots
+    shortNames:
+    - snap
+    - snaps
     singular: snapshot
   scope: Namespaced
   versions:

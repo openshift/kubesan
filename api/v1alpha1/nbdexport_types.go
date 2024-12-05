@@ -53,7 +53,7 @@ type NbdExportStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Namespaced,shortName=nbd;nbds,categories=kubesan
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Export",type=string,JSONPath=`.spec.export`,description='LV source of the export'
 // +kubebuilder:printcolumn:name="Host",type=string,JSONPath=`.spec.host`,description='Node hosting the export'

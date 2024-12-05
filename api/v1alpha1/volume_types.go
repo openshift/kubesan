@@ -135,7 +135,7 @@ func (v *VolumeStatus) IsAttachedToNode(node string) bool {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Namespaced,shortName=vol;vols,categories=kubesan;lv
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="VG",type=string,JSONPath=`.spec.vgName`,description='VG owning the volume'
 // +kubebuilder:printcolumn:name="Path",type=string,JSONPath=`.status.path`,description='Path to volume in nodes where it is active',priority=1

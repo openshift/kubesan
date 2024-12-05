@@ -12,9 +12,15 @@ metadata:
 spec:
   group: kubesan.gitlab.io
   names:
+    categories:
+    - kubesan
+    - lv
     kind: Volume
     listKind: VolumeList
     plural: volumes
+    shortNames:
+    - vol
+    - vols
     singular: volume
   scope: Namespaced
   versions:

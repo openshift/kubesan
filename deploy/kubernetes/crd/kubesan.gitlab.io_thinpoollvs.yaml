@@ -12,9 +12,16 @@ metadata:
 spec:
   group: kubesan.gitlab.io
   names:
+    categories:
+    - kubesan
     kind: ThinPoolLv
     listKind: ThinPoolLvList
     plural: thinpoollvs
+    shortNames:
+    - tp
+    - tps
+    - pool
+    - pools
     singular: thinpoollv
   scope: Namespaced
   versions:

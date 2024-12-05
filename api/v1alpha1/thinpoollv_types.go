@@ -180,7 +180,7 @@ type ThinLvStatusStateActive struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Namespaced,shortName=tp;tps;pool;pools,categories=kubesan
 // +kubebuilder:subresource:status
 
 type ThinPoolLv struct {
