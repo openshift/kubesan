@@ -16,7 +16,7 @@ metadata:
 spec:
   selector:
     matchLabels: &labels
-      kubesan.gitlab.io/component: csi-node-plugin
+      app.kubernetes.io/component: csi-node-plugin
   template:
     metadata:
       labels: *labels

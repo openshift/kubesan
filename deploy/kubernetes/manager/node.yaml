@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     matchLabels: &labels
-      kubesan.gitlab.io/component: node-controller-manager
+      app.kubernetes.io/component: node-controller-manager
   template:
     metadata:
       labels: *labels
