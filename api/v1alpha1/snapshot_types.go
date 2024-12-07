@@ -27,6 +27,8 @@ type SnapshotStatus struct {
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// The size of the snapshot, immutable once set.

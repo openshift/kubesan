@@ -68,6 +68,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: set
               export:
                 description: |-
                   The short name of the LV (Volume or Snapshot) to export, write-once
@@ -128,6 +129,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               uri:
                 description: |-
                   NBD URI for connecting to the NBD export, using IP address.

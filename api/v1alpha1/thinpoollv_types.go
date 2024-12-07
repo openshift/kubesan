@@ -19,7 +19,12 @@ type ThinPoolLvSpec struct {
 	VgName string `json:"vgName"`
 
 	// May be updated at will.
-	ThinLvs []ThinLvSpec `json:"thinLvs,omitempty"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	ThinLvs []ThinLvSpec `json:"thinLvs,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// Name of node where activation is needed, or empty.
 	// When changing, may only toggle between "" and non-empty.
@@ -106,13 +111,21 @@ type ThinPoolLvStatus struct {
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// The name of the node where the LVM thin pool LV is active, along with any active LVM thin LVs; or "".
+	// +optional
 	ActiveOnNode string `json:"activeOnNode,omitempty"`
 
 	// The status of each LVM thin LV that currently exists in the LVM thin pool LV.
-	ThinLvs []ThinLvStatus `json:"thinLvs,omitempty"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	ThinLvs []ThinLvStatus `json:"thinLvs,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 }
 
 func (s *ThinPoolLvStatus) FindThinLv(name string) *ThinLvStatus {

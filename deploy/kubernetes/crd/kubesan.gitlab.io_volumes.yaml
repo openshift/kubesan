@@ -85,6 +85,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: set
                 x-kubernetes-validations:
                 - rule: oldSelf==self
               attachToNodes:
@@ -92,6 +93,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: set
               contents:
                 description: Should be set from creation and never updated.
                 properties:
@@ -142,6 +144,7 @@ spec:
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: atomic
                     required:
                     - fsType
                     type: object
@@ -168,6 +171,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: set
               conditions:
                 description: |-
                   Conditions
@@ -200,6 +204,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               path:
                 description: The path at which the volume is available on nodes to
                   which it is attached.

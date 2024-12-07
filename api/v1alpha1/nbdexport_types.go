@@ -33,6 +33,7 @@ type NbdExportSpec struct {
 
 	// The set of clients connecting to the export.
 	// +optional
+	// +listType=set
 	Clients []string `json:"clients,omitempty"`
 }
 
@@ -42,6 +43,8 @@ type NbdExportStatus struct {
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// NBD URI for connecting to the NBD export, using IP address.
