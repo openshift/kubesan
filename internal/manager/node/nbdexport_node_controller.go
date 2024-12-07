@@ -76,7 +76,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			Message: "server stop requested, waiting for clients to disconnect",
 		}
 		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
-		if err := r.Status().Update(ctx, export); err != nil {
+		if err := r.statusUpdate(ctx, export); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -101,7 +101,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			Message: "NBD Export is ready",
 		}
 		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
-		if err = r.Status().Update(ctx, export); err != nil {
+		if err = r.statusUpdate(ctx, export); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -115,7 +115,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			Message: "unexpected NBD server error",
 		}
 		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
-		if err := r.Status().Update(ctx, export); err != nil {
+		if err := r.statusUpdate(ctx, export); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, err
@@ -134,7 +134,7 @@ func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export 
 			Message: "deletion requested, waiting for clients to disconnect",
 		}
 		conditionsv1.SetStatusCondition(&export.Status.Conditions, condition)
-		if err := r.Status().Update(ctx, export); err != nil {
+		if err := r.statusUpdate(ctx, export); err != nil {
 			return err
 		}
 	}
@@ -155,4 +155,9 @@ func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export 
 	// Now the CR can be deleted
 	controllerutil.RemoveFinalizer(export, config.Finalizer)
 	return r.Update(ctx, export)
+}
+
+func (r *NbdExportNodeReconciler) statusUpdate(ctx context.Context, export *v1alpha1.NbdExport) error {
+	export.Status.ObservedGeneration = export.Generation
+	return r.Status().Update(ctx, export)
 }

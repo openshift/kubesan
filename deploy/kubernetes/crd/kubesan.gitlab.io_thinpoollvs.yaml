@@ -173,6 +173,12 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  The generation of the spec used to produce this status.  Useful
+                  as a witness when waiting for status to change.
+                format: int64
+                type: integer
               thinLvs:
                 description: The status of each LVM thin LV that currently exists
                   in the LVM thin pool LV.
@@ -215,6 +221,8 @@ spec:
                 x-kubernetes-list-map-keys:
                 - name
                 x-kubernetes-list-type: map
+            required:
+            - observedGeneration
             type: object
         type: object
     served: true

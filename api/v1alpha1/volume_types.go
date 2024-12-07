@@ -113,6 +113,10 @@ const (
 )
 
 type VolumeStatus struct {
+	// The generation of the spec used to produce this status.  Useful
+	// as a witness when waiting for status to change.
+	ObservedGeneration int64 `json:"observedGeneration"`
+
 	// Conditions
 	// Available: The LVM volume has been created
 	// DataSourceCompleted: Any data source has been copied into the LVM,

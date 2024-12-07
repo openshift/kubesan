@@ -141,7 +141,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 
 			thinPoolLv.Status.ActiveOnNode = config.LocalNodeName
 
-			if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+			if err := r.statusUpdate(ctx, thinPoolLv); err != nil {
 				return thinPoolLvShouldBeActive, err
 			}
 		}
@@ -196,7 +196,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinPoolLvActivation(ctx context.Con
 
 			thinPoolLv.Status.ActiveOnNode = ""
 
-			if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+			if err := r.statusUpdate(ctx, thinPoolLv); err != nil {
 				return thinPoolLvShouldBeActive, err
 			}
 		}
@@ -260,7 +260,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinLvDeletion(ctx context.Context, 
 	thinPoolLv.Status.ThinLvs = newThinLvs
 
 	if needUpdate {
-		if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+		if err := r.statusUpdate(ctx, thinPoolLv); err != nil {
 			return err
 		}
 	}
@@ -324,7 +324,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinLvActivations(ctx context.Contex
 					},
 				}
 
-				if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+				if err := r.statusUpdate(ctx, thinPoolLv); err != nil {
 					return err
 				}
 			}
@@ -348,7 +348,7 @@ func (r *ThinPoolLvNodeReconciler) reconcileThinLvActivations(ctx context.Contex
 					Name: v1alpha1.ThinLvStatusStateNameInactive,
 				}
 
-				if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+				if err := r.statusUpdate(ctx, thinPoolLv); err != nil {
 					return err
 				}
 			}
@@ -434,7 +434,7 @@ func (r *ThinPoolLvNodeReconciler) createThinLv(ctx context.Context, thinPoolLv 
 
 	thinPoolLv.Status.ThinLvs = append(thinPoolLv.Status.ThinLvs, thinLvStatus)
 
-	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+	if err := r.statusUpdate(ctx, thinPoolLv); err != nil {
 		return err
 	}
 
@@ -449,4 +449,9 @@ func (r *ThinPoolLvNodeReconciler) removeThinLv(_ context.Context, thinPoolLv *v
 		fmt.Sprintf("%s/%s", thinPoolLv.Spec.VgName, thinLvName),
 	)
 	return err
+}
+
+func (r *ThinPoolLvNodeReconciler) statusUpdate(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv) error {
+	thinPoolLv.Status.ObservedGeneration = thinPoolLv.Generation
+	return r.Status().Update(ctx, thinPoolLv)
 }

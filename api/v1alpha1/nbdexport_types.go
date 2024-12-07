@@ -38,6 +38,10 @@ type NbdExportSpec struct {
 }
 
 type NbdExportStatus struct {
+	// The generation of the spec used to produce this status.  Useful
+	// as a witness when waiting for status to change.
+	ObservedGeneration int64 `json:"observedGeneration"`
+
 	// Conditions
 	// Available: The export is currently accessible
 	// +patchMergeKey=type

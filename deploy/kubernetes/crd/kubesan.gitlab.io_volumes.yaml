@@ -207,6 +207,12 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  The generation of the spec used to produce this status.  Useful
+                  as a witness when waiting for status to change.
+                format: int64
+                type: integer
               path:
                 description: The path at which the volume is available on nodes to
                   which it is attached.
@@ -218,6 +224,7 @@ spec:
                 x-kubernetes-validations:
                 - rule: oldSelf<=self
             required:
+            - observedGeneration
             - sizeBytes
             type: object
         type: object

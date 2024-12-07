@@ -22,6 +22,10 @@ type SnapshotSpec struct {
 }
 
 type SnapshotStatus struct {
+	// The generation of the spec used to produce this status.  Useful
+	// as a witness when waiting for status to change.
+	ObservedGeneration int64 `json:"observedGeneration"`
+
 	// Conditions
 	// Available: The snapshot can be sourced by volumes.
 	// +patchMergeKey=type

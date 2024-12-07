@@ -112,7 +112,7 @@ func (r *ThinPoolLvReconciler) reconcileDeleting(ctx context.Context, thinPoolLv
 
 	if len(thinPoolLv.Status.ThinLvs) > 0 {
 		thinPoolLv.Status.ThinLvs = []v1alpha1.ThinLvStatus{}
-		if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+		if err := r.statusUpdate(ctx, thinPoolLv); err != nil {
 			return err
 		}
 	}
@@ -147,7 +147,7 @@ func (r *ThinPoolLvReconciler) createThinPoolLv(ctx context.Context, thinPoolLv 
 	}
 	conditionsv1.SetStatusCondition(&thinPoolLv.Status.Conditions, condition)
 
-	if err := r.Status().Update(ctx, thinPoolLv); err != nil {
+	if err := r.statusUpdate(ctx, thinPoolLv); err != nil {
 		return err
 	}
 
@@ -178,4 +178,9 @@ func (r *ThinPoolLvReconciler) removeThinLv(thinPoolLv *v1alpha1.ThinPoolLv, thi
 		fmt.Sprintf("%s/%s", thinPoolLv.Spec.VgName, thinLvName),
 	)
 	return err
+}
+
+func (r *ThinPoolLvReconciler) statusUpdate(ctx context.Context, thinPoolLv *v1alpha1.ThinPoolLv) error {
+	thinPoolLv.Status.ObservedGeneration = thinPoolLv.Generation
+	return r.Status().Update(ctx, thinPoolLv)
 }
