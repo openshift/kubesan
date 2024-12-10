@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-ksan-supported-modes # TODO add Thin when RWX is implemented
+ksan-supported-modes Linear # TODO add Thin when RWX is implemented
 
 # SOME DEFINITIONS
 
@@ -62,7 +62,7 @@ ensure_pod_is_writing() {
 
 # ACTUAL TEST
 
-ksan-create-volume test-pvc 64Mi
+ksan-create-rwx-volume test-pvc 64Mi
 
 ksan-stage 'Launching pod mounting the volume and writing to it...'
 start_pod 0
@@ -74,12 +74,15 @@ ensure_pod_is_writing 1
 
 ksan-stage 'Ensuring that the first pod is still writing to the volume...'
 ensure_pod_is_writing 0
+# CAUTION: this code is fragile - it assumes knowledge of KubeSAN internals.
+# This dm device will only exist if the LV is active on the node.
+ksan-poll 1 300 "kubectl exec test-pod-0 -- dmsetup status | grep -q 'kubesan--vg-pvc--.*:'"
 
 ksan-stage 'Deleting the first pod...'
 kubectl delete pod test-pod-0 --timeout=30s
 
 ksan-stage 'Waiting until the blob pool has migrated...'
-ksan-poll 1 300 "kubectl exec test-pod-1 -- dmsetup status | grep -q 'kubesan--vg-pvc--.*--thin:'"
+ksan-poll 1 300 "kubectl exec test-pod-1 -- dmsetup status | grep -q 'kubesan--vg-pvc--.*:'"
 
 ksan-stage 'Ensuring that the second pod is still writing to the volume...'
 ensure_pod_is_writing 1

@@ -120,7 +120,7 @@ func (r *VolumeReconciler) reconcileNotDeleting(ctx context.Context, blobMgr Blo
 
 		volume.Status.Path = blobMgr.GetPath(volume.Name)
 
-		if err := r.Status().Update(ctx, volume); err != nil {
+		if err := r.statusUpdate(ctx, volume); err != nil {
 			return err
 		}
 	}
@@ -176,4 +176,9 @@ func (r *VolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	return ctrl.Result{}, r.reconcileNotDeleting(ctx, blobMgr, volume)
+}
+
+func (r *VolumeReconciler) statusUpdate(ctx context.Context, volume *v1alpha1.Volume) error {
+	volume.Status.ObservedGeneration = volume.Generation
+	return r.Status().Update(ctx, volume)
 }

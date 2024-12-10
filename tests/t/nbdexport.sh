@@ -23,7 +23,7 @@ spec:
 EOF
 
 # Wait for Status.Conditions["Available"]
-ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' nbdexport export | grep --quiet 'Available True'"
+ksan-poll 1 30 '[[ "$(ksan-get-condition nbdexport export Available)" == True ]]'
 
 ksan-stage "Adding client..."
 kubectl patch --namespace kubesan-system nbdexport export --type merge -p "
@@ -75,7 +75,7 @@ kubectl patch --namespace kubesan-system nbdexport export --type merge -p "
 spec:
   path: ""
 "
-ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' nbdexport export | grep --quiet 'Available False'"
+ksan-poll 1 30 '[[ "$(ksan-get-condition nbdexport export Available)" == False ]]'
 
 ksan-stage "Deleting export..."
 kubectl delete pod test-pod --timeout=30s

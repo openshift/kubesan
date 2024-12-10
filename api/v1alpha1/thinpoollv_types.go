@@ -13,33 +13,24 @@ import (
 // Important: Run "make generate" to regenerate code after modifying this file
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// +kubebuilder:validation:XValidation:rule=self.activeOnNode!=""||self.sharing!="ServeNBD"
 type ThinPoolLvSpec struct {
 	// Should be set from creation and never updated.
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	VgName string `json:"vgName"`
 
 	// May be updated at will.
-	ThinLvs []ThinLvSpec `json:"thinLvs,omitempty"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	ThinLvs []ThinLvSpec `json:"thinLvs,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// Name of node where activation is needed, or empty.
 	// When changing, may only toggle between "" and non-empty.
 	// +kubebuilder:validation:XValidation:rule=(oldSelf==self)||((oldSelf=="")!=(self==""))
 	ActiveOnNode string `json:"activeOnNode,omitempty"`
-
-	// Whether NBD sharing is needed from the active node.
-	// +kubebuilder:validation:Enum=NotNeeded;ServeNBD
-	Sharing ThinPoolSharing `json:"sharing"`
 }
-
-type ThinPoolSharing string
-
-const (
-	ThinPoolSharingNotNeeded = "NotNeeded"
-	ThinPoolSharingServeNBD  = "ServeNBD"
-
-	// TODO Possibility of ReadOnly sharing, for shared rather than exclusive activation
-)
 
 func (s *ThinPoolLvSpec) FindThinLv(name string) *ThinLvSpec {
 	for i := range s.ThinLvs {
@@ -114,22 +105,31 @@ const (
 )
 
 type ThinPoolLvStatus struct {
+	// The generation of the spec used to produce this status.  Useful
+	// as a witness when waiting for status to change.
+	ObservedGeneration int64 `json:"observedGeneration"`
+
 	// Conditions
 	// Available: The LVM volume has been created
 	// Active: The last time Status.ActiveOnNode changed
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// The name of the node where the LVM thin pool LV is active, along with any active LVM thin LVs; or "".
+	// +optional
 	ActiveOnNode string `json:"activeOnNode,omitempty"`
 
-	// The name of a Pod serving NBD, or "" if not available
-	NBDServer string `json:"nbdSever,omitempty"`
-
 	// The status of each LVM thin LV that currently exists in the LVM thin pool LV.
-	ThinLvs []ThinLvStatus `json:"thinLvs,omitempty"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	ThinLvs []ThinLvStatus `json:"thinLvs,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 }
 
 func (s *ThinPoolLvStatus) FindThinLv(name string) *ThinLvStatus {
@@ -180,8 +180,13 @@ type ThinLvStatusStateActive struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Namespaced,shortName=tp;tps;pool;pools,categories=kubesan
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="VG",type=string,JSONPath=`.spec.vgName`,description=`VG owning the thin pool`
+// +kubebuilder:printcolumn:name="Activity",type=date,JSONPath=`.status.conditions[?(@.type=="Active")].lastTransitionTime`,description='Time since pool last changed activation status'
+// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=`.status.activeOnNode`,description='Node where thin pool is currently active'
+// + TODO determine if there is a way to print a column "LVs" that displays the number of items in the .status.thinLvs array
+// + TODO should we expose the thin pool size via Status?
 
 type ThinPoolLv struct {
 	metav1.TypeMeta   `json:",inline"`

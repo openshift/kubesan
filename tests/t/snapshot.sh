@@ -2,7 +2,7 @@
 
 ksan-supported-modes # TODO add Thin when snapshots are implemented
 
-ksan-create-volume test-pvc-1 64Mi
+ksan-create-rwo-volume test-pvc-1 64Mi
 ksan-fill-volume test-pvc-1 64
 ksan-create-snapshot test-pvc-1 test-vs-1
 

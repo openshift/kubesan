@@ -3,8 +3,8 @@
 # Usage: __ksan-get-pod-name <component> [<node>]
 __ksan-get-pod-name() {
     kubectl get pod \
-        --namespace kubesan \
-        --selector "kubesan.gitlab.io/component==$1" \
+        --namespace kubesan-system \
+        --selector "app.kubernetes.io/component==$1" \
         ${2+"--field-selector=spec.nodeName==$( __ksan-get-node-name "$2" )"} \
         --output jsonpath="{.items[0].metadata.name}"
 }
@@ -53,7 +53,7 @@ __ksan-per-node-component() {
     esac
 
     kubectl \
-        --namespace kubesan \
+        --namespace kubesan-system \
         "${__kubectl_cmd[@]}" \
         "$( __ksan-get-pod-name "$2" "$3" )" \
         "${__kubectl_args[@]}"
@@ -89,7 +89,7 @@ ksan-csi-controller-plugin() {
     esac
 
     kubectl \
-        --namespace kubesan \
+        --namespace kubesan-system \
         "${__kubectl_cmd[@]}" \
         "$( __ksan-get-pod-name csi-controller-plugin )" \
         "${__kubectl_args[@]}"
@@ -174,7 +174,7 @@ if (( ${sandbox:-1} )); then
         spec:
           selector:
             matchLabels: &labels
-              kubesan.gitlab.io/component: $__name
+              app.kubernetes.io/component: $__name
           template:
             metadata:
               labels: *labels

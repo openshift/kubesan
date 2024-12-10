@@ -33,6 +33,7 @@ type VolumeSpec struct {
 
 	// Should be set from creation and never updated.
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
+	// +listType=set
 	AccessModes []VolumeAccessMode `json:"accessModes"`
 
 	// Must be positive and a multiple of 512. May be updated at will, but the actual size will only ever increase.
@@ -41,6 +42,7 @@ type VolumeSpec struct {
 	SizeBytes int64 `json:"sizeBytes"`
 
 	// May be updated at will.
+	// +listType=set
 	AttachToNodes []string `json:"attachToNodes,omitempty"`
 }
 
@@ -75,7 +77,9 @@ type VolumeTypeBlock struct {
 }
 
 type VolumeTypeFilesystem struct {
-	FsType       string   `json:"fsType"`
+	FsType string `json:"fsType"`
+
+	// +listType=atomic
 	MountOptions []string `json:"mountOptions,omitempty"`
 }
 
@@ -109,6 +113,10 @@ const (
 )
 
 type VolumeStatus struct {
+	// The generation of the spec used to produce this status.  Useful
+	// as a witness when waiting for status to change.
+	ObservedGeneration int64 `json:"observedGeneration"`
+
 	// Conditions
 	// Available: The LVM volume has been created
 	// DataSourceCompleted: Any data source has been copied into the LVM,
@@ -116,6 +124,8 @@ type VolumeStatus struct {
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// Reflects the current size of the volume.
@@ -123,6 +133,7 @@ type VolumeStatus struct {
 	SizeBytes int64 `json:"sizeBytes"`
 
 	// Reflects the nodes to which the volume is attached.
+	// +listType=set
 	AttachedToNodes []string `json:"attachedToNodes,omitempty"`
 
 	// The path at which the volume is available on nodes to which it is attached.
@@ -135,7 +146,7 @@ func (v *VolumeStatus) IsAttachedToNode(node string) bool {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Namespaced,shortName=vol;vols,categories=kubesan;lv
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="VG",type=string,JSONPath=`.spec.vgName`,description='VG owning the volume'
 // +kubebuilder:printcolumn:name="Path",type=string,JSONPath=`.status.path`,description='Path to volume in nodes where it is active',priority=1
