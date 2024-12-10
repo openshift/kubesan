@@ -160,3 +160,12 @@ ksan-delete-volume() {
     kubectl delete pvc "$@" --timeout=30s
     ksan-poll 1 30 "[[ -z \"\$(kubectl get --no-headers pv $pvs 2>/dev/null)\" ]]"
 }
+
+# Usage: ksan-get-condition <kind> <name> <condition>
+ksan-get-condition() {
+    local kind="$1"
+    local name="$2"
+    local condition="$3"
+
+    kubectl get --namespace kubesan-system "${kind}" "${name}" --output jsonpath="{.status.conditions[?(.type==\"${condition}\")].status}"
+}

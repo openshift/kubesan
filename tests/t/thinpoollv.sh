@@ -16,7 +16,7 @@ spec:
 EOF
 
 # Wait for Status.Conditions["Available"]
-ksan-poll 1 30 "kubectl get --namespace kubesan-system -o=jsonpath='{.status.conditions[*]['\''type'\'','\''status'\'']}' thinpoollv thinpoollv | grep --quiet 'Available True'"
+ksan-poll 1 30 '[[ "$(ksan-get-condition thinpoollv thinpoollv Available)" == True ]]'
 
 ksan-stage "Creating thin LV..."
 kubectl patch --namespace kubesan-system thinpoollv thinpoollv --type merge --patch """
