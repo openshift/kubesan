@@ -55,8 +55,7 @@ help: ## Display this help.
 
 .PHONY: build
 build: .generate.timestamp vet lint ## Build the KubeSAN image.
-	go mod download
-	go build -o bin/kubesan cmd/main.go
+	go build -mod=vendor -o bin/kubesan cmd/main.go
 
 ##@ Development
 
@@ -86,7 +85,7 @@ vet: ## Run go vet.
 
 .PHONY: test-unit
 test-unit: vet lint envtest ## Run unit tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./...
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -v ./...
 
 .PHONY: test-e2e
 test-e2e: vet lint ## Run end-to-end tests (tests/run.sh all).
@@ -129,7 +128,7 @@ define go-install-tool
 set -e; \
 package=$(2)@$(3) ;\
 echo "Downloading $${package}" ;\
-GOBIN=$(LOCALBIN) go install $${package} ;\
+GOBIN=$(LOCALBIN) go install -mod=readonly $${package} ;\
 mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
 }
 endef
