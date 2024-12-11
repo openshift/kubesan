@@ -134,7 +134,7 @@ func (r *ThinPoolLvReconciler) createThinPoolLv(ctx context.Context, thinPoolLv 
 		"--type", "thin-pool",
 		"--metadataprofile", "kubesan",
 		"--name", thinPoolLv.Name,
-		"--size", "1g", // TODO: find a reasonable heuristic for this
+		"--size", fmt.Sprintf("%db", thinPoolLv.Spec.SizeBytes),
 		thinPoolLv.Spec.VgName,
 	)
 	if err != nil {
