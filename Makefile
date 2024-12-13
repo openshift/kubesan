@@ -26,6 +26,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+CONTAINER_TOOL ?= podman
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -54,8 +56,12 @@ help: ## Display this help.
 ##@ Build
 
 .PHONY: build
-build: .generate.timestamp vet lint ## Build the KubeSAN image.
+build: .generate.timestamp vet lint ## Build the KubeSAN image locally.
 	go build -mod=vendor --ldflags "-s -w" -a -o bin/kubesan cmd/main.go
+
+.PHONY: container
+container:  ## Build the KubeSAN container.
+	$(CONTAINER_TOOL) build -t $(IMG) .
 
 ##@ Development
 
@@ -100,11 +106,11 @@ lint-fix: golangci-lint ## Run the golangci-lint linter and perform fixes.
 	$(GOLANGCI_LINT) run --fix
 
 .PHONY: tidy
-tidy:
+tidy:  ## Clean up go.mod.
 	go mod tidy
 
 .PHONY: vendor
-vendor: tidy
+vendor: tidy  ## Update the vendor directory.
 	go mod vendor
 
 ##@ Dependencies
