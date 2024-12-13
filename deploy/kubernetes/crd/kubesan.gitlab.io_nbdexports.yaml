@@ -12,9 +12,14 @@ metadata:
 spec:
   group: kubesan.gitlab.io
   names:
+    categories:
+    - kubesan
     kind: NbdExport
     listKind: NbdExportList
     plural: nbdexports
+    shortNames:
+    - nbd
+    - nbds
     singular: nbdexport
   scope: Namespaced
   versions:
@@ -63,6 +68,7 @@ spec:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: set
               export:
                 description: |-
                   The short name of the LV (Volume or Snapshot) to export, write-once
@@ -123,6 +129,15 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  The generation of the spec used to produce this status.  Useful
+                  as a witness when waiting for status to change.
+                format: int64
+                type: integer
               uri:
                 description: |-
                   NBD URI for connecting to the NBD export, using IP address.
@@ -131,6 +146,8 @@ spec:
                 type: string
                 x-kubernetes-validations:
                 - rule: oldSelf==self
+            required:
+            - observedGeneration
             type: object
         type: object
     served: true

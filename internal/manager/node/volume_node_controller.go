@@ -120,7 +120,7 @@ func (r *VolumeNodeReconciler) updateStatusAttachedToNodes(ctx context.Context, 
 		if !slices.Contains(volume.Status.AttachedToNodes, config.LocalNodeName) {
 			volume.Status.AttachedToNodes = append(volume.Status.AttachedToNodes, config.LocalNodeName)
 
-			if err := r.Status().Update(ctx, volume); err != nil {
+			if err := r.statusUpdate(ctx, volume); err != nil {
 				return err
 			}
 		}
@@ -128,7 +128,7 @@ func (r *VolumeNodeReconciler) updateStatusAttachedToNodes(ctx context.Context, 
 		if slices.Contains(volume.Status.AttachedToNodes, config.LocalNodeName) {
 			volume.Status.AttachedToNodes = kubesanslices.RemoveAll(volume.Status.AttachedToNodes, config.LocalNodeName)
 
-			if err := r.Status().Update(ctx, volume); err != nil {
+			if err := r.statusUpdate(ctx, volume); err != nil {
 				return err
 			}
 		}
@@ -215,7 +215,7 @@ func (r *VolumeNodeReconciler) reconcileLinear(ctx context.Context, volume *v1al
 		return nil // done, no need to update Status
 	}
 
-	err = r.Status().Update(ctx, volume)
+	err = r.statusUpdate(ctx, volume)
 	return err
 }
 
@@ -251,4 +251,9 @@ func (r *VolumeNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	return ctrl.Result{}, err
+}
+
+func (r *VolumeNodeReconciler) statusUpdate(ctx context.Context, volume *v1alpha1.Volume) error {
+	volume.Status.ObservedGeneration = volume.Generation
+	return r.Status().Update(ctx, volume)
 }

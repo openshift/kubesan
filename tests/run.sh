@@ -300,7 +300,7 @@ images:
     newName: ${ksanregistry}/kubesan/kubesan
     newTag: test
 EOF
-            kubectl create -k ${temp_dir}
+            kubectl apply -k ${temp_dir}
             sed -E "s/@@MODE@@/$mode/g" "${script_dir}/t-data/storage-class.yaml" | kubectl create -f -
         fi
 

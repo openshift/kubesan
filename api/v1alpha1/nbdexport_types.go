@@ -33,15 +33,22 @@ type NbdExportSpec struct {
 
 	// The set of clients connecting to the export.
 	// +optional
+	// +listType=set
 	Clients []string `json:"clients,omitempty"`
 }
 
 type NbdExportStatus struct {
+	// The generation of the spec used to produce this status.  Useful
+	// as a witness when waiting for status to change.
+	ObservedGeneration int64 `json:"observedGeneration"`
+
 	// Conditions
 	// Available: The export is currently accessible
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// NBD URI for connecting to the NBD export, using IP address.
@@ -53,7 +60,7 @@ type NbdExportStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Namespaced,shortName=nbd;nbds,categories=kubesan
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Export",type=string,JSONPath=`.spec.export`,description='LV source of the export'
 // +kubebuilder:printcolumn:name="Host",type=string,JSONPath=`.spec.host`,description='Node hosting the export'

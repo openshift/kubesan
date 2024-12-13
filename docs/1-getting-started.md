@@ -135,13 +135,13 @@ $ sudo vgchange --devicesfile my-vg --lock-start
 If you are using OpenShift:
 
 ```console
-$ kubectl create -k https://gitlab.com/kubesan/kubesan/deploy/openshift?ref=v0.8.0
+$ kubectl apply -k https://gitlab.com/kubesan/kubesan/deploy/openshift?ref=v0.8.0
 ```
 
 Otherwise use the vanilla Kubernetes kustomization:
 
 ```console
-$ kubectl create -k https://gitlab.com/kubesan/kubesan/deploy/kubernetes?ref=v0.8.0
+$ kubectl apply -k https://gitlab.com/kubesan/kubesan/deploy/kubernetes?ref=v0.8.0
 ```
 
 If you wish to create snapshots of volumes, your Kubernetes cluster must have
@@ -152,8 +152,8 @@ Kubernetes) do not.
 If you need to create them, use these commands to do so:
 
 ```console
-$ kubectl create -k "https://github.com/kubernetes-csi/external-snapshotter/client/config/crd?ref=v7.0.1"
-$ kubectl create -k "https://github.com/kubernetes-csi/external-snapshotter/deploy/kubernetes/snapshot-controller?ref=v7.0.1"
+$ kubectl apply -k "https://github.com/kubernetes-csi/external-snapshotter/client/config/crd?ref=v7.0.1"
+$ kubectl apply -k "https://github.com/kubernetes-csi/external-snapshotter/deploy/kubernetes/snapshot-controller?ref=v7.0.1"
 ```
 
 Then create a `VolumeSnapshotClass` that uses the KubeSAN CSI plugin:

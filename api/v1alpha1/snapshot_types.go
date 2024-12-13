@@ -22,11 +22,17 @@ type SnapshotSpec struct {
 }
 
 type SnapshotStatus struct {
+	// The generation of the spec used to produce this status.  Useful
+	// as a witness when waiting for status to change.
+	ObservedGeneration int64 `json:"observedGeneration"`
+
 	// Conditions
 	// Available: The snapshot can be sourced by volumes.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
 	// The size of the snapshot, immutable once set.
@@ -39,7 +45,7 @@ type SnapshotStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:resource:scope=Namespaced,shortName=snap;snaps,categories=kubesan;lv
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="VG",type=string,JSONPath=`.spec.vgName`,description='VG owning the snapshot'
 // +kubebuilder:printcolumn:name="Source",type=string,JSONPath=`.spec.sourceVolume`,description='Volume that this snapshot was created on'
