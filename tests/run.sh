@@ -299,6 +299,19 @@ images:
   - name: quay.io/kubesan/kubesan
     newName: ${ksanregistry}/kubesan/kubesan
     newTag: test
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: DaemonSet
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
 EOF
             kubectl apply -k ${temp_dir}
             sed -E "s/@@MODE@@/$mode/g" "${script_dir}/t-data/storage-class.yaml" | kubectl create -f -
