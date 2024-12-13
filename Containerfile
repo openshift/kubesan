@@ -6,10 +6,10 @@ RUN dnf install -qy diffutils && dnf clean all
 
 WORKDIR /kubesan
 
-# Although "make" will also do "go mod download", doing it as a separate
-# RUN now lets us cache things for faster container reuse
+# Cache the vendoring up front, as that seldom changes.
 COPY go.mod go.sum Makefile ./
-RUN go mod download
+COPY vendor vendor/
+RUN go mod verify
 
 # Although "make" will also build these tools, pre-building them as a
 # separate RUN now lets us cache things for faster container reuse
