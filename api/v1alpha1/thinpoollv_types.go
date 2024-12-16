@@ -5,8 +5,6 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	//	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
-
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 

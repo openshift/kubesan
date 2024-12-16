@@ -9,8 +9,8 @@ import (
 	"k8s.io/mount-utils"
 	"k8s.io/utils/exec"
 
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	csiclient "gitlab.com/kubesan/kubesan/internal/csi/common/client"
+	"github.com/kubesan/kubesan/internal/common/config"
+	csiclient "github.com/kubesan/kubesan/internal/csi/common/client"
 )
 
 type NodeServer struct {

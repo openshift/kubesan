@@ -15,11 +15,11 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/workers"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/config"
+	kubesanslices "github.com/kubesan/kubesan/internal/common/slices"
+	"github.com/kubesan/kubesan/internal/manager/common/util"
+	"github.com/kubesan/kubesan/internal/manager/common/workers"
 )
 
 type VolumeReconciler struct {
@@ -42,9 +42,9 @@ func SetUpVolumeReconciler(mgr ctrl.Manager) error {
 	return builder.Complete(r)
 }
 
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/status,verbs=get;update;patch,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/finalizers,verbs=update,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=volumes,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=volumes/status,verbs=get;update;patch,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=volumes/finalizers,verbs=update,namespace=kubesan-system
 
 func (r *VolumeReconciler) newBlobManager(volume *v1alpha1.Volume) (BlobManager, error) {
 	switch volume.Spec.Mode {

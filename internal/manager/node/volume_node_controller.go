@@ -16,13 +16,13 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/commands"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	"gitlab.com/kubesan/kubesan/internal/common/dm"
-	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/thinpoollv"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/commands"
+	"github.com/kubesan/kubesan/internal/common/config"
+	"github.com/kubesan/kubesan/internal/common/dm"
+	kubesanslices "github.com/kubesan/kubesan/internal/common/slices"
+	"github.com/kubesan/kubesan/internal/manager/common/thinpoollv"
+	"github.com/kubesan/kubesan/internal/manager/common/util"
 )
 
 type VolumeNodeReconciler struct {
@@ -42,8 +42,8 @@ func SetUpVolumeNodeReconciler(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=volumes/status,verbs=get;update;patch,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=volumes,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=volumes/status,verbs=get;update;patch,namespace=kubesan-system
 
 // Ensure that the volume is attached to this node
 // May fail with WatchPending if another reconcile will trigger progress

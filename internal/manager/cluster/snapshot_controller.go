@@ -5,7 +5,7 @@ package cluster
 import (
 	"context"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,9 +28,9 @@ func SetUpSnapshotReconciler(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=snapshots,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=snapshots/status,verbs=get;update;patch,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=snapshots/finalizers,verbs=update,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=snapshots,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=snapshots/status,verbs=get;update;patch,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=snapshots/finalizers,verbs=update,namespace=kubesan-system
 
 func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, errors.NewBadRequest("not implemented") // TODO

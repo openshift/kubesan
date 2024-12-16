@@ -9,8 +9,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"gitlab.com/kubesan/kubesan/internal/common/commands"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/workers"
+	"github.com/kubesan/kubesan/internal/common/commands"
+	"github.com/kubesan/kubesan/internal/manager/common/workers"
 )
 
 // Per-reconcile invocation state
@@ -77,7 +77,7 @@ func (m *LinearBlobManager) CreateBlob(ctx context.Context, name string, sizeByt
 	// Linear volumes contain the previous contents of the disk, which can
 	// be an information leak if multiple users have access to the same
 	// Volume Group. Zero the LV to avoid security issues.
-	LvmLvTagZeroed := "kubesan.gitlab.io/zeroed=true"
+	LvmLvTagZeroed := "kubesan.openshift.io/zeroed=true"
 	hasTag, err := commands.LvmLvHasTag(m.vgName, name, LvmLvTagZeroed)
 	if err != nil {
 		return err

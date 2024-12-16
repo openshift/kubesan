@@ -19,9 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/config"
+	kubesanslices "github.com/kubesan/kubesan/internal/common/slices"
 )
 
 func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {

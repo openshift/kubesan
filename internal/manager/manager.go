@@ -10,10 +10,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"gitlab.com/kubesan/kubesan/internal/common/commands"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	clustercontrollers "gitlab.com/kubesan/kubesan/internal/manager/cluster"
-	nodecontrollers "gitlab.com/kubesan/kubesan/internal/manager/node"
+	"github.com/kubesan/kubesan/internal/common/commands"
+	"github.com/kubesan/kubesan/internal/common/config"
+	clustercontrollers "github.com/kubesan/kubesan/internal/manager/cluster"
+	nodecontrollers "github.com/kubesan/kubesan/internal/manager/node"
 )
 
 var (
@@ -44,7 +44,7 @@ func RunClusterControllers() error {
 		},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "dbe08e41.kubesan.gitlab.io",
+		LeaderElectionID:       "dbe08e41.kubesan.openshift.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly

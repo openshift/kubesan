@@ -7,8 +7,8 @@ package thinpoollv
 import (
 	"context"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/config"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"

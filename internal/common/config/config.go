@@ -11,11 +11,11 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/api/v1alpha1"
 )
 
 const (
-	Domain = "kubesan.gitlab.io"
+	Domain = "kubesan.openshift.io"
 
 	// + Don't forget to update deploy/kubernetes/kustomization.yaml
 	// + when bumping this version string for a release.

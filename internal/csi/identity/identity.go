@@ -8,7 +8,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"gitlab.com/kubesan/kubesan/internal/common/config"
+	"github.com/kubesan/kubesan/internal/common/config"
 )
 
 type IdentityServer struct {

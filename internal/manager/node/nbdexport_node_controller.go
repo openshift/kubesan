@@ -14,9 +14,9 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	"gitlab.com/kubesan/kubesan/internal/common/nbd"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/config"
+	"github.com/kubesan/kubesan/internal/common/nbd"
 )
 
 type NbdExportNodeReconciler struct {
@@ -35,9 +35,9 @@ func SetUpNbdExportNodeReconciler(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports/status,verbs=get;update;patch,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports/finalizers,verbs=update,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=nbdexports,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=nbdexports/status,verbs=get;update;patch,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=nbdexports/finalizers,verbs=update,namespace=kubesan-system
 
 func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("node", config.LocalNodeName)

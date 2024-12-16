@@ -14,10 +14,10 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/mount-utils"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	kubesanslices "gitlab.com/kubesan/kubesan/internal/common/slices"
-	"gitlab.com/kubesan/kubesan/internal/csi/common/validate"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/config"
+	kubesanslices "github.com/kubesan/kubesan/internal/common/slices"
+	"github.com/kubesan/kubesan/internal/csi/common/validate"
 )
 
 func (s *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {

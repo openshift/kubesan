@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"gitlab.com/kubesan/kubesan/internal/csi"
-	"gitlab.com/kubesan/kubesan/internal/manager"
+	"github.com/kubesan/kubesan/internal/csi"
+	"github.com/kubesan/kubesan/internal/manager"
 )
 
 func badUsage() {

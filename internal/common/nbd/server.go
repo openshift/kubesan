@@ -19,8 +19,8 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/config"
 )
 
 const (

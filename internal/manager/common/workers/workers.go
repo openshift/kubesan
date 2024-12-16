@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
+	"github.com/kubesan/kubesan/internal/manager/common/util"
 )
 
 // An item of work that runs in the background and may take a long time to

@@ -12,11 +12,11 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	csiclient "gitlab.com/kubesan/kubesan/internal/csi/common/client"
-	"gitlab.com/kubesan/kubesan/internal/csi/controller"
-	"gitlab.com/kubesan/kubesan/internal/csi/identity"
-	"gitlab.com/kubesan/kubesan/internal/csi/node"
+	"github.com/kubesan/kubesan/internal/common/config"
+	csiclient "github.com/kubesan/kubesan/internal/csi/common/client"
+	"github.com/kubesan/kubesan/internal/csi/controller"
+	"github.com/kubesan/kubesan/internal/csi/identity"
+	"github.com/kubesan/kubesan/internal/csi/node"
 )
 
 func RunControllerPlugin() error {

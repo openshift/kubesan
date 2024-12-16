@@ -18,9 +18,9 @@ import (
 
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/commands"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/commands"
+	"github.com/kubesan/kubesan/internal/common/config"
 )
 
 type ThinPoolLvReconciler struct {
@@ -39,9 +39,9 @@ func SetUpThinPoolLvReconciler(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs/status,verbs=get;update;patch,namespace=kubesan-system
-// +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=thinpoollvs/finalizers,verbs=update,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=thinpoollvs,verbs=get;list;watch;create;update;patch;delete,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=thinpoollvs/status,verbs=get;update;patch,namespace=kubesan-system
+// +kubebuilder:rbac:groups=kubesan.openshift.io,resources=thinpoollvs/finalizers,verbs=update,namespace=kubesan-system
 
 func (r *ThinPoolLvReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("nodeName", config.LocalNodeName)

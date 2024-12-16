@@ -9,8 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"gitlab.com/kubesan/kubesan/internal/common/commands"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
+	"github.com/kubesan/kubesan/internal/common/commands"
+	"github.com/kubesan/kubesan/internal/common/config"
 )
 
 // This package provides the code for idempotent manipulation of

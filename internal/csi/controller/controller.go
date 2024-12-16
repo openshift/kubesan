@@ -7,7 +7,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 
-	csiclient "gitlab.com/kubesan/kubesan/internal/csi/common/client"
+	csiclient "github.com/kubesan/kubesan/internal/csi/common/client"
 )
 
 type ControllerServer struct {

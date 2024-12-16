@@ -6,11 +6,11 @@ import (
 	"context"
 	"slices"
 
-	"gitlab.com/kubesan/kubesan/api/v1alpha1"
-	"gitlab.com/kubesan/kubesan/internal/common/config"
-	"gitlab.com/kubesan/kubesan/internal/common/dm"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/thinpoollv"
-	"gitlab.com/kubesan/kubesan/internal/manager/common/util"
+	"github.com/kubesan/kubesan/api/v1alpha1"
+	"github.com/kubesan/kubesan/internal/common/config"
+	"github.com/kubesan/kubesan/internal/common/dm"
+	"github.com/kubesan/kubesan/internal/manager/common/thinpoollv"
+	"github.com/kubesan/kubesan/internal/manager/common/util"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
