@@ -29,3 +29,21 @@ ksan-ssh-into-node() {
     ksan-${deploy_tool}-ssh-into-node "$@"
 }
 export -f ksan-ssh-into-node
+
+# Usage: ksan-reimage
+# Only use for interactive debugging, after --pause-on-stage or
+# --pause-on-failure has paused the test. Rebuilds the images and loads
+# them into the cluster, useful for testing a quick compilation change.
+# Unlikely to work if deploy/ changed (including any CRD API changes).
+ksan-reimage() {
+    local -; set -e
+    __build_images
+    __log_cyan "Importing KubeSAN images into ${deploy_tool} cluster '%s'..." "${current_cluster}"
+    for image in kubesan test; do
+        # copy locally built image to remote registry
+        __${deploy_tool}_image_upload "${current_cluster}" "${image}"
+    done
+    # Tell the DaemonSet and Deployment to restart with the new image
+    kubectl delete --namespace kubesan-system --selector app.kubernetes.io/name=kubesan pod
+}
+export -f ksan-reimage
