@@ -18,6 +18,10 @@ metadata:
 spec:
   restartPolicy: Never
   hostPID: true
+  # Must run on the node with csi-controller-plugin
+  nodeName: $(kubectl get pod --namespace kubesan-system \
+        --selector app.kubernetes.io/component==csi-controller-plugin \
+        --output custom-columns=NODENAME:.spec.nodeName --no-headers)
   containers:
     - name: container
       image: $TEST_IMAGE
@@ -66,6 +70,7 @@ spec:
 EOF
 
 fail=0
+ksan-stage "Waiting for csi-sanity results..."
 ksan-wait-for-pod-to-succeed 60 csi-sanity || fail=$?
 kubectl delete configmap csi-parameters
 kubectl logs pods/csi-sanity
