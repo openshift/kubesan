@@ -13,6 +13,7 @@ metadata:
   namespace: kubesan-system
 spec:
   vgName: kubesan-vg
+  sizeBytes: 67108864
 EOF
 
 # Wait for Status.Conditions["Available"]
