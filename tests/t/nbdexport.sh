@@ -87,5 +87,3 @@ spec:
   clients: []
 "
 ksan-poll 1 30 "[[ -z \"\$(kubectl get --no-headers --namespace kubesan-system nbdexport 2>/dev/null)\" ]]"
-
-ksan-stage "Cleaning up..."

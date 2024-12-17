@@ -20,7 +20,7 @@ spec:
     command:
     - bash
     - -c
-    - | 
+    - |
       touch /mnt/test &&
       mkdir /mnt/my-dir &&
       touch /mnt/my-dir/foo
@@ -84,5 +84,3 @@ ksan-wait-for-pod-to-succeed 60 "test-pod"
 kubectl delete pod test-pod --timeout=30s
 
 ksan-delete-volume test-pvc
-
-ksan-stage 'Finishing test...'

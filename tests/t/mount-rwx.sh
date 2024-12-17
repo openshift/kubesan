@@ -85,5 +85,3 @@ ksan-stage 'Unmounting volumes from all nodes...'
 kubectl delete pod "${NODE_INDICES[@]/#/test-pod-}" --timeout=30s
 
 ksan-delete-volume test-pvc-1 test-pvc-2
-
-ksan-stage 'Finishing test...'

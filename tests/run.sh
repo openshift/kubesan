@@ -334,6 +334,7 @@ EOF
             cd "$( dirname "${test_resolved}" )"
             # shellcheck disable=SC1090
             source "${test_resolved}"
+            ksan-stage 'Finishing test...'
         fi
     )
     exit_code="$?"
