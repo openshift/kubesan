@@ -2,7 +2,7 @@
 ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETPLATFORM
-FROM golang:1.22 AS builder
+FROM quay.io/projectquay/golang:1.22 AS builder
 
 WORKDIR /kubesan
 
@@ -35,7 +35,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH make build
 # FROM quay.io/centos/centos:stream9
 # We use --platform=$TARGETPLATFORM to pull the correct arch for
 # the base image. This is needed for multi-arch builds
-FROM --platform=$TARGETPLATFORM fedora:40
+FROM --platform=$TARGETPLATFORM quay.io/fedora/fedora:40
 
 # util-linux-core, e2fsprogs, and xfsprogs are for Filesystem volume support where
 # blkid(8) and mkfs are required by k8s.io/mount-utils.
