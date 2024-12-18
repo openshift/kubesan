@@ -56,7 +56,7 @@ type NBDExportStatus struct {
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	// + TODO Add TLS support, which changes this to a nbds:// URI
 	// +kubebuilder:validation:Pattern="nbd://[0-9a-f:.]+/[-a-z0-9]+"
-	Uri string `json:"uri,omitempty"`
+	URI string `json:"uri,omitempty"`
 }
 
 // +kubebuilder:object:root=true

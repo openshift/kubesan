@@ -285,7 +285,7 @@ func StopServer(ctx context.Context, id *ServerId) error {
 
 // Return true if no new clients should connect to this export
 func ExportDegraded(export *v1alpha1.NBDExport) bool {
-	return export.Status.Uri != "" && !conditionsv1.IsStatusConditionTrue(export.Status.Conditions, conditionsv1.ConditionAvailable)
+	return export.Status.URI != "" && !conditionsv1.IsStatusConditionTrue(export.Status.Conditions, conditionsv1.ConditionAvailable)
 }
 
 // Return true if this node should stop serving the given export.

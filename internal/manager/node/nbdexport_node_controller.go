@@ -86,14 +86,14 @@ func (r *NBDExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		Export: export.Spec.Export,
 	}
 
-	if export.Status.Uri == "" {
+	if export.Status.URI == "" {
 		log.Info("Starting NBD export")
 
 		uri, err := nbd.StartServer(ctx, serverId, export.Spec.Path)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		export.Status.Uri = uri
+		export.Status.URI = uri
 		condition := conditionsv1.Condition{
 			Type:    conditionsv1.ConditionAvailable,
 			Status:  corev1.ConditionTrue,
