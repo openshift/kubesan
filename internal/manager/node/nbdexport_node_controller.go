@@ -19,19 +19,19 @@ import (
 	"gitlab.com/kubesan/kubesan/internal/common/nbd"
 )
 
-type NbdExportNodeReconciler struct {
+type NBDExportNodeReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-func SetUpNbdExportNodeReconciler(mgr ctrl.Manager) error {
-	r := &NbdExportNodeReconciler{
+func SetUpNBDExportNodeReconciler(mgr ctrl.Manager) error {
+	r := &NBDExportNodeReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.NbdExport{}).
+		For(&v1alpha1.NBDExport{}).
 		Complete(r)
 }
 
@@ -39,13 +39,13 @@ func SetUpNbdExportNodeReconciler(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports/status,verbs=get;update;patch,namespace=kubesan-system
 // +kubebuilder:rbac:groups=kubesan.gitlab.io,resources=nbdexports/finalizers,verbs=update,namespace=kubesan-system
 
-func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *NBDExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("node", config.LocalNodeName)
 
-	log.Info("NbdExportNodeReconciler entered")
-	defer log.Info("NbdExportNodeReconciler exited")
+	log.Info("NBDExportNodeReconciler entered")
+	defer log.Info("NBDExportNodeReconciler exited")
 
-	export := &v1alpha1.NbdExport{}
+	export := &v1alpha1.NBDExport{}
 	if err := r.Get(ctx, req.NamespacedName, export); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -124,7 +124,7 @@ func (r *NbdExportNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
-func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export *v1alpha1.NbdExport) error {
+func (r *NBDExportNodeReconciler) reconcileDeleting(ctx context.Context, export *v1alpha1.NBDExport) error {
 	// Mark the export unavailable, so no new clients attach
 	if !nbd.ExportDegraded(export) {
 		condition := conditionsv1.Condition{
@@ -157,7 +157,7 @@ func (r *NbdExportNodeReconciler) reconcileDeleting(ctx context.Context, export 
 	return r.Update(ctx, export)
 }
 
-func (r *NbdExportNodeReconciler) statusUpdate(ctx context.Context, export *v1alpha1.NbdExport) error {
+func (r *NBDExportNodeReconciler) statusUpdate(ctx context.Context, export *v1alpha1.NBDExport) error {
 	export.Status.ObservedGeneration = export.Generation
 	return r.Status().Update(ctx, export)
 }

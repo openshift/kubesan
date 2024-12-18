@@ -27,7 +27,7 @@ const (
 	QmpSockPath = "/run/qsd/qmp.sock"
 )
 
-// The Volume code will name the NbdExport CR Node-Volume-thin (where
+// The Volume code will name the NBDExport CR Node-Volume-thin (where
 // Volume==Export); but it is easier to pass items explicitly than trying
 // to parse items out of a CR name.
 type ServerId struct {
@@ -284,12 +284,12 @@ func StopServer(ctx context.Context, id *ServerId) error {
 }
 
 // Return true if no new clients should connect to this export
-func ExportDegraded(export *v1alpha1.NbdExport) bool {
+func ExportDegraded(export *v1alpha1.NBDExport) bool {
 	return export.Status.Uri != "" && !conditionsv1.IsStatusConditionTrue(export.Status.Conditions, conditionsv1.ConditionAvailable)
 }
 
 // Return true if this node should stop serving the given export.
-func ShouldStopServer(export *v1alpha1.NbdExport, nodes []string) bool {
+func ShouldStopServer(export *v1alpha1.NBDExport, nodes []string) bool {
 	if export == nil || export.Spec.Host != config.LocalNodeName {
 		return false
 	}

@@ -12,7 +12,7 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // +kubebuilder:validation:XValidation:rule=`has(self.path)?has(oldSelf.path):true`
-type NbdExportSpec struct {
+type NBDExportSpec struct {
 	// The short name of the LV (Volume or Snapshot) to export, write-once
 	// at creation.
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
@@ -37,7 +37,7 @@ type NbdExportSpec struct {
 	Clients []string `json:"clients,omitempty"`
 }
 
-type NbdExportStatus struct {
+type NBDExportStatus struct {
 	// The generation of the spec used to produce this status.  Useful
 	// as a witness when waiting for status to change.
 	ObservedGeneration int64 `json:"observedGeneration"`
@@ -68,22 +68,22 @@ type NbdExportStatus struct {
 // +kubebuilder:printcolumn:name="Available",type=date,JSONPath=`.status.conditions[?(@.type=="Available")].lastTransitionTime`,description='Time since export was available'
 // +kubebuilder:printcolumn:name="URI",type=string,JSONPath=`.status.uri`,description='NBD URI for the export'
 
-type NbdExport struct {
+type NBDExport struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   NbdExportSpec   `json:"spec,omitempty"`
-	Status NbdExportStatus `json:"status,omitempty"`
+	Spec   NBDExportSpec   `json:"spec,omitempty"`
+	Status NBDExportStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-type NbdExportList struct {
+type NBDExportList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []NbdExport `json:"items"`
+	Items           []NBDExport `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&NbdExport{}, &NbdExportList{})
+	SchemeBuilder.Register(&NBDExport{}, &NBDExportList{})
 }

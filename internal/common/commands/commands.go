@@ -233,7 +233,7 @@ var (
 	nbdClientConnectedPattern = regexp.MustCompile(`^Connected (/dev/\S*)`)
 )
 
-func NbdClientConnect(serverHostname string) (string, error) {
+func NBDClientConnect(serverHostname string) (string, error) {
 	// we run nbd-client in the host net namespace, so we must resolve the server's hostname here
 
 	serverIps, err := net.LookupIP(serverHostname)
@@ -258,7 +258,7 @@ func NbdClientConnect(serverHostname string) (string, error) {
 	return path, nil
 }
 
-func NbdClientDisconnect(path string) error {
+func NBDClientDisconnect(path string) error {
 	_, err := RunOnHost("nbd-client", "-d", path)
 	return err
 }
