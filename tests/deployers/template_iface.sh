@@ -13,6 +13,13 @@ requires_local_deploy=1
 # It is assume kubectl is always installed.
 requires_external_tool=1
 
+# set to 1 if the kubesan deployment should be patched to add in
+# imagePullPolicy: Always, to guarantee that a restarted kubesan pod
+# will get an updated image from the cluster's repository.  Set to 0 if
+# the default imagePullPolicy of IfNotPresent will still pick up new
+# images from the image_upload command.
+requires_image_pull_policy_always=1
+
 # set to 1 if the target cluster does not have shared storage and nbd
 # needs to be setup. This will also configure shared vgs and such.
 # set to 0 otherwise

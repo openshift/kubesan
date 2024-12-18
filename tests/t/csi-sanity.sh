@@ -18,6 +18,10 @@ metadata:
 spec:
   restartPolicy: Never
   hostPID: true
+  # Must run on the node with csi-controller-plugin
+  nodeName: $(kubectl get pod --namespace kubesan-system \
+        --selector app.kubernetes.io/component==csi-controller-plugin \
+        --output custom-columns=NODENAME:.spec.nodeName --no-headers)
   containers:
     - name: container
       image: $TEST_IMAGE
@@ -66,6 +70,7 @@ spec:
 EOF
 
 fail=0
+ksan-stage "Waiting for csi-sanity results..."
 ksan-wait-for-pod-to-succeed 60 csi-sanity || fail=$?
 kubectl delete configmap csi-parameters
 kubectl logs pods/csi-sanity
@@ -80,5 +85,9 @@ if [[ $fail != 0 &&
     echo "SKIP: partial csi-sanity failures are still expected"
 fi
 
-ksan-stage 'Finishing test...'
-exit $fail
+# Test files are sourced as part of a bigger framework where there is
+# other cleanup code to be run if this file completes without exiting.
+# Directly calling exit would bypass that subsequent code, so we only
+# want to exit early if $fail is non-zero.  Because 'set -e' is
+# active, that will happen only if this subshell has non-zero status.
+(exit $fail)

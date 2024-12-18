@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# 
+#
 # This test verifies that the volume can be accessed consecutively from each
 # node. This ensures that there are no LV activation leaks after a node
 # finishes accessing the volume.

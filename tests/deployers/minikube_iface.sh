@@ -4,6 +4,7 @@
 # minikube attributes
 requires_local_deploy=1
 requires_external_tool=1
+requires_image_pull_policy_always=0
 requires_nbd_storage=1
 requires_snapshotter=1
 support_sandbox=1

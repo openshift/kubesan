@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # This test does not use ksan-supported-modes because it directly tests the
-# NbdExport CRD without using Volumes or StorageClass at all.
+# NBDExport CRD without using Volumes or StorageClass at all.
 
-ksan-stage "Creating NbdExport..."
+ksan-stage "Creating NBDExport..."
 
-# Manually create an NbdExport CR. Most users will never do this directly,
+# Manually create an NBDExport CR. Most users will never do this directly,
 # but instead rely on KubeSAN to do it automatically based on CSI actions.
 kubectl create -f - <<EOF
 apiVersion: kubesan.gitlab.io/v1alpha1
-kind: NbdExport
+kind: NBDExport
 metadata:
   name: export
   namespace: kubesan-system
@@ -87,5 +87,3 @@ spec:
   clients: []
 "
 ksan-poll 1 30 "[[ -z \"\$(kubectl get --no-headers --namespace kubesan-system nbdexport 2>/dev/null)\" ]]"
-
-ksan-stage "Cleaning up..."

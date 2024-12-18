@@ -14,8 +14,8 @@ spec:
   names:
     categories:
     - kubesan
-    kind: NbdExport
-    listKind: NbdExportList
+    kind: NBDExport
+    listKind: NBDExportList
     plural: nbdexports
     shortNames:
     - nbd

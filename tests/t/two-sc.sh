@@ -91,5 +91,3 @@ ksan-stage 'Unmounting volumes...'
 kubectl delete pod "test-pod" --timeout=30s
 
 ksan-delete-volume "test-pvc-kubesan" "test-pvc-second"
-
-ksan-stage 'Finishing test...'
