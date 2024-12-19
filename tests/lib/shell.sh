@@ -13,11 +13,13 @@ __shell() {
         __log "$1" 'To reset the sandbox:'
         __log "$1" '  $ ksan-retry'
     else
-        __log "$1" 'To retry the current test:'
+        __log "$1" 'To retry the current test with a new cluster:'
         __log "$1" '  $ ksan-retry'
         __log "$1" 'To cancel this and all remaining tests:'
         __log "$1" '  $ ksan-cancel'
     fi
+    __log "$1" 'To load rebuilt images in current cluster (assumes no API/YAML changes):'
+    __log "$1" '  $ ksan-reimage'
 
     IFS='/' read -r -a script_path <<< "$0"
 
@@ -41,6 +43,7 @@ __shell() {
         # shellcheck disable=SC2016,SC2028
         "$BASH" --init-file <( echo "
             . \"\$HOME/.bashrc\"
+            . \"${repo_root}/tests/lib/logs.sh\"
             PROMPT_COMMAND=(
                 \"echo -en '\\001\\033[1m\\002(\$kubesan_tests_run_sh_path)\\001\\033[0m\\002 '\"
                 \"\${PROMPT_COMMAND[@]}\"

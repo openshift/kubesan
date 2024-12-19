@@ -18,6 +18,12 @@ type ThinPoolLvSpec struct {
 	// +kubebuilder:validation:XValidation:rule=oldSelf==self
 	VgName string `json:"vgName"`
 
+	// Initial size of the thin pool.  Must be a multiple of 512.
+	// +kubebuilder:validation:Minimum=512
+	// +kubebuilder:validation:MultipleOf=512
+	// +kubebuilder:validation:XValidation:rule=oldSelf==self
+	SizeBytes int64 `json:"sizeBytes"`
+
 	// May be updated at will.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -41,6 +47,9 @@ func (s *ThinPoolLvSpec) FindThinLv(name string) *ThinLvSpec {
 	return nil
 }
 
+// + TODO make this a better discriminated union; size and contents should be
+// + optional if State.Name is Deleted, and transition Deleted->Active should
+// + not be permitted.
 type ThinLvSpec struct {
 	// Should be set from creation and never updated.
 	Name string `json:"name"`
@@ -52,7 +61,9 @@ type ThinLvSpec struct {
 	ReadOnly bool `json:"readOnly"`
 
 	// Must be positive and a multiple of 512. May be updated at will, but the LVM thin LV's actual size will only
-	// ever increase.
+	// ever increase, except when marking for deletion.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:MultipleOf=512
 	SizeBytes int64 `json:"sizeBytes"`
 
 	// May be updated at will.

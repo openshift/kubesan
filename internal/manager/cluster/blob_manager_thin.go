@@ -56,14 +56,18 @@ func (m *ThinBlobManager) getThinPoolLv(ctx context.Context, name string) (*v1al
 	return thinPoolLv, nil
 }
 
-func (m *ThinBlobManager) createThinPoolLv(ctx context.Context, name string) (*v1alpha1.ThinPoolLv, error) {
+func (m *ThinBlobManager) createThinPoolLv(ctx context.Context, name string, sizeBytes int64) (*v1alpha1.ThinPoolLv, error) {
+	// Give the pool 1% more space than the volume, to account for any metadata overhead
+	// TODO: this is wasteful for large sparse volumes once auto-extend is working. Find a better heuristic for this, maybe max(min(size, 1G),size/10)
+	paddedSize := sizeBytes + ((sizeBytes/100)+511)/512*512
 	thinPoolLv := &v1alpha1.ThinPoolLv{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: config.Namespace,
 		},
 		Spec: v1alpha1.ThinPoolLvSpec{
-			VgName: m.vgName,
+			VgName:    m.vgName,
+			SizeBytes: paddedSize,
 		},
 	}
 
@@ -151,7 +155,7 @@ func (m *ThinBlobManager) forgetRemovedThinLv(ctx context.Context, thinPoolLv *v
 func (m *ThinBlobManager) CreateBlob(ctx context.Context, name string, sizeBytes int64) error {
 	log := log.FromContext(ctx).WithValues("blobName", name, "nodeName", config.LocalNodeName)
 
-	thinPoolLv, err := m.createThinPoolLv(ctx, name)
+	thinPoolLv, err := m.createThinPoolLv(ctx, name, sizeBytes)
 	if err != nil {
 		log.Error(err, "CreateBlob createThinPoolLv failed")
 		return err

@@ -218,6 +218,7 @@ fi
 # create temporary directory
 
 temp_dir="$( mktemp -d )"
+export temp_dir
 trap 'rm -fr "${temp_dir}"' EXIT
 
 # run tests
@@ -300,6 +301,23 @@ images:
     newName: ${ksanregistry}/kubesan/kubesan
     newTag: test
 EOF
+            if (( requires_image_pull_policy_always )); then
+                cat >>${temp_dir}/kustomization.yaml <<EOF
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: DaemonSet
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+EOF
+            fi
             kubectl apply -k ${temp_dir}
             sed -E "s/@@MODE@@/$mode/g" "${script_dir}/t-data/storage-class.yaml" | kubectl create -f -
         fi
@@ -316,6 +334,7 @@ EOF
             cd "$( dirname "${test_resolved}" )"
             # shellcheck disable=SC1090
             source "${test_resolved}"
+            ksan-stage 'Finishing test...'
         fi
     )
     exit_code="$?"

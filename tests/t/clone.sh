@@ -117,5 +117,3 @@ ksan-wait-for-pod-to-succeed 60 test-pod
 kubectl delete pod test-pod --timeout=30s
 
 ksan-delete-volume test-pvc-2 test-pvc-3
-
-ksan-stage 'Finishing test...'

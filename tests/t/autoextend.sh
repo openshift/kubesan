@@ -24,5 +24,3 @@ kubectl delete vs test-vs-1 --timeout=60s
 
 ksan-stage 'Deleting second snapshot of volume 1...'
 kubectl delete vs test-vs-2 --timeout=60s
-
-ksan-stage 'Finishing test...'
